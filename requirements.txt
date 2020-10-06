@@ -1,0 +1,9 @@
+click>=7.1.2
+immutabledict>=1.0.0
+Keras>=2.4.3
+more-itertools>=8.5.0
+numpy # No version specified because of Tensorflow and MKL shenanigans
+scipy>=1.5.2
+tensorflow>=2.3.1
+flask>=1.1.2
+requests==2.24.0
