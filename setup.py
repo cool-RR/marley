@@ -23,6 +23,7 @@ setuptools.setup(
     packages=setuptools.find_packages(exclude=['tests*']),
     install_requires=read_file('requirements.txt'),
     include_package_data=True, # For including the frontend files
+    python_requires='>=3.8',
     extras_require={
         'tests': {
             'pytest',
