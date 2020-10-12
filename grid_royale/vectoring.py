@@ -18,6 +18,8 @@ from . import base
 
 @dataclasses.dataclass(frozen=True)
 class Vector:
+    '''A vector in 2 dimensions, e.g. Vector(-2, 3)'''
+
     x: int
     y: int
 
@@ -25,7 +27,7 @@ class Vector:
 
     def __matmul__(self, other: Vector) -> int:
         '''Get Levenshtein distance between two vectors'''
-        return sum(map(abs, itertools.starmap(operator.sub, zip(self, other))))
+        return sum(map(abs, map(operator.sub, self, other)))
 
     def __neg__(self) -> Vector:
         return type(self)(x=-self.x, y=-self.y)
