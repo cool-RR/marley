@@ -76,6 +76,7 @@ class RandomStrategy(Strategy):
 
 
 class QStrategy(Strategy):
+    '''A strategy that calculates q-value for observation-actions.'''
 
     # @abc.abstractmethod
     # def get_observation_v(self, observation: Observation) -> numbers.Real:
