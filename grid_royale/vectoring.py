@@ -137,6 +137,7 @@ class Position(Vector):
 PositionLike = Union[Position, Tuple[int, int]]
 
 class Translation(Vector):
+'''A Translation (i.e. movement) in 2-dimensional space.'''
     def __mul__(self, number: int) -> Translation:
         assert isinstance(number, int)
         return type(self)(x=(self.x * number), y=(self.y * number))
