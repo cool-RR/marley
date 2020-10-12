@@ -152,6 +152,7 @@ class Translation(Vector):
 
 
 class Vicinity(Translation):
+    '''A movement like a king in chess, i.e. 8 possible positions around the origin.'''
     all_vicinities: Tuple[Vicinity]
     def __init__(self, x: int, y: int):
         assert {0} != set((x, y)) <= {-1, 0, 1}
