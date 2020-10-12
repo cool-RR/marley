@@ -118,6 +118,7 @@ class State(abc.ABC):
     @staticmethod
     @abc.abstractmethod
     def make_initial() -> State:
+        '''Create an initial world state that we can start playing with.'''
         raise NotImplementedError
 
 
