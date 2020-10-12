@@ -103,7 +103,7 @@ for action in Action:
 
 @dataclasses.dataclass(order=True, frozen=True)
 class Bullet:
-'''A bullet that's shot by one player and might hit another player.'''
+    '''A bullet that's shot by one player and might hit another player.'''
     position: Position
     direction: Step
 
