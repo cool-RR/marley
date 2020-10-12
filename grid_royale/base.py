@@ -116,6 +116,7 @@ class Bullet:
 
 
 class _BaseGrid:
+    '''Base class that represents a 2-dimensional square grid.'''
     board_size: int
     def __contains__(self, position: Position) -> bool:
         return 0 <= min(position) <= max(position) <= self.board_size - 1
