@@ -31,6 +31,11 @@ from . import utils
 
 
 class Strategy(abc.ABC):
+    '''
+    Logic for deciding which action to take in a given observation.
+   
+    Your fancy machine-learning code goes here.
+    '''
 
     State: Type[State]
 
