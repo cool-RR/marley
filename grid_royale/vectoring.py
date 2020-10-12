@@ -83,6 +83,7 @@ class Position(Vector):
 
 
     def in_square(self, square_size: int) -> bool:
+      '''Check whether the position is in bounds of a square of the given size.'''
         return ((0 <= self.x <= square_size - 1) and
                 (0 <= self.y <= square_size - 1))
 
