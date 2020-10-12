@@ -18,4 +18,5 @@ class IllegalAction(GameyException):
 
 
 class GameOver(GameyException):
+    '''You tried to go forward in a game that's already over.'''
     pass
