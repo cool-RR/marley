@@ -24,6 +24,7 @@ class LastDetectingIterator(more_itertools.peekable):
 
 
 def cute_div(x: numbers.Number, y: numbers.Number) -> numbers.Number:
+    '''Divide x by y, allowing to divide by 0 and giving infinity with the right sign.'''
     try:
         return x / y
     except ZeroDivisionError:
