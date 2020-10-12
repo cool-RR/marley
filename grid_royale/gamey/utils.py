@@ -22,7 +22,7 @@ class LastDetectingIterator(more_itertools.peekable):
         else:
             return False
 
-
+#Divide x by y, allowing to divide by 0 and giving infinity with the right sign.
 def cute_div(x: numbers.Number, y: numbers.Number) -> numbers.Number:
     try:
         return x / y
