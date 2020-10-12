@@ -101,6 +101,7 @@ class Observation(abc.ABC):
 
     @abc.abstractmethod
     def to_neurons(self) -> np.ndarray:
+        '''Represent the observation as an array of numbers for a neural network.'''
         raise NotImplementedError
 
 PlayerId = TypeVar('PlayerId', bound=Hashable)
