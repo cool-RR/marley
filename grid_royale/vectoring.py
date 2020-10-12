@@ -60,7 +60,7 @@ class Position(Vector):
     @staticmethod
     def iterate_all(state_or_board_size: Union[base._BaseGrid, int], /):
         '''Iterate over all positions in a board of the given size.'''
-        
+
         board_size: int = (state_or_board_size if isinstance(state_or_board_size, int)
                            else state_or_board_size.board_size)
         for y, x in itertools.product(range(board_size), repeat=2):
@@ -139,7 +139,7 @@ class Position(Vector):
 PositionLike = Union[Position, Tuple[int, int]]
 
 class Translation(Vector):
-'''A Translation (i.e. movement) in 2-dimensional space.'''
+    '''A Translation (i.e. movement) in 2-dimensional space.'''
     def __mul__(self, number: int) -> Translation:
         assert isinstance(number, int)
         return type(self)(x=(self.x * number), y=(self.y * number))
