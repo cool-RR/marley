@@ -195,6 +195,9 @@ class AlwaysStickStrategy(BlackjackStrategy):
                 else BlackjackAction.wait)
 
 class ThresholdStrategy(BlackjackStrategy):
+    '''
+    A strategy that sticks if the sum of cards is below the given threshold.
+    '''
     def __init__(self, threshold: int = 17) -> None:
         self.threshold = threshold
 
