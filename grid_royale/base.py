@@ -558,8 +558,9 @@ class State(_BaseGrid, gamey.State):
 
         return state
 
-
+    @property
     def ascii(self) -> None:
+        '''A nice ascii representation of all the objects in the state.'''
         string_io = io.StringIO()
         for position in Position.iterate_all(self):
             if position.x == 0 and position.y != 0:
