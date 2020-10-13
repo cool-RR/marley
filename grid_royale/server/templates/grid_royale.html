@@ -1,0 +1,68 @@
+<!doctype html>
+<!-- Copyright 2020 Ram Rachum and collaborators. -->
+<!-- This program is distributed under the MIT license. -->
+<html>
+
+<head>
+    <meta charset='utf-8'>
+    <title>GridRoyale</title>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/brython/3.8.10/brython.min.js'></script>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/brython/3.8.10/brython_stdlib.min.js'>
+    </script>
+    <link href='https://fonts.googleapis.com/css2?family=Audiowide&display=swap' rel='stylesheet'>
+    <link href='/static/styles.css' rel='stylesheet' />
+
+    </style>
+</head>
+
+
+<body onload='brython()'>
+
+  <script type='text/javascript' src='/static/grid_royale.js'></script>
+  <script type='text/python' src='/static/grid_royale.py'></script>
+  <h1>
+    <a href='https://github.com/cool-RR/grid_royale' id='h1-link'>
+      GridRoyale
+    </a>
+  </h1>
+  <div id='loading'>
+    Loading, <br/>
+    Please wait...
+  </div>
+  <div id='main_container'>
+    <canvas id='canvas' width='600' height='600'></canvas>
+    <div class='controls'>
+      <div id='game-selector-container'>
+        Select run:
+        <select id='game-selector'>
+          <option value='' disabled selected>Loading runs...</option>
+        </select>
+      </div>
+    </div>
+    <div class='controls'>
+      <div id='timepoint-text-container'>
+        Current timepoint<br />
+        <div id='timepoint-text'>
+          000000
+        </div>
+      </div>
+      <button id='play-pause'>
+        <img src='/static/play.png'>
+      </button>
+      <div id='speed-slider-container'>
+        Playback speed<br />
+        <input id='speed-slider' type='range' name='speed-slider' min='0.2' max='8' step='0.1' value='2'>
+      </div>
+      <button id='keyboard-help-button'>Keyboard<br/>help</button>
+      <button id='update-button'>Update</button>
+    </div>
+    <input id='timepoint-slider' type='range' name='timepoint-slider' min='0' max='1' value='0'>
+    <div>
+      <b>What is this?</b> See more information at <a href='https://github.com/cool-RR/grid_royale'>https://github.com/cool-RR/grid_royale</a>
+    </div>
+  </div>
+
+
+</body>
+
+</html>

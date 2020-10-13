@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import functools
 import re
 import json
 import urllib.parse
@@ -32,40 +31,10 @@ app = flask.Flask('grid_royale')
 
 frontend_folder = pathlib.Path(__file__).parent / 'frontend'
 
-@functools.lru_cache()
-def read_file(file_name) -> str:
-    assert file_name in ('grid_royale.html', 'grid_royale.js', 'grid_royale.py')
-    return (frontend_folder / file_name).read_text()
 
-@functools.lru_cache()
-def read_file_binary(file_name) -> str:
-    assert file_name in ('play.png', 'pause.png')
-    return (frontend_folder / file_name).read_bytes()
-
-
-### Defining views for simple static files: ###################################
-#                                                                             #
 @app.route('/')
 def index() -> str:
-    return read_file('grid_royale.html')
-
-@app.route('/grid_royale.py')
-def grid_royale_py() -> str:
-    return read_file('grid_royale.py')
-
-@app.route('/grid_royale.js')
-def grid_royale_js() -> str:
-    return read_file('grid_royale.js')
-
-@app.route('/play.png')
-def play_png() -> str:
-    return read_file_binary('play.png')
-
-@app.route('/pause.png')
-def pause_png() -> str:
-    return read_file_binary('pause.png')
-#                                                                             #
-### Finished defining views for simple static files. ##########################
+    return flask.render_template('grid_royale.html')
 
 
 @app.route('/shutdown', methods=('POST',))
@@ -125,5 +94,3 @@ class ServerThread(threading.Thread):
     def url(self):
         host = '127.0.0.1' if self.host == '0.0.0.0' else self.host
         return make_url_from_host_port(host, self.port)
-
-
