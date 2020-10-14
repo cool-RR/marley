@@ -131,7 +131,7 @@ class ModelFreeLearningStrategy(QStrategy):
                 self.model.set_weights(weights)
                 self._fit_future = None
 
-            old_fuck, new_fuck = np.split(
+            wip_q_values, new_q_values = np.split(
                 self.model.predict(
                     np.concatenate((old_observation_neurons, new_observation_neurons))
                 ),
@@ -142,13 +142,13 @@ class ModelFreeLearningStrategy(QStrategy):
             action_indices = np.dot(action_neurons, range(n_actions)).astype(np.int32)
 
             batch_index = np.arange(n_data_points, dtype=np.int32)
-            old_fuck[batch_index, action_indices] = (
-                rewards + self.gamma * np.max(new_fuck, axis=1) * are_not_ends
+            wip_q_values[batch_index, action_indices] = (
+                rewards + self.gamma * np.max(new_q_values, axis=1) * are_not_ends
             )
 
             fit_arguments = {
                 'x': old_observation_neurons,
-                'y': old_fuck,
+                'y': wip_q_values,
                 'epochs': max(1, int(self.n_epochs *
                                      (n_data_points / self.training_data.max_size))),
                 'verbose': 0,
