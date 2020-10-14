@@ -175,9 +175,7 @@ class AlwaysHitStrategy(BlackjackStrategy):
                 else BlackjackAction.wait)
 
 class AlwaysStickStrategy(BlackjackStrategy):
-        '''
-        A strategy that always sticks, no matter what.
-        '''
+    '''A strategy that always sticks, no matter what.'''
     def decide_action_for_observation(self, observation: BlackjackState,
                                        extra: Any = None) -> BlackjackAction:
         return (BlackjackAction.stick if (BlackjackAction.stick in observation.legal_actions)
