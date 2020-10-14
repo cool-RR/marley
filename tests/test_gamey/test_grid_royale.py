@@ -7,7 +7,8 @@ from grid_royale import gamey
 
 def test_simple():
     culture = Culture(n_players=1, board_size=4)
-    state_0 = culture.make_initial()
+    state_0 = culture.make_initial(concurrent_food_tiles=2)
+    assert len(state_0.food_positions) == 2
     (letter,) = culture.player_id_to_strategy
     assert isinstance(state_0, State)
     assert state_0.board_size == 4
