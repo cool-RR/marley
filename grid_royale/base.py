@@ -647,9 +647,11 @@ class State(_BaseGrid, gamey.State):
 class Culture(gamey.Culture):
 
     def __init__(self, n_players: int = 20, *, board_size: int = 20,
+                 concurrent_food_tiles: int = 40,
                  core_strategies: Optional[Sequence[_GridRoyaleStrategy]] = None) -> None:
 
         self.board_size = board_size
+        self.default_concurrent_food_tiles = concurrent_food_tiles
         self.core_strategies = tuple(core_strategies or (Strategy(self) for _
                                                          in range(N_CORE_STRATEGIES)))
         self.strategies = tuple(more_itertools.islice_extended(
@@ -659,8 +661,11 @@ class Culture(gamey.Culture):
                                player_id_to_strategy=dict(zip(LETTERS, self.strategies)))
 
 
-    def make_initial(self) -> State:
-        return State.make_initial(self, board_size=self.board_size)
+    def make_initial(self, *, concurrent_food_tiles: Optional[int] = None) -> State:
+        concurrent_food_tiles = (concurrent_food_tiles if concurrent_food_tiles is not None
+                                 else self.default_concurrent_food_tiles)
+        return State.make_initial(self, board_size=self.board_size,
+                                  concurrent_food_tiles=concurrent_food_tiles)
 
 
 
