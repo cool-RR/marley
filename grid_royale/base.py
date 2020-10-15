@@ -16,7 +16,7 @@ import logging
 import numbers
 import io
 import collections
-from typing import (Optional, Tuple, Union, Container, Hashable, Iterator,
+from typing import (Optional, Tuple, Union, Container, Hashable, Iterator, Mapping,
                     Iterable, Any, Dict, FrozenSet, Callable, Type, Sequence)
 import dataclasses
 import datetime as datetime_module
