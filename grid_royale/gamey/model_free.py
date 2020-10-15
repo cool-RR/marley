@@ -196,7 +196,7 @@ class ModelFreeLearningStrategy(QStrategy):
                                        forced_epsilon: Optional[numbers.Real] = None,
                                        extra: Optional[np.ndarray] = None) -> Action:
         epsilon = self.epsilon if forced_epsilon is None else forced_epsilon
-        if 0 < epsilon > random.random():
+        if 0 < epsilon > random.random(): # Clever shortcut-logic optimization.
             return random.choice(observation.legal_actions)
         else:
             q_map = self.get_qs_for_observation(observation) if extra is None else extra
