@@ -150,7 +150,7 @@ class Observation(_BaseGrid, gamey.Observation):
 
     @property
     def legal_actions(self) -> Tuple[Action, ...]:
-        actions = list(Action.all_shoot_actions)
+        actions = list(Action.all_shoot_actions) if self.state.allow_shooting else []
         if self.position.y >= 1:
             actions.append(Action.up)
         if self.position.x <= self.board_size - 2:
@@ -323,12 +323,13 @@ class State(_BaseGrid, gamey.State):
 
     def __init__(self, culture: Culture, *, board_size: int,
                  player_id_to_observation: ImmutableDict[str, Observation],
-                 food_positions: FrozenSet[Position],
+                 food_positions: FrozenSet[Position], allow_shooting: bool = True,
                  bullets: ImmutableDict[Position, FrozenSet[Bullet]] = ImmutableDict()) -> None:
         self.culture = culture
         assert len(self.culture.core_strategies) == N_CORE_STRATEGIES
         self.player_id_to_observation = player_id_to_observation
         self.bullets = bullets
+        self.allow_shooting = allow_shooting
         assert all(bullets.values()) # No empty sets in this bad boy.
         self.all_bullets = frozenset(itertools.chain.from_iterable(bullets.values()))
         self.food_positions = food_positions
@@ -357,7 +358,7 @@ class State(_BaseGrid, gamey.State):
 
     @staticmethod
     def make_initial(culture: Culture, *, board_size: int, starting_score: int = 0,
-                     concurrent_food_tiles: int = 40) -> State:
+                     allow_shooting: bool = True, concurrent_food_tiles: int = 40) -> State:
 
         n_players = len(culture.strategies)
         random_positions_firehose = utils.iterate_deduplicated(
@@ -382,6 +383,7 @@ class State(_BaseGrid, gamey.State):
             board_size=board_size,
             player_id_to_observation=ImmutableDict(player_id_to_observation),
             food_positions=food_positions,
+            allow_shooting=allow_shooting,
         )
 
         for observation in player_id_to_observation.values():
@@ -550,7 +552,8 @@ class State(_BaseGrid, gamey.State):
         state = State(
             culture=self.culture, board_size=self.board_size,
             player_id_to_observation=ImmutableDict(player_id_to_observation),
-            food_positions=frozenset(wip_food_positions), bullets=bullets
+            food_positions=frozenset(wip_food_positions), bullets=bullets,
+            allow_shooting=self.allow_shooting
         )
 
         for observation in player_id_to_observation.values():
@@ -647,10 +650,11 @@ class State(_BaseGrid, gamey.State):
 class Culture(gamey.Culture):
 
     def __init__(self, n_players: int = 20, *, board_size: int = 20,
-                 concurrent_food_tiles: int = 40,
+                 allow_shooting: bool = True, concurrent_food_tiles: int = 40,
                  core_strategies: Optional[Sequence[_GridRoyaleStrategy]] = None) -> None:
 
         self.board_size = board_size
+        self.allow_shooting = allow_shooting
         self.default_concurrent_food_tiles = concurrent_food_tiles
         self.core_strategies = tuple(core_strategies or (Strategy(self) for _
                                                          in range(N_CORE_STRATEGIES)))
@@ -664,8 +668,10 @@ class Culture(gamey.Culture):
     def make_initial(self, *, concurrent_food_tiles: Optional[int] = None) -> State:
         concurrent_food_tiles = (concurrent_food_tiles if concurrent_food_tiles is not None
                                  else self.default_concurrent_food_tiles)
-        return State.make_initial(self, board_size=self.board_size,
-                                  concurrent_food_tiles=concurrent_food_tiles)
+        return State.make_initial(
+            self, board_size=self.board_size, allow_shooting=self.allow_shooting,
+            concurrent_food_tiles=concurrent_food_tiles
+        )
 
 
 
@@ -787,13 +793,15 @@ from . import server
 
 
 @grid_royale.command()
+@click.option('--allow-shooting/--disallow-shooting', default=True)
 @click.option('--browser/--no-browser', 'open_browser', default=True)
 @click.option('--host', default=server.DEFAULT_HOST)
 @click.option('--port', default=server.DEFAULT_PORT)
 @click.option('--max-length', default=None, type=int)
-def play(*, open_browser: bool, host: str, port: str, max_length: Optional[int] = None) -> None:
+def play(*, allow_shooting: bool, open_browser: bool, host: str, port: str,
+         max_length: Optional[int] = None) -> None:
     with server.ServerThread(host=host, port=port, quiet=True) as server_thread:
-        culture = Culture()
+        culture = Culture(allow_shooting=allow_shooting)
         state = culture.make_initial()
 
         if open_browser:
