@@ -52,6 +52,9 @@ def update_button_handler(event=None) -> None:
     update_game_names()
     timeline.transition_fetcher.update()
 
+def focus_game_selector():
+    favorites.game_selector.focus()
+
 
 def keyboard_help_button_handler(event=None) -> None:
     window.alert(keyboard_help_text)
@@ -70,6 +73,8 @@ L Go 5 states forward
 
 I  Hold to slow down playback
 O  Hold to speed up playback
+
+S  Focus on game selector
 
 ?  Show this help screen
 '''
@@ -277,6 +282,7 @@ key_bindings = {
     'o': lambda: timeline.change_speed(0.2),
 
     'u': update_button_handler,
+    's': focus_game_selector,
 
     '?': keyboard_help_button_handler,
 }
