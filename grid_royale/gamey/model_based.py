@@ -43,8 +43,7 @@ class ModelBasedEpisodicLearningStrategy(Strategy):
         self.action_observation_chains_lists = collections.defaultdict(list)
 
 
-    def decide_action_for_observation(self, observation: Observation,
-                                       extra: Any = None) -> Action:
+    def decide_action_for_observation(self, observation: Observation) -> Action:
         action = max(
             observation.legal_actions,
             key=lambda action: self.reward_map.get_ucb(

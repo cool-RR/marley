@@ -169,15 +169,13 @@ class BlackjackStrategy(gamey.SinglePlayerStrategy):
 
 
 class AlwaysHitStrategy(BlackjackStrategy):
-    def decide_action_for_observation(self, observation: BlackjackState,
-                                       extra: Any = None) -> BlackjackAction:
+    def decide_action_for_observation(self, observation: BlackjackState) -> BlackjackAction:
         return (BlackjackAction.hit if (BlackjackAction.hit in observation.legal_actions)
                 else BlackjackAction.wait)
 
 class AlwaysStickStrategy(BlackjackStrategy):
     '''A strategy that always sticks, no matter what.'''
-    def decide_action_for_observation(self, observation: BlackjackState,
-                                       extra: Any = None) -> BlackjackAction:
+    def decide_action_for_observation(self, observation: BlackjackState) -> BlackjackAction:
         return (BlackjackAction.stick if (BlackjackAction.stick in observation.legal_actions)
                 else BlackjackAction.wait)
 
@@ -188,8 +186,7 @@ class ThresholdStrategy(BlackjackStrategy):
     def __init__(self, threshold: int = 17) -> None:
         self.threshold = threshold
 
-    def decide_action_for_observation(self, observation: BlackjackState,
-                                       extra: Any = None) -> BlackjackAction:
+    def decide_action_for_observation(self, observation: BlackjackState) -> BlackjackAction:
         if BlackjackAction.wait in observation.legal_actions:
             return BlackjackAction.wait
         elif observation.player_sum >= self.threshold:
@@ -212,12 +209,18 @@ class ModelFreeLearningStrategy(BlackjackStrategy, gamey.ModelFreeLearningStrate
     pass
 
 
+class ModelFreeLearningCulture(gamey.ModelFreeLearningCulture, gamey.SinglePlayerCulture):
+    def __init__(self, *, strategy) -> None:
+        gamey.SinglePlayerCulture.__init__(self, state_type=BlackjackState, strategy=strategy)
+
+
+
 
 def demo(n_training_games: int) -> None:
     print('Starting Blackjack demo.')
 
     # model_free_learning_strategy.get_score(n=1_000)
-    learning_strategies = [
+    learning_strategies = model_based_episodic_learning_strategy, model_free_learning_strategy = [
         ModelBasedEpisodicLearningStrategy(),
         ModelFreeLearningStrategy(gamma=1),
     ]
@@ -231,12 +234,14 @@ def demo(n_training_games: int) -> None:
         *learning_strategies,
     ]
 
-    print(f"Let's compare {len(strategies)} Blackjack strategies. First we'll play 500 games "
+    model_free_learning_culture = ModelFreeLearningCulture(strategy=model_free_learning_strategy)
+
+    print(f"Let's compare {len(strategies)} Blackjack strategies. First we'll play 200 games "
           f"on each strategy and observe the scores:\n")
 
     def print_summary():
         strategies_and_scores = sorted(
-            ((strategy, strategy.get_score(500)) for strategy in strategies),
+            ((strategy, strategy.get_score(200)) for strategy in strategies),
             key=lambda x: x[1], reverse=True
         )
         for strategy, score in strategies_and_scores:
@@ -246,15 +251,23 @@ def demo(n_training_games: int) -> None:
     print_summary()
 
     print(f"\nThat's nice. Now we want to see that the learning strategies can be better than "
-          f"the dumb ones, if we give them time to learn. Let's play {n_training_games:,} "
-          "games on each of the two learning strategies.\n")
+          f"the dumb ones, if we give them time to learn.")
 
-    for learning_strategy in learning_strategies:
-        learning_strategy: gamey.Strategy
-        print(f'Training {learning_strategy} on {n_training_games:,} games... ', end='')
-        sys.stdout.flush()
-        learning_strategy.get_score(n=n_training_games)
-        print('Done.')
+    print(f'Training {model_based_episodic_learning_strategy} on {n_training_games:,} games... ',
+          end='')
+    sys.stdout.flush()
+    model_based_episodic_learning_strategy.get_score(n=n_training_games)
+    print('Done.')
+
+    print(f'Training {model_free_learning_strategy} on {n_training_games:,} games',
+          end='')
+    sys.stdout.flush()
+    n_phases = 10
+    for _ in range(n_phases):
+        for _ in model_free_learning_culture.multi_game_train(
+                                                            n_games=(n_training_games // n_phases)):
+            print('.', end='')
+    print(' Done.')
 
     print("\nNow let's run the old comparison again, and see what's the new score for the "
           "learning strategies:\n")
@@ -267,6 +280,6 @@ if __name__ == '__main__':
     if len(sys.argv) >= 2:
         n_training_games = int(sys.argv[1])
     else:
-        n_training_games = 1_000
+        n_training_games = 10_000
     demo(n_training_games=n_training_games)
 

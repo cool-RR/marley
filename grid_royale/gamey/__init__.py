@@ -3,7 +3,7 @@
 
 from .base import Observation, State, SinglePlayerState, Action, ActionObservation
 from .strategizing import Strategy, RandomStrategy, SinglePlayerStrategy, QStrategy
-from .culturing import Culture, SinglePlayerCulture
+from .culturing import Culture, SinglePlayerCulture, ModelFreeLearningCulture
 from .model_free import ModelFreeLearningStrategy
 from .model_based import ModelBasedEpisodicLearningStrategy
 from . import exceptions
