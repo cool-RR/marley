@@ -42,7 +42,7 @@ FOOD_REWARD = 10
 VISION_RANGE = 4
 VISION_SIZE = VISION_RANGE * 2 + 1
 
-N_CORE_STRATEGIES = 5
+N_CORE_STRATEGIES = 1
 
 LETTERS = string_module.ascii_uppercase
 
@@ -142,7 +142,7 @@ class _BaseGrid:
 class Observation(_BaseGrid, gamey.Observation):
 
     is_end = False
-    legal_actions = Action.all_actions
+    legal_actions = Action.all_move_actions # + Action.all_shoot_actions
     legal_move_actions = Action.all_move_actions
 
     def __init__(self, state: Optional[State], position: Position, *,
@@ -702,7 +702,7 @@ class State(_BaseGrid, gamey.State):
 
 class Culture(gamey.ModelFreeLearningCulture):
 
-    def __init__(self, n_players: int = 20, *, board_size: int = 20,
+    def __init__(self, n_players: int = 1, *, board_size: int = 20,
                  allow_shooting: bool = True, concurrent_food_tiles: int = 40,
                  core_strategies: Optional[Sequence[_GridRoyaleStrategy]] = None) -> None:
 
