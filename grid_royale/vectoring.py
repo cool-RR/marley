@@ -100,7 +100,7 @@ class Position(Vector):
                 position += translation
 
 
-    @functools.lru_cache(maxsize=None)
+    @functools.cache
     def field_of_view(self, vicinity: Vicinity, board_size: int) -> Tuple[FrozenSet[Position]]:
         result = []
         count_from_one = itertools.count(start=1)

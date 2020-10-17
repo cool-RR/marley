@@ -16,6 +16,7 @@ from typing import Iterable, Iterator, Hashable
 
 import tensorflow.python._tf_stack
 
+from . import pycompat
 from . import make_keras_picklable
 
 
