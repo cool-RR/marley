@@ -135,6 +135,8 @@ class _BaseGrid:
 class Observation(_BaseGrid, gamey.Observation):
 
     is_end = False
+    legal_actions = Action.all_actions
+    legal_move_actions = Action.all_move_actions
 
     def __init__(self, state: Optional[State], position: Position, *,
                  letter: str, score: int, last_action: Optional[Action],
@@ -146,24 +148,6 @@ class Observation(_BaseGrid, gamey.Observation):
         self.score = score
         self.reward = reward
         self.last_action = last_action
-
-
-    @property
-    def legal_actions(self) -> Tuple[Action, ...]:
-        actions = list(Action.all_shoot_actions) if self.state.allow_shooting else []
-        if self.position.y >= 1:
-            actions.append(Action.up)
-        if self.position.x <= self.board_size - 2:
-            actions.append(Action.right)
-        if self.position.y <= self.board_size - 2:
-            actions.append(Action.down)
-        if self.position.x >= 1:
-            actions.append(Action.left)
-        return tuple(actions)
-
-    @property
-    def legal_move_actions(self) -> Tuple[Action, ...]:
-        return tuple(action for action in self.legal_actions if (action.move is not None))
 
 
     @property
@@ -406,20 +390,22 @@ class State(_BaseGrid, gamey.State):
                 new_player_position_to_olds[old_player_position].add(old_player_position)
 
         ############################################################################################
-        ### Figuring out which players collided into each other: ###################################
+        ### Figuring out which players collided: ###################################################
         #                                                                                          #
-        # There are three types of collisions:
-        # 1. Two or more players that try to move into the same position.
-        # 2. Two players that are trying to move into each other's positions.
-        # 3. Any players that are trying to move into the old position of a player that had one
+        # There are four types of collisions:
+        # 1. A player trying to move out of the board.
+        # 2. Two or more players that try to move into the same position.
+        # 3. Two players that are trying to move into each other's positions.
+        # 4. Any players that are trying to move into the old position of a player that had one
         #    of the two collisions above, and is therefore still occupying that position.
 
         collided_player_positions = set()
+
+
         while True:
             for new_player_position, old_player_positions in new_player_position_to_olds.items():
-                if len(old_player_positions) >= 2:
-                    # Yeehaw, we have a collision! This is either type 1 or type 3. Let's punish
-                    # everyone!
+                if new_player_position not in self:
+                    # Type 1 collision.
                     collided_player_positions |= old_player_positions
                     del new_player_position_to_olds[new_player_position]
                     for old_player_position in old_player_positions:
@@ -428,10 +414,22 @@ class State(_BaseGrid, gamey.State):
                     # We modified the dict while iterating, let's restart the loop:
                     break
 
-                elif (len(old_player_positions) == 1 and
+
+                if len(old_player_positions) >= 2:
+                    # This is either a type 2 or a type 4 collision.
+                    collided_player_positions |= old_player_positions
+                    del new_player_position_to_olds[new_player_position]
+                    for old_player_position in old_player_positions:
+                        new_player_position_to_olds[old_player_position].add(old_player_position)
+
+                    # We modified the dict while iterating, let's restart the loop:
+                    break
+
+                if (len(old_player_positions) == 1 and
                     ((old_player_position := more_itertools.one(old_player_positions)) !=
                       new_player_position) and new_player_position_to_olds.get(
                                                old_player_position, None) == {new_player_position}):
+                    # Type 3 collision.
                     collided_player_positions |= {old_player_position, new_player_position}
                     new_player_position_to_olds[new_player_position] = {new_player_position}
                     new_player_position_to_olds[old_player_position] = {old_player_position}
@@ -443,7 +441,7 @@ class State(_BaseGrid, gamey.State):
                 # We already found all collisions, if any.
                 break
         #                                                                                          #
-        ### Finished figuring out which players collided into each other. ##########################
+        ### Finished figuring out which players collided. ##########################################
         ############################################################################################
 
         new_player_position_to_old = {
