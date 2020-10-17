@@ -17,7 +17,7 @@ import numbers
 import io
 import collections
 from typing import (Optional, Tuple, Union, Container, Hashable, Iterator, Mapping,
-                    Iterable, Any, Dict, FrozenSet, Callable, Type, Sequence)
+                    Iterable, Any, Dict, FrozenSet, Callable, Type, Sequence, Set)
 import dataclasses
 import datetime as datetime_module
 import click
@@ -62,16 +62,17 @@ _action_neuron_cache = {}
 class Action(gamey.Action):
     move: Optional[Step]
     shoot: Optional[Step]
+    wall: Optional[Step]
 
     def __post_init__(self):
-        if tuple(self).count(None) != 1:
+        if tuple(self).count(None) != 2:
             raise ValueError
 
-    __iter__ = lambda self: iter((self.move, self.shoot))
+    __iter__ = lambda self: iter((self.move, self.shoot, self.wall))
 
 
     def _to_neurons(self) -> np.ndarray:
-        result = np.zeros(8, dtype=np.float64)
+        result = np.zeros(12, dtype=np.float64)
         result[Action.all_actions.index(self)] = 1
         return result
 
@@ -82,20 +83,26 @@ class Action(gamey.Action):
     def name(self) -> str:
         if self.move is not None:
             return self.move.name
-        else:
+        elif self.shoot is not None:
             return f'shoot_{self.shoot.name}'
+        else:
+            return f'wall_{self.wall.name}'
 
 
 
 (Action.up, Action.right, Action.down, Action.left) = \
-    Action.all_move_actions = (Action(Step.up, None), Action(Step.right, None),
-                                   Action(Step.down, None), Action(Step.left, None))
+    Action.all_move_actions = (Action(Step.up, None, None), Action(Step.right, None, None),
+                                   Action(Step.down, None, None), Action(Step.left, None, None))
 
 (Action.shoot_up, Action.shoot_right, Action.shoot_down, Action.shoot_left) = \
-    Action.all_shoot_actions = (Action(None, Step.up), Action(None, Step.right),
-                                   Action(None, Step.down), Action(None, Step.left))
+    Action.all_shoot_actions = (Action(None, Step.up, None), Action(None, Step.right, None),
+                                   Action(None, Step.down, None), Action(None, Step.left, None))
 
-Action.all_actions = Action.all_move_actions + Action.all_shoot_actions
+(Action.wall_up, Action.wall_right, Action.wall_down, Action.wall_left) = \
+    Action.all_wall_actions = (Action(None, None, Step.up), Action(None, None, Step.right),
+                                   Action(None, None, Step.down), Action(None, None, Step.left))
+
+Action.all_actions = Action.all_move_actions + Action.all_shoot_actions + Action.all_wall_actions
 
 for action in Action:
     _action_neuron_cache[action] = action._to_neurons()
@@ -160,16 +167,19 @@ class Observation(_BaseGrid, gamey.Observation):
 
     n_neurons = (
         # + 1 # Score
-        + 8 # Last action
+        + len(Action) # Last action
         + 8 * ( # The following for each vicinity
             + 1 # Distance to closest player of each strategy
             + N_CORE_STRATEGIES # Distance to closest player of each strategy
             + 1 # Distance to closest food
             + 4 # Distance to closest bullet in each direction
-            + 1 # Distance to closest wall
+            + 1 # Distance to closest edge
+            + 1 # Distance to closest living wall
         )
         + VISION_SIZE ** 2 * ( # Simple vision
-            + 1 # Wall
+            + 1 # Edge
+            + 1 # Living wall
+            + 1 # Destroyed wall
             + 1 # Food
             + 4 # Bullets in each direction
             + N_CORE_STRATEGIES # Players of each strategy
@@ -178,7 +188,7 @@ class Observation(_BaseGrid, gamey.Observation):
 
     @property
     def simple_vision(self) -> np.ndarray:
-        array = np.zeros((VISION_SIZE, VISION_SIZE, 1 + 1 + 4 + N_CORE_STRATEGIES), dtype=int)
+        array = np.zeros((VISION_SIZE, VISION_SIZE, 8 + N_CORE_STRATEGIES), dtype=int)
         relative_player_position = Position(VISION_SIZE // 2, VISION_SIZE // 2)
         translation = relative_player_position - self.position
 
@@ -188,13 +198,17 @@ class Observation(_BaseGrid, gamey.Observation):
                 array[tuple(relative_position) + (0,)] = 1
             elif absolute_position in self.state.food_positions:
                 array[tuple(relative_position) + (1,)] = 1
+            elif absolute_position in self.state.living_wall_positions:
+                array[tuple(relative_position) + (2,)] = 1
+            elif absolute_position in self.state.destroyed_wall_positions:
+                array[tuple(relative_position) + (3,)] = 1
             elif (bullets := self.state.bullets.get(absolute_position, None)):
                 for bullet in bullets:
-                    array[tuple(relative_position) + (2 + bullet.direction.index,)] = 1
+                    array[tuple(relative_position) + (4 + bullet.direction.index,)] = 1
             elif (observation := self.state.position_to_observation.get(absolute_position, None)):
                 letter = self.culture.player_id_to_strategy[observation.letter]
                 array[tuple(relative_position) +
-                      (6 + self.culture.core_strategies.index(letter),)] = 1
+                      (8 + self.culture.core_strategies.index(letter),)] = 1
 
         return array
 
@@ -206,14 +220,13 @@ class Observation(_BaseGrid, gamey.Observation):
             np.array(
                 tuple(
                     itertools.chain.from_iterable(
-                        self.processed_distances_to_food_players_bullets(vicinity) for
-                        vicinity in Vicinity.all_vicinities
+                        self.processed_distances(vicinity) for vicinity in Vicinity.all_vicinities
                     )
                 )
             ),
             np.array(
                 tuple(
-                    self.processed_distance_to_wall(vicinity) for vicinity in
+                    self.processed_distance_to_edge(vicinity) for vicinity in
                     Vicinity.all_vicinities
                 )
             ),
@@ -225,7 +238,7 @@ class Observation(_BaseGrid, gamey.Observation):
     _distance_base = 1.2
 
     @functools.cache
-    def processed_distances_to_food_players_bullets(self, vicinity: Vicinity) -> numbers.Real:
+    def processed_distances(self, vicinity: Vicinity) -> numbers.Real:
         field_of_view = self.position.field_of_view(vicinity, self.board_size)
 
         for distance_to_food, positions in enumerate(field_of_view, start=1):
@@ -233,6 +246,12 @@ class Observation(_BaseGrid, gamey.Observation):
                 break
         else:
             distance_to_food = float('inf')
+
+        for distance_to_living_wall, positions in enumerate(field_of_view, start=1):
+            if positions & self.state.living_wall_positions:
+                break
+        else:
+            distance_to_living_wall = float('inf')
 
 
         distances_to_other_players = []
@@ -275,19 +294,19 @@ class Observation(_BaseGrid, gamey.Observation):
 
 
         return tuple(self._distance_base ** (-distance)
-                     for distance in ([distance_to_food] + distances_to_other_players +
-                                      distances_to_bullets))
+                     for distance in ([distance_to_food, distance_to_living_wall] +
+                                      distances_to_other_players + distances_to_bullets))
 
 
     @functools.cache
-    def processed_distance_to_wall(self, vicinity: Vicinity) -> numbers.Real:
+    def processed_distance_to_edge(self, vicinity: Vicinity) -> numbers.Real:
         position = self.position
         for i in itertools.count():
             if position not in self:
-                distance_to_wall = i
+                distance_to_edge = i
                 break
             position += vicinity
-        return 1.2 ** (-distance_to_wall)
+        return 1.2 ** (-distance_to_edge)
 
     @property
     def cute_score(self) -> int:
@@ -308,7 +327,9 @@ class State(_BaseGrid, gamey.State):
     def __init__(self, culture: Culture, *, board_size: int,
                  player_id_to_observation: ImmutableDict[str, Observation],
                  food_positions: FrozenSet[Position], allow_shooting: bool = True,
-                 bullets: ImmutableDict[Position, FrozenSet[Bullet]] = ImmutableDict()) -> None:
+                 bullets: ImmutableDict[Position, FrozenSet[Bullet]] = ImmutableDict(),
+                 living_wall_positions: FrozenSet[Position],
+                 destroyed_wall_positions: FrozenSet[Position]) -> None:
         self.culture = culture
         assert len(self.culture.core_strategies) == N_CORE_STRATEGIES
         self.player_id_to_observation = player_id_to_observation
@@ -321,6 +342,9 @@ class State(_BaseGrid, gamey.State):
         self.position_to_observation = ImmutableDict(
             {observation.position: observation for observation in player_id_to_observation.values()}
         )
+        self.living_wall_positions = living_wall_positions
+        self.destroyed_wall_positions = destroyed_wall_positions
+        self.wall_positions = living_wall_positions | destroyed_wall_positions
 
     def _reduce(self) -> tuple:
         return (
@@ -330,7 +354,8 @@ class State(_BaseGrid, gamey.State):
                  observation.last_action) for letter, observation in
                 self.player_id_to_observation.items()
             ),
-            self.bullets, self.food_positions, self.board_size,
+            self.bullets, self.food_positions, self.board_size, self.living_wall_positions,
+            self.destroyed_wall_positions
         )
 
     def __eq__(self, other: Any) -> bool:
@@ -368,6 +393,8 @@ class State(_BaseGrid, gamey.State):
             player_id_to_observation=ImmutableDict(player_id_to_observation),
             food_positions=food_positions,
             allow_shooting=allow_shooting,
+            living_wall_positions=frozenset(),
+            destroyed_wall_positions=frozenset(),
         )
 
         for observation in player_id_to_observation.values():
@@ -378,25 +405,32 @@ class State(_BaseGrid, gamey.State):
 
     def get_next_state_from_actions(self, player_id_to_action: Mapping[Position, Action]) -> State:
         new_player_position_to_olds = collections.defaultdict(set)
+        wip_living_wall_positions = set(self.living_wall_positions)
+        wip_destroyed_wall_positions = set() # Ignoring old destroyed walls, they're gone.
+
         for letter, action in player_id_to_action.items():
             action: Action
             old_observation = self.player_id_to_observation[letter]
             assert action in old_observation.legal_actions
             old_player_position = old_observation.position
-            if action.move is not None:
+            if action.move:
                 new_player_position_to_olds[old_player_position +
                                                                action.move].add(old_player_position)
             else:
                 new_player_position_to_olds[old_player_position].add(old_player_position)
+                if action.wall and (wall_position := old_player_position + action.wall) in self:
+                    wip_living_wall_positions.add(wall_position)
+
 
         ############################################################################################
         ### Figuring out which players collided: ###################################################
         #                                                                                          #
         # There are four types of collisions:
         # 1. A player trying to move out of the board.
-        # 2. Two or more players that try to move into the same position.
-        # 3. Two players that are trying to move into each other's positions.
-        # 4. Any players that are trying to move into the old position of a player that had one
+        # 2. A player trying to move to a wall, living or destroyed.
+        # 3. Two or more players that try to move into the same position.
+        # 4. Two players that are trying to move into each other's positions.
+        # 5. Any players that are trying to move into the old position of a player that had one
         #    of the two collisions above, and is therefore still occupying that position.
 
         collided_player_positions = set()
@@ -404,19 +438,21 @@ class State(_BaseGrid, gamey.State):
 
         while True:
             for new_player_position, old_player_positions in new_player_position_to_olds.items():
-                if new_player_position not in self:
-                    # Type 1 collision.
+                if (new_player_position not in self) or \
+                                                 (new_player_position in wip_living_wall_positions):
+                    # This is either a type 1 or a type 2 collision.
                     collided_player_positions |= old_player_positions
                     del new_player_position_to_olds[new_player_position]
                     for old_player_position in old_player_positions:
                         new_player_position_to_olds[old_player_position].add(old_player_position)
+                        if old_player_position in wip_living_wall_positions:
+                            wip_living_wall_positions.remove(old_player_position)
 
                     # We modified the dict while iterating, let's restart the loop:
                     break
 
-
                 if len(old_player_positions) >= 2:
-                    # This is either a type 2 or a type 4 collision.
+                    # This is either a type 3 or a type 5 collision.
                     collided_player_positions |= old_player_positions
                     del new_player_position_to_olds[new_player_position]
                     for old_player_position in old_player_positions:
@@ -429,7 +465,7 @@ class State(_BaseGrid, gamey.State):
                     ((old_player_position := more_itertools.one(old_player_positions)) !=
                       new_player_position) and new_player_position_to_olds.get(
                                                old_player_position, None) == {new_player_position}):
-                    # Type 3 collision.
+                    # Type 4 collision.
                     collided_player_positions |= {old_player_position, new_player_position}
                     new_player_position_to_olds[new_player_position] = {new_player_position}
                     new_player_position_to_olds[old_player_position] = {old_player_position}
@@ -450,13 +486,23 @@ class State(_BaseGrid, gamey.State):
         }
         del new_player_position_to_olds # Prevent confusion
 
+        # Disallowing building walls where there is a player that didn't move:
+        for living_wall_position in tuple(wip_living_wall_positions):
+            try:
+                old_player_position = new_player_position_to_old[living_wall_position]
+            except KeyError:
+                pass
+            else:
+                assert old_player_position == living_wall_position
+                wip_living_wall_positions.remove(living_wall_position)
+
         ############################################################################################
         ### Figuring out bullets: ##################################################################
         #                                                                                          #
 
         # Todo: This section needs a lot of tests!
 
-        wip_bullets = collections.defaultdict(set)
+        wip_bullets: Mapping[Position, Set[Bullet]] = collections.defaultdict(set)
 
         # Continuing trajectory for existing bullets:
         for bullet in self.all_bullets:
@@ -474,6 +520,13 @@ class State(_BaseGrid, gamey.State):
         for position in [position for position, bullets in wip_bullets.items()
                          if (position not in self)]:
             del wip_bullets[position]
+
+        # Figuring out which walls were shot, removing these bullets:
+        for living_wall_position in tuple(wip_living_wall_positions):
+            if wip_bullets.pop(living_wall_position, None):
+                wip_living_wall_positions.remove(living_wall_position)
+                wip_destroyed_wall_positions.add(living_wall_position)
+
 
         # Figuring out which players were shot, removing these bullets:
         new_player_positions_that_were_shot = set()
@@ -551,7 +604,9 @@ class State(_BaseGrid, gamey.State):
             culture=self.culture, board_size=self.board_size,
             player_id_to_observation=ImmutableDict(player_id_to_observation),
             food_positions=frozenset(wip_food_positions), bullets=bullets,
-            allow_shooting=self.allow_shooting
+            allow_shooting=self.allow_shooting,
+            living_wall_positions=frozenset(wip_living_wall_positions),
+            destroyed_wall_positions=frozenset(wip_destroyed_wall_positions),
         )
 
         for observation in player_id_to_observation.values():
