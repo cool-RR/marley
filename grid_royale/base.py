@@ -810,9 +810,10 @@ def play(*, allow_shooting: bool, pre_train: bool, open_browser: bool, host: str
             click.echo(f'Open {server_thread.url} in your browser to view the game.')
 
         if pre_train:
-            pre_train_n_games = 100
-            pre_train_max_length = 30
-            click.echo(f'Pre-training {pre_train_n_games=} {pre_train_max_length=}', nl=False)
+            pre_train_n_games = 4
+            pre_train_max_length = 20
+            click.echo(f'Pre-training {pre_train_n_games} games, each with '
+                       f'{pre_train_max_length} states...', nl=False)
             for _ in culture.multi_game_train(n_games=pre_train_n_games,
                                               max_length=pre_train_max_length):
                 click.echo('.', nl=False)
