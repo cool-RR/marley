@@ -5,10 +5,13 @@ from __future__ import annotations
 from typing import Iterable, Tuple, Any
 
 import sys
+import itertools
 import random
 import enum
 import functools
 import numpy as np
+
+import more_itertools
 
 from grid_royale import gamey
 
@@ -206,7 +209,25 @@ class ModelBasedEpisodicLearningStrategy(BlackjackStrategy,
     pass
 
 class ModelFreeLearningStrategy(BlackjackStrategy, gamey.ModelFreeLearningStrategy):
-    pass
+
+    @property
+    def culture(self):
+        try:
+            return self._culture
+        except AttributeError:
+            self._culture = ModelFreeLearningCulture(strategy=self)
+            return self._culture
+
+    def get_score(self, n: int = 1_000, state_factory: Optional[Callable] = None,
+                  max_length: Optional[int] = None) -> int:
+        state_factory = (self.culture.make_initial_state if state_factory is None
+                         else state_factory)
+        last_states = [None] * n
+        for states in self.culture.iterate_games(state_factory() for _ in range(n)):
+            for i, state in enumerate(states):
+                if state is not None:
+                    last_states[i] = state
+        return np.mean([last_state.reward for last_state in last_states])
 
 
 class ModelFreeLearningCulture(gamey.ModelFreeLearningCulture, gamey.SinglePlayerCulture):
@@ -220,9 +241,10 @@ def demo(n_training_games: int) -> None:
     print('Starting Blackjack demo.')
 
     # model_free_learning_strategy.get_score(n=1_000)
-    learning_strategies = model_based_episodic_learning_strategy, model_free_learning_strategy = [
-        ModelBasedEpisodicLearningStrategy(),
-        ModelFreeLearningStrategy(gamma=1),
+    learning_strategies = [
+        model_based_episodic_learning_strategy := ModelBasedEpisodicLearningStrategy(),
+        single_model_free_learning_strategy := ModelFreeLearningStrategy(gamma=1, n_models=1),
+        double_model_free_learning_strategy := ModelFreeLearningStrategy(gamma=1, n_models=2),
     ]
     strategies = [
         RandomStrategy(),
@@ -234,19 +256,19 @@ def demo(n_training_games: int) -> None:
         *learning_strategies,
     ]
 
-    model_free_learning_culture = ModelFreeLearningCulture(strategy=model_free_learning_strategy)
 
-    print(f"Let's compare {len(strategies)} Blackjack strategies. First we'll play 200 games "
-          f"on each strategy and observe the scores:\n")
+    n_evaluation = 1_000
+    print(f"Let's compare {len(strategies)} Blackjack strategies. First we'll play "
+          f"{n_evaluation:,} games on each strategy and observe the scores:\n")
 
     def print_summary():
         strategies_and_scores = sorted(
-            ((strategy, strategy.get_score(200)) for strategy in strategies),
+            ((strategy, strategy.get_score(n_evaluation)) for strategy in strategies),
             key=lambda x: x[1], reverse=True
         )
         for strategy, score in strategies_and_scores:
-            print(f'    {strategy}: '.ljust(40), end='')
-            print(score)
+            print(f'    {strategy}: '.ljust(60), end='')
+            print(f'{score: .3f}')
 
     print_summary()
 
@@ -259,15 +281,17 @@ def demo(n_training_games: int) -> None:
     model_based_episodic_learning_strategy.get_score(n=n_training_games)
     print('Done.')
 
-    print(f'Training {model_free_learning_strategy} on {n_training_games:,} games',
-          end='')
-    sys.stdout.flush()
-    n_phases = 10
-    for _ in range(n_phases):
-        for _ in model_free_learning_culture.multi_game_train(
+    for model_free_learning_strategy in (single_model_free_learning_strategy,
+                                         double_model_free_learning_strategy):
+        print(f'Training {model_free_learning_strategy} on {n_training_games:,} games',
+              end='')
+        sys.stdout.flush()
+        n_phases = 10
+        for _ in range(n_phases):
+            for _ in model_free_learning_strategy.culture.multi_game_train(
                                                             n_games=(n_training_games // n_phases)):
-            print('.', end='')
-    print(' Done.')
+                print('.', end='')
+        print(' Done.')
 
     print("\nNow let's run the old comparison again, and see what's the new score for the "
           "learning strategies:\n")
