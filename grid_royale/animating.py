@@ -116,8 +116,33 @@ def animate(states: Iterable[State]) -> Iterator[dict]:
         ### Finished processing bullets. ###########################################################
         ############################################################################################
 
+        ############################################################################################
+        ### Processing walls: ######################################################################
+        #                                                                                          #
+        walls_dict = {}
+
+        for wall_position in old_state.living_wall_positions:
+            walls_dict.setdefault(wall_position, [0, 0])[0] = 1
+
+        for wall_position in old_state.destroyed_wall_positions:
+            walls_dict.setdefault(wall_position, [0, 0])[0] = 0.5
+
+        for wall_position in new_state.living_wall_positions:
+            walls_dict.setdefault(wall_position, [0, 0])[1] = 1
+
+        for wall_position in new_state.destroyed_wall_positions:
+            walls_dict.setdefault(wall_position, [0, 0])[1] = 0.5
+
+        walls = tuple(sorted((tuple(wall_position), tuple(opacities)) for wall_position, opacities
+                             in walls_dict.items()))
+
+        #                                                                                          #
+        ### Finished processing walls. #############################################################
+        ############################################################################################
+
         yield {
             'players': tuple(sorted(players)),
             'food': tuple(sorted(food)),
             'bullets': tuple(sorted(bullets)),
+            'walls': walls,
         }

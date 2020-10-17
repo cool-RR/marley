@@ -86,7 +86,7 @@ function draw_food(context, x, y, opacity) {
     context.translate(x * CELL_SIZE + HALF_CELL_SIZE,
                       y * CELL_SIZE + HALF_CELL_SIZE);
 
-    context.fillStyle = '#aaaaaa';
+    context.fillStyle = '#666666';
     context.beginPath();
     context.arc(0, 0, HALF_CELL_SIZE / 6, 0, tau);
     context.fill();
@@ -121,6 +121,20 @@ function draw_bullet(context, x, y, angle_offset, opacity) {
       context.lineTo(wind_factor * 0.13 * HALF_CELL_SIZE * direction, 0.66 * HALF_CELL_SIZE);
       context.stroke();
     }
+
+    context.restore();
+}
+
+function draw_wall(context, x, y, opacity) {
+    context.save();
+    context.globalAlpha = opacity;
+    context.translate(x * CELL_SIZE + HALF_CELL_SIZE,
+                      y * CELL_SIZE + HALF_CELL_SIZE);
+
+    context.strokeStyle = '#aaaaaa';
+    context.lineWidth = 8;
+    context.strokeRect(- HALF_CELL_SIZE + 5, - HALF_CELL_SIZE + 5,
+                       CELL_SIZE - 10, CELL_SIZE - 10);
 
     context.restore();
 }
@@ -212,20 +226,6 @@ function animate_core() {
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
   //////////////////////////////////////////////////////////////////////////////////////////////////
-  //// Drawing food: ///////////////////////////////////////////////////////////////////////////////
-  //                                                                                              //
-  food = __BRYTHON__.$getitem(transition, 'food');
-  for (let i = 0; i < food.length; i++) {
-    [[food_x, food_y], [old_opacity, new_opacity]] = food[i];
-    opacity = linear_transition_complement * old_opacity + linear_transition * new_opacity;
-
-    draw_food(context, food_x, food_y, opacity);
-  }
-  //                                                                                              //
-  //// Finished drawing food. //////////////////////////////////////////////////////////////////////
-  //////////////////////////////////////////////////////////////////////////////////////////////////
-
-  //////////////////////////////////////////////////////////////////////////////////////////////////
   //// Drawing bullets: ////////////////////////////////////////////////////////////////////////////
   //                                                                                              //
   bullets = __BRYTHON__.$getitem(transition, 'bullets');
@@ -243,6 +243,32 @@ function animate_core() {
   //// Finished drawing bullets. ///////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+  //// Drawing walls: //////////////////////////////////////////////////////////////////////////////
+  //                                                                                              //
+  walls = __BRYTHON__.$getitem(transition, 'walls');
+  for (let i = 0; i < walls.length; i++) {
+    [[wall_x, wall_y], [old_opacity, new_opacity]] = walls[i];
+    opacity = linear_transition_complement * old_opacity + linear_transition * new_opacity;
+    draw_wall(context, wall_x, wall_y, opacity);
+  }
+  //                                                                                              //
+  //// Finished drawing walls. /////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+  //// Drawing food: ///////////////////////////////////////////////////////////////////////////////
+  //                                                                                              //
+  food = __BRYTHON__.$getitem(transition, 'food');
+  for (let i = 0; i < food.length; i++) {
+    [[food_x, food_y], [old_opacity, new_opacity]] = food[i];
+    opacity = linear_transition_complement * old_opacity + linear_transition * new_opacity;
+
+    draw_food(context, food_x, food_y, opacity);
+  }
+  //                                                                                              //
+  //// Finished drawing food. //////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////
 
   _needle_on_screen = needle;
 }
