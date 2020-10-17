@@ -214,7 +214,7 @@ class Observation(_BaseGrid, gamey.Observation):
 
         return array
 
-    @functools.lru_cache()
+    @functools.cache
     def to_neurons(self) -> np.ndarray:
         last_action_neurons = (np.zeros(len(Action)) if self.last_action is None
                                else self.last_action.to_neurons())
@@ -240,7 +240,7 @@ class Observation(_BaseGrid, gamey.Observation):
 
     _distance_base = 1.2
 
-    @functools.lru_cache()
+    @functools.cache
     def processed_distances_to_food_players_bullets(self, vicinity: Vicinity) -> numbers.Real:
         field_of_view = self.position.field_of_view(vicinity, self.board_size)
 
@@ -295,7 +295,7 @@ class Observation(_BaseGrid, gamey.Observation):
                                       distances_to_bullets))
 
 
-    @functools.lru_cache()
+    @functools.cache
     def processed_distance_to_wall(self, vicinity: Vicinity) -> numbers.Real:
         position = self.position
         for i in itertools.count():
@@ -709,7 +709,7 @@ class Strategy(_GridRoyaleStrategy, gamey.ModelFreeLearningStrategy):
         gamey.ModelFreeLearningStrategy.__init__(self, training_batch_size=10, **kwargs)
 
 
-    @functools.lru_cache()
+    @functools.cache
     def get_neurons_of_sample_states_and_best_actions(self) -> Tuple[np.ndarray,
                                                                      Tuple[Action, ...]]:
 

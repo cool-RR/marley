@@ -32,12 +32,12 @@ app = flask.Flask('grid_royale')
 
 frontend_folder = pathlib.Path(__file__).parent / 'frontend'
 
-@functools.lru_cache()
+@functools.cache
 def read_file(file_name) -> str:
     assert file_name in ('grid_royale.html', 'grid_royale.js', 'grid_royale.py')
     return (frontend_folder / file_name).read_text()
 
-@functools.lru_cache()
+@functools.cache
 def read_file_binary(file_name) -> str:
     assert file_name in ('play.png', 'pause.png')
     return (frontend_folder / file_name).read_bytes()
