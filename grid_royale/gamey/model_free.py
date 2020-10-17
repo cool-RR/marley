@@ -101,9 +101,8 @@ class TrainingData:
             batch_index = np.arange(n_data_points, dtype=np.int32)
             wip_q_values[batch_index, action_indices] = (
                 rewards + self.model_free_learning_strategy.gamma * are_not_ends *
-                new_other_q_values[np.arange(new_q_values.shape[0]),
-                                   np.argmax(new_q_values, axis=1)]
-
+                np.minimum(np.max(new_other_q_values, axis=1),
+                           np.max(new_q_values, axis=1))
             )
 
             fit_arguments = {
