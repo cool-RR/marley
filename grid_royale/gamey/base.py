@@ -16,7 +16,7 @@ import enum
 import functools
 import numbers
 from typing import (Iterable, Union, Optional, Tuple, Any, Iterator, Type,
-                    Sequence, Callable, Hashable, Mapping, TypeVar)
+                    Sequence, Callable, Hashable, Mapping, TypeVar, ClassVar)
 import dataclasses
 
 import more_itertools
@@ -62,8 +62,8 @@ _action_regex = re.compile(f'^{_action_regex_head.pattern}'
 
 @functools.total_ordering
 class Action(metaclass=_ActionType):
-    all_actions: Sequence[Action]
-    n_neurons: int
+    all_actions: ClassVar[Sequence[Action]]
+    n_neurons: ClassVar[int]
 
     def __lt__(self, other):
         return self.all_actions.index(self) < self.all_actions.index(other)
@@ -97,7 +97,7 @@ class Observation(abc.ABC):
     legal_actions: Tuple[Action, ...]
     is_end: bool
     reward: numbers.Real
-    n_neurons: int
+    n_neurons: ClassVar[int]
 
     @abc.abstractmethod
     def to_neurons(self) -> np.ndarray:
@@ -107,10 +107,11 @@ class Observation(abc.ABC):
 PlayerId = TypeVar('PlayerId', bound=Hashable)
 
 class State(abc.ABC):
-    Observation: Type[Observation]
-    Action: Type[Action]
+    Observation: ClassVar[Type[Observation]]
+    Action: ClassVar[Type[Action]]
     is_end: bool
     player_id_to_observation: ImmutableDict[PlayerId, Observation]
+    player_id_to_last_action: ImmutableDict[PlayerId, Action]
 
     @abc.abstractmethod
     def get_next_state_from_actions(self, player_id_to_action: Mapping[PlayerId, Action]) -> State:

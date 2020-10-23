@@ -67,7 +67,7 @@ class TrainingData:
         self.other_training_data = self
 
     def add_and_maybe_train(self, observation: Observation, action: Action,
-                            next_observation: Observation) -> None:
+                            next_observation: Observation, *, force_wait: bool = False) -> None:
         self.old_observation_neuron_array[self.counter_modulo] = observation.to_neurons()
         self.action_neuron_array[self.counter_modulo] = action.to_neurons()
         self.new_observation_neuron_array[self.counter_modulo] = next_observation.to_neurons()
@@ -75,7 +75,7 @@ class TrainingData:
         self.are_not_end_array[self.counter_modulo] = int(not next_observation.is_end)
         self.counter += 1
 
-        if self.is_training_time():
+        if not force_wait and self.is_training_time():
 
             n_actions = len(self.model_free_learning_strategy.State.Action)
             slicer = ((lambda x: x) if self.filled_max_size else
@@ -163,10 +163,11 @@ class ModelFreeLearningStrategy(QStrategy):
 
 
     def train(self, observation: Observation, action: Action,
-              next_observation: Observation) -> None:
+              next_observation: Observation, *, force_wait: bool = False) -> None:
 
-        training_data = random.choice(self.training_datas)
-        training_data.add_and_maybe_train(observation, action, next_observation)
+        training_data: TrainingData = random.choice(self.training_datas)
+        training_data.add_and_maybe_train(observation, action, next_observation,
+                                          force_wait=force_wait)
 
 
     def get_qs_for_observations(self, observations: Optional[Sequence[Observation]] = None, *,

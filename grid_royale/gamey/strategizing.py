@@ -16,7 +16,7 @@ import enum
 import functools
 import numbers
 from typing import (Iterable, Union, Optional, Tuple, Any, Iterator, Type,
-                    Sequence, Callable, Mapping)
+                    Sequence, Callable, Mapping, ClassVar)
 import dataclasses
 
 import more_itertools
@@ -37,7 +37,7 @@ class Strategy(abc.ABC):
     Your fancy machine-learning code goes here.
     '''
 
-    State: Type[State]
+    State: ClassVar[Type[State]]
 
     @abc.abstractmethod
     def decide_action_for_observation(self, observation: Observation) -> Action:
@@ -69,8 +69,13 @@ class SinglePlayerStrategy(Strategy):
 
 
 class RandomStrategy(Strategy):
+    action_to_weight: Optional[utils.ImmutableDict[Action, numbers.Real]] = None
     def decide_action_for_observation(self, observation: Observation) -> Action:
-        return random.choice(observation.legal_actions)
+        if self.action_to_weight is None:
+            weights = None
+        else:
+            weights = tuple(self.action_to_weight[action] for action in observation.legal_actions)
+        return more_itertools.one(random.choices(observation.legal_actions, weights=weights))
 
 
 class QStrategy(Strategy):

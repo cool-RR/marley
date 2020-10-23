@@ -9,7 +9,7 @@ import operator
 import functools
 import math
 from typing import (Optional, Tuple, Union, Container, Hashable, Iterator,
-                    Iterable, Any, Dict, FrozenSet)
+                    Iterable, Any, Dict, FrozenSet, ClassVar)
 import numpy as np
 
 
@@ -154,7 +154,7 @@ class Translation(Vector):
 
 class Vicinity(Translation):
     '''A movement like a king in chess, i.e. 8 possible positions around the origin.'''
-    all_vicinities: Tuple[Vicinity]
+    all_vicinities: ClassVar[Tuple[Vicinity]]
     def __init__(self, x: int, y: int):
         assert {0} != set((x, y)) <= {-1, 0, 1}
         super().__init__(x=x, y=y)

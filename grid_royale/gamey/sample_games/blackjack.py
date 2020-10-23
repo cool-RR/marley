@@ -14,6 +14,7 @@ import numpy as np
 import more_itertools
 
 from grid_royale import gamey
+from grid_royale.gamey.utils import ImmutableDict
 
 
 def sum_cards(cards: Iterable[int]) -> int:
@@ -62,9 +63,12 @@ class BlackjackState(gamey.SinglePlayerState):
 
     reward = 0
 
-    def __init__(self, player_cards: Tuple[int, ...], dealer_cards: Tuple[int, ...]) -> None:
+    def __init__(self, player_cards: Tuple[int, ...], dealer_cards: Tuple[int, ...],
+                 last_action: Optional[BlackjackAction]) -> None:
         self.player_cards = tuple(sorted(player_cards))
         self.dealer_cards = tuple(sorted(dealer_cards))
+        self.last_action = last_action
+        self.player_id_to_last_action = ImmutableDict({None: last_action})
 
         self.player_stuck = (len(self.dealer_cards) >= 2)
         self.player_sum = sum_cards(self.player_cards)
@@ -122,12 +126,14 @@ class BlackjackState(gamey.SinglePlayerState):
         if self.player_stuck or action == BlackjackAction.stick:
             return BlackjackState(
                 self.player_cards,
-                self.dealer_cards + (get_random_card(),)
+                self.dealer_cards + (get_random_card(),),
+                last_action=action,
             )
         else:
             return BlackjackState(
                 self.player_cards + (get_random_card(),),
-                self.dealer_cards
+                self.dealer_cards,
+                last_action=action,
             )
 
     @staticmethod

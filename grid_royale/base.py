@@ -17,7 +17,7 @@ import numbers
 import io
 import collections
 from typing import (Optional, Tuple, Union, Container, Hashable, Iterator, Mapping,
-                    Iterable, Any, Dict, FrozenSet, Callable, Type, Sequence, Set)
+                    Iterable, Any, Dict, FrozenSet, Callable, Type, Sequence, Set, ClassVar)
 import dataclasses
 import datetime as datetime_module
 import click
@@ -345,6 +345,10 @@ class State(_BaseGrid, gamey.State):
         self.living_wall_positions = living_wall_positions
         self.destroyed_wall_positions = destroyed_wall_positions
         self.wall_positions = living_wall_positions | destroyed_wall_positions
+        self.player_id_to_last_action = ImmutableDict({
+            player_id: observation.last_action for player_id, observation
+            in player_id_to_observation.items() if (observation.last_action is not None)
+        })
 
     def _reduce(self) -> tuple:
         return (
@@ -698,18 +702,16 @@ class State(_BaseGrid, gamey.State):
 
 
 
-
-
-class Culture(gamey.ModelFreeLearningCulture):
-
-    def __init__(self, n_players: int = 20, *, board_size: int = 20,
+class BaseCulture(gamey.Culture):
+    Strategy: ClassVar[Type[_GridRoyaleStrategy]]
+    def __init__(self, n_players: int = 1, *, board_size: int = 20,
                  allow_shooting: bool = True, concurrent_food_tiles: int = 40,
                  core_strategies: Optional[Sequence[_GridRoyaleStrategy]] = None) -> None:
 
         self.board_size = board_size
         self.allow_shooting = allow_shooting
         self.default_concurrent_food_tiles = concurrent_food_tiles
-        self.core_strategies = tuple(core_strategies or (Strategy(self) for _
+        self.core_strategies = tuple(core_strategies or (self.Strategy(self) for _
                                                          in range(N_CORE_STRATEGIES)))
         self.strategies = tuple(more_itertools.islice_extended(
                                                  itertools.cycle(self.core_strategies))[:n_players])
@@ -730,35 +732,15 @@ class Culture(gamey.ModelFreeLearningCulture):
 
 class _GridRoyaleStrategy(gamey.Strategy):
     State = State
-
-
-class SimpleStrategy(_GridRoyaleStrategy):
-
-    def __init__(self, epsilon: int = 0.2) -> None:
-        self.epsilon = epsilon
-
-
-    def decide_action_for_observation(self, observation: Observation) -> Action:
-        if random.random() <= self.epsilon or not observation.state.food_positions:
-            return random.choice(observation.legal_actions)
-        else:
-            closest_food_position = min(
-                (food_position for food_position in observation.state.food_positions),
-                key=lambda food_position: observation.position @ food_position
-            )
-            desired_translation = closest_food_position - observation.position
-            dimension = random.choice(
-                tuple(dimension for dimension, delta in enumerate(desired_translation) if delta)
-            )
-            return (Action(np.sign(desired_translation.x), 0) if dimension == 0
-                    else Action(0, np.sign(desired_translation.y)))
+    def __init__(self, culture: Culture):
+        self.culture = culture
 
 
 
 class Strategy(_GridRoyaleStrategy, gamey.ModelFreeLearningStrategy):
 
     def __init__(self, culture: Culture, **kwargs) -> None:
-        self.culture = culture
+        _GridRoyaleStrategy.__init__(self, culture)
         gamey.ModelFreeLearningStrategy.__init__(self, training_batch_size=10, **kwargs)
 
 
@@ -835,6 +817,75 @@ class Strategy(_GridRoyaleStrategy, gamey.ModelFreeLearningStrategy):
                                zip(decided_actions, best_actions))
 
 
+class Culture(BaseCulture, gamey.ModelFreeLearningCulture):
+    Strategy = Strategy
+
+    def generate_training_data(self, *, max_length_per_game: int = 1_000) -> \
+                                                  Iterator[Tuple[Observation, Action, Observation]]:
+        random_culture = RandomCulture(n_players=len(self.strategies), board_size=self.board_size,
+                                       allow_shooting=self.allow_shooting,
+                                       concurrent_food_tiles=self.default_concurrent_food_tiles)
+
+        while True:
+            iterator = gamey.utils.iterate_windowed_pairs(
+                random_culture.iterate_game(random_culture.make_initial_state(),
+                                            max_length=max_length_per_game,
+                                            be_training=False)
+            )
+            for old_state, new_state in iterator:
+                old_state: State
+                new_state: State
+                for player_id, old_observation in old_state.player_id_to_observation.items():
+                    new_observation: Observation = new_state.player_id_to_observation[player_id]
+                    yield (old_observation, new_observation.last_action, new_observation)
+
+    def floof_train(self, n=100_000):
+        for core_strategy in self.core_strategies:
+            core_strategy: Strategy
+            iterator = gamey.utils.LastDetectingIterator(
+                more_itertools.islice_extended(self.generate_training_data())[:n]
+            )
+            for i, training_datum in enumerate(iterator):
+                if i % 100 == 0:
+                    print(i)
+                core_strategy.train(*training_datum, force_wait=(not iterator.on_last_item()))
+
+
+
+
+class RandomStrategy(_GridRoyaleStrategy, gamey.RandomStrategy):
+
+    action_to_weight = ImmutableDict({action: (4 if action.move else 1) for action in Action})
+
+
+class RandomCulture(BaseCulture):
+    Strategy = RandomStrategy
+
+class SimpleStrategy(_GridRoyaleStrategy):
+
+    def __init__(self, epsilon: int = 0.2) -> None:
+        self.epsilon = epsilon
+
+
+    def decide_action_for_observation(self, observation: Observation) -> Action:
+        if random.random() <= self.epsilon or not observation.state.food_positions:
+            return random.choice(observation.legal_actions)
+        else:
+            closest_food_position = min(
+                (food_position for food_position in observation.state.food_positions),
+                key=lambda food_position: observation.position @ food_position
+            )
+            desired_translation = closest_food_position - observation.position
+            dimension = random.choice(
+                tuple(dimension for dimension, delta in enumerate(desired_translation) if delta)
+            )
+            return (Action(np.sign(desired_translation.x), 0) if dimension == 0
+                    else Action(0, np.sign(desired_translation.y)))
+
+
+
+
+
 
 
 @click.group()
@@ -862,15 +913,17 @@ def play(*, allow_shooting: bool, pre_train: bool, open_browser: bool, host: str
         else:
             click.echo(f'Open {server_thread.url} in your browser to view the game.')
 
-        if pre_train:
-            pre_train_n_games = 4
-            pre_train_max_length = 20
-            click.echo(f'Pre-training {pre_train_n_games} games, each with '
-                       f'{pre_train_max_length} states...', nl=False)
-            for _ in culture.multi_game_train(n_games=pre_train_n_games,
-                                              max_length=pre_train_max_length):
-                click.echo('.', nl=False)
-            click.echo(' Done pre-training.')
+        # if pre_train:
+            # pre_train_n_games = 4
+            # pre_train_max_length = 20
+            # click.echo(f'Pre-training {pre_train_n_games} games, each with '
+                       # f'{pre_train_max_length} states...', nl=False)
+            # for _ in culture.multi_game_train(n_games=pre_train_n_games,
+                                              # max_length=pre_train_max_length):
+                # click.echo('.', nl=False)
+            # click.echo(' Done pre-training.')
+
+        culture.floof_train(n=10_000)
 
         if max_length is None:
             click.echo(f'Calculating states in the simulation, press Ctrl-C to stop.')

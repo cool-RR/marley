@@ -31,10 +31,11 @@ class Culture:
         return self.State.make_initial(*args, **kwargs)
 
 
-    def iterate_many_games(self, *, n: int = 10, max_length: int = 100,
+    def iterate_many_games(self, *, n: Optional[int] = None, max_length: int = 100,
                            state_factory: Optional[Callable] = None, be_training: bool = True) \
                                                                                  -> Iterator[State]:
-        # Todo: Can this be combined with `iterate_games`?
+        # Todo: Can this be combined with `iterate_games`? Todo: This method is a bit redundant
+        # because you can't tell when one game finished and another began
         state_factory = ((lambda: self.make_initial_state()) if state_factory is None
                          else state_factory)
         for _ in range(n):
