@@ -11,6 +11,7 @@ from typing import (Iterable, Union, Optional, Tuple, Any, Iterator, Type,
 import weakref
 
 import keras.models
+import more_itertools
 import numpy as np
 
 from .base import Observation, Action, ActionObservation
@@ -24,8 +25,31 @@ def _fit_external(model: keras.Model, *args, **kwargs) -> list:
 
 class TrainingData:
     def __init__(self, model_free_learning_strategy: ModelFreeLearningStrategy, *,
-                 max_size: int = 10_000) -> None:
+                  loss: str = 'mse', optimizer: str = 'rmsprop', max_size: int = 10_000) -> None:
+
         self.model_free_learning_strategy = model_free_learning_strategy
+        self.model = keras.models.Sequential(
+            layers=(
+                keras.layers.Dense(
+                    128, activation='relu',
+                    input_dim=self.model_free_learning_strategy.State.Observation.n_neurons
+                    ),
+                keras.layers.Dropout(rate=0.1),
+                keras.layers.Dense(
+                    128, activation='relu',
+                    ),
+                keras.layers.Dropout(rate=0.1),
+                keras.layers.Dense(
+                    128, activation='relu',
+                    ),
+                keras.layers.Dropout(rate=0.1),
+                keras.layers.Dense(
+                    self.model_free_learning_strategy.State.Action.n_neurons, # activation='relu'
+                    ),
+                ),
+        )
+        self.model.compile(optimizer=optimizer, loss=loss, metrics=['accuracy'])
+
         self.max_size = max_size
         self.counter = 0
         self._last_trained_batch = 0
@@ -40,14 +64,61 @@ class TrainingData:
         )
         self.reward_array = np.zeros(max_size)
         self.are_not_end_array = np.zeros(max_size)
+        self.other_training_data = self
 
-    def add(self, observation: Observation, action: Action, next_observation: Observation) -> None:
+    def add_and_maybe_train(self, observation: Observation, action: Action,
+                            next_observation: Observation) -> None:
         self.old_observation_neuron_array[self.counter_modulo] = observation.to_neurons()
         self.action_neuron_array[self.counter_modulo] = action.to_neurons()
         self.new_observation_neuron_array[self.counter_modulo] = next_observation.to_neurons()
         self.reward_array[self.counter_modulo] = next_observation.reward
         self.are_not_end_array[self.counter_modulo] = int(not next_observation.is_end)
         self.counter += 1
+
+        if self.is_training_time():
+
+            n_actions = len(self.model_free_learning_strategy.State.Action)
+            slicer = ((lambda x: x) if self.filled_max_size else
+                      (lambda x: x[:self.counter_modulo]))
+            old_observation_neurons = slicer(self.old_observation_neuron_array)
+            new_observation_neurons = slicer(self.new_observation_neuron_array)
+            action_neurons = slicer(self.action_neuron_array)
+            are_not_ends = slicer(self.are_not_end_array)
+            rewards = slicer(self.reward_array)
+            n_data_points = old_observation_neurons.shape[0]
+
+            prediction = self.model.predict(
+                np.concatenate((old_observation_neurons, new_observation_neurons))
+            )
+            wip_q_values, new_q_values = np.split(prediction, 2)
+            new_other_q_values = self.other_training_data.model.predict(
+                new_observation_neurons
+            )
+
+            # Assumes discrete actions:
+            action_indices = np.dot(action_neurons, range(n_actions)).astype(np.int32)
+
+            batch_index = np.arange(n_data_points, dtype=np.int32)
+            wip_q_values[batch_index, action_indices] = (
+                rewards + self.model_free_learning_strategy.gamma * are_not_ends *
+                new_other_q_values[np.arange(new_q_values.shape[0]),
+                                   np.argmax(new_q_values, axis=1)]
+
+            )
+
+            fit_arguments = {
+                'x': old_observation_neurons,
+                'y': wip_q_values,
+                'epochs': max(10, int(self.model_free_learning_strategy.n_epochs *
+                                      (n_data_points / self.max_size))),
+                'verbose': 0,
+            }
+
+            self.model.fit(**fit_arguments)
+
+            self.mark_trained()
+
+
 
 
     def is_training_time(self) -> bool:
@@ -75,38 +146,18 @@ class TrainingData:
 
 class ModelFreeLearningStrategy(QStrategy):
     def __init__(self, *, epsilon: numbers.Real = 0.3, gamma: numbers.Real = 0.9,
-                 training_batch_size: int = 100, loss: str = 'mse', optimizer: str = 'rmsprop',
-                 n_epochs: int = 50) -> None:
+                 training_batch_size: int = 100, n_epochs: int = 50, n_models: int = 2) -> None:
         self.epsilon = epsilon
         self.gamma = gamma
         self.n_epochs = n_epochs
         self._fit_future: Optional[concurrent.futures.Future] = None
 
-        self.model = keras.models.Sequential(
-            layers=(
-                keras.layers.Dense(
-                    128, activation='relu',
-                    input_dim=self.State.Observation.n_neurons
-                ),
-                keras.layers.Dropout(rate=0.1),
-                keras.layers.Dense(
-                    128, activation='relu',
-                ),
-                keras.layers.Dropout(rate=0.1),
-                keras.layers.Dense(
-                    128, activation='relu',
-                ),
-                keras.layers.Dropout(rate=0.1),
-                keras.layers.Dense(
-                     self.State.Action.n_neurons, # activation='relu'
-                ),
-
-            ),
-            name='awesome_model'
-        )
-        self.model.compile(optimizer=optimizer, loss=loss, metrics=['accuracy'])
         self.training_batch_size = training_batch_size
-        self.training_data = TrainingData(self)
+        self.training_datas = tuple(TrainingData(self) for _ in range(n_models))
+        for left_training_data, right_training_data in utils.iterate_windowed_pairs(
+                                                   self.training_datas + (self.training_datas[0],)):
+            left_training_data.other_training_data = right_training_data
+
         self.q_map_cache = weakref.WeakKeyDictionary()
 
 
@@ -114,55 +165,8 @@ class ModelFreeLearningStrategy(QStrategy):
     def train(self, observation: Observation, action: Action,
               next_observation: Observation) -> None:
 
-        self.training_data.add(observation, action, next_observation)
-
-        if self.training_data.is_training_time():
-
-            n_actions = len(self.State.Action)
-            slicer = ((lambda x: x) if self.training_data.filled_max_size else
-                      (lambda x: x[:self.training_data.counter_modulo]))
-            old_observation_neurons = slicer(self.training_data.old_observation_neuron_array)
-            new_observation_neurons = slicer(self.training_data.new_observation_neuron_array)
-            action_neurons = slicer(self.training_data.action_neuron_array)
-            are_not_ends = slicer(self.training_data.are_not_end_array)
-            rewards = slicer(self.training_data.reward_array)
-            n_data_points = old_observation_neurons.shape[0]
-
-            if self._fit_future is not None:
-                weights = self._fit_future.result()
-                self.model.set_weights(weights)
-                self._fit_future = None
-
-            wip_q_values, new_q_values = np.split(
-                self.model.predict(
-                    np.concatenate((old_observation_neurons, new_observation_neurons))
-                ),
-                2
-            )
-
-            # Assumes discrete actions:
-            action_indices = np.dot(action_neurons, range(n_actions)).astype(np.int32)
-
-            batch_index = np.arange(n_data_points, dtype=np.int32)
-            wip_q_values[batch_index, action_indices] = (
-                rewards + self.gamma * np.max(new_q_values, axis=1) * are_not_ends
-            )
-
-            fit_arguments = {
-                'x': old_observation_neurons,
-                'y': wip_q_values,
-                'epochs': max(1, int(self.n_epochs *
-                                     (n_data_points / self.training_data.max_size))),
-                'verbose': 0,
-            }
-
-            # This seems not to work fast:
-            # if executor is not None:
-                # self._fit_future = executor.submit(_fit_external, self.model, **fit_arguments)
-            # else:
-            self.model.fit(**fit_arguments)
-
-            self.training_data.mark_trained()
+        training_data = random.choice(self.training_datas)
+        training_data.add_and_maybe_train(observation, action, next_observation)
 
 
     def get_qs_for_observations(self, observations: Optional[Sequence[Observation]] = None, *,
@@ -178,7 +182,8 @@ class ModelFreeLearningStrategy(QStrategy):
                 [observation.to_neurons()[np.newaxis, :] for observation in observations]
             )
             check_action_legality = True
-        prediction_output = self.model.predict(input_array)
+        prediction_output = np.mean(np.array([training_datas.model.predict(input_array) for
+                                               training_datas in self.training_datas]), axis=0)
         actions = tuple(self.State.Action)
         if check_action_legality:
             return tuple(
@@ -220,5 +225,7 @@ class ModelFreeLearningStrategy(QStrategy):
             weights=(1 - epsilon, epsilon)
         )
 
+    def _extra_repr(self) -> str:
+        return f'(<...>, n_models={len(self.training_datas)})'
 
 

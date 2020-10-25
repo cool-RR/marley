@@ -61,10 +61,10 @@ class SinglePlayerStrategy(Strategy):
         from .culturing import SinglePlayerCulture
 
         single_player_culture = SinglePlayerCulture(self.State, strategy=self)
-        return sum(
+        return np.mean([
             single_player_state.reward for single_player_state in single_player_culture.
-                         iterate_many_games(n=n, max_length=max_length, state_factory=state_factory)
-        )
+            iterate_many_games(n=n, max_length=max_length, state_factory=state_factory)
+        ])
 
 
 
