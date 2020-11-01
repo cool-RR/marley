@@ -936,5 +936,12 @@ def serve(*, host: str, port: str) -> None:
         while True:
             time.sleep(0.1)
 
+@grid_royale.command()
+@click.option('--n-training-games', default=1000)
+def blackjack(n_training_games: int):
+    from grid_royale.gamey.sample_games import blackjack
+    blackjack.demo(n_training_games=n_training_games)
+
+
 if __name__ == '__main__':
     grid_royale()
