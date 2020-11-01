@@ -184,7 +184,7 @@ class _BaseGrid:
 class Observation(_BaseGrid, gamey.Observation):
 
     is_end = False
-    legal_actions = Action.all_actions
+    legal_actions = Action.all_move_actions + Action.all_shoot_actions # Action.all_actions
     legal_move_actions = Action.all_move_actions
 
     def __init__(self, state: Optional[State], position: Position, *,
