@@ -1,6 +1,48 @@
 # Copyright 2020 Ram Rachum and collaborators.
 # This program is distributed under the MIT license.
 
+'''
+This module defines the GridRoyale game and all its rules.
+
+# GridRoyale game rules #
+
+Here are the rules of the game in simple form. For all the gritty details, check out the
+`get_next_state_from_actions` method.
+
+The world is a 2-dimensional grid, typically 20x20 in size. Each player is on a cell in the grid.
+There can't be more than one player in a cell.
+
+Each player basically wants to eat as much food as possible, avoid getting shot, and avoid colliding
+with other players, walls and the edge of the board.
+
+On each turn, each player does an action. It can be either moving, shooting or building a wall
+(a.k.a "walling").
+
+**Moving**: Moving is essential because it lets you walk towards food and away from bullets.
+
+When a player is moving, it sometimes collides with a player, a wall or the edge of the
+board. It collides with another player if that other player is trying to move into the same cell, or
+is in the same cell and not moving. If there's a collision, the player's move is unsuccessful. It
+remains in its old position, and it takes a punishment, currently -5 points.
+
+If the move is successful, *and* the new cell has food, the player eats the food and gains 10
+points. (Assuming it didn't get shot, more about that later.) The food will be removed from the
+game, and a new piece of food will be spawned in a random free space on the board.
+
+**Shooting**: A player may shoot a bullet in any of the four directions. The bullet will continue
+travelling until it either hits a player, giving it a punishment of -10, or disappears off the edge
+of the board, or hits a wall and destroys it. Shooting is useful to scare off other creatures who
+might otherwise eat your food-- Assuming they're intelligent enough to avoid bullets.
+
+Multiple bullets can freely pass through each other on their trajectory. They don't hit each other.
+
+**Walling**: A player may build a wall in any of the four directions. A wall is a barrier that
+blocks any player from entering that cell. The only way to remove a wall is to shoot it. Walls are
+useful to prevent another player from moving into a certain area, especially if multiple walls are
+built next to each other.
+'''
+
+
 from __future__ import annotations
 
 import functools
