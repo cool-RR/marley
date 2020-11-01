@@ -1,5 +1,7 @@
 # Code by Adrian Garcia Badaracco, posted in Tensorflow repo, Apache-2.0 License
 
+'''This code makes it possible to pickle keras.Model, and use it in multiprocessing on Windows.'''
+
 import pickle
 
 from tensorflow.keras.models import Sequential, Model

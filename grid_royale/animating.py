@@ -1,6 +1,9 @@
 # Copyright 2020 Ram Rachum and collaborators.
 # This program is distributed under the MIT license.
 
+'''This module defines the `animate` function that turns GridRoyale states into animation data.'''
+
+
 from __future__ import annotations
 
 from typing import (Optional, Tuple, Union, Container, Hashable, Iterator,

@@ -1,6 +1,9 @@
 # Copyright 2020 Ram Rachum and collaborators.
 # This program is distributed under the MIT license.
 
+'''A collection of general-purpose tools.'''
+
+
 import tempfile
 import shutil
 import io
