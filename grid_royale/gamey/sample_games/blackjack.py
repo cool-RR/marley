@@ -237,7 +237,7 @@ class ModelFreeLearningCulture(gamey.ModelFreeLearningCulture, gamey.SinglePlaye
 
 
 
-def demo(n_training_games: int) -> None:
+def demo(n_training_games: int = 1_000, n_evaluation_games: int = 100) -> None:
     print('Starting Blackjack demo.')
 
     # model_free_learning_strategy.get_score(n=1_000)
@@ -257,13 +257,12 @@ def demo(n_training_games: int) -> None:
     ]
 
 
-    n_evaluation = 1_000
     print(f"Let's compare {len(strategies)} Blackjack strategies. First we'll play "
-          f"{n_evaluation:,} games on each strategy and observe the scores:\n")
+          f"{n_evaluation_games:,} games on each strategy and observe the scores:\n")
 
     def print_summary():
         strategies_and_scores = sorted(
-            ((strategy, strategy.get_score(n_evaluation)) for strategy in strategies),
+            ((strategy, strategy.get_score(n_evaluation_games)) for strategy in strategies),
             key=lambda x: x[1], reverse=True
         )
         for strategy, score in strategies_and_scores:
@@ -301,9 +300,5 @@ def demo(n_training_games: int) -> None:
 
 
 if __name__ == '__main__':
-    if len(sys.argv) >= 2:
-        n_training_games = int(sys.argv[1])
-    else:
-        n_training_games = 10_000
-    demo(n_training_games=n_training_games)
+    demo()
 

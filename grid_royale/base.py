@@ -937,10 +937,12 @@ def serve(*, host: str, port: str) -> None:
             time.sleep(0.1)
 
 @grid_royale.command()
-@click.option('--n-training-games', default=1000)
-def blackjack(n_training_games: int):
+@click.option('--n-training-games', default=1_000)
+@click.option('--n-evaluation-games', default=100)
+def blackjack(n_training_games: int, n_evaluation_games: int):
     from grid_royale.gamey.sample_games import blackjack
-    blackjack.demo(n_training_games=n_training_games)
+    blackjack.demo(n_training_games=n_training_games,
+                   n_evaluation_games=n_evaluation_games)
 
 
 if __name__ == '__main__':
