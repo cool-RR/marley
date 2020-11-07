@@ -140,10 +140,19 @@ class ModelFreeLearningCulture(Culture):
                 return
             yield states
 
-    def multi_game_train(self, n_games: int = 100, *, max_length: int = None):
-        states = tuple(self.make_initial_state() for _ in range(n_games))
-        for states in self.iterate_games(states, max_length=max_length):
-            yield states
+    def multi_game_train(self, n_total_games: int = 100, *, n_games_per_phase: int = 10,
+                         max_length: int = None):
+        n_games_by_phase = (
+            (n_total_games // n_games_per_phase) * (n_games_per_phase,) +
+            bool(n_total_games % n_games_per_phase) * (n_total_games % n_games_per_phase,)
+        )
+        assert sum(n_games_by_phase) == n_total_games
+        assert 0 <= len(n_games_by_phase) - (n_total_games // n_games_per_phase) <= 1
+
+        for n_games in n_games_by_phase:
+            states = tuple(self.make_initial_state() for _ in range(n_games))
+            for states in self.iterate_games(states, max_length=max_length):
+                yield states
 
 
 

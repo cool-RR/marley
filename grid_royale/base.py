@@ -909,7 +909,7 @@ def play(*, allow_shooting: bool, pre_train: bool, open_browser: bool, host: str
             pre_train_max_length = 20
             click.echo(f'Pre-training {pre_train_n_games} games, each with '
                        f'{pre_train_max_length} states...', nl=False)
-            for _ in culture.multi_game_train(n_games=pre_train_n_games,
+            for _ in culture.multi_game_train(n_total_games=pre_train_n_games,
                                               max_length=pre_train_max_length):
                 click.echo('.', nl=False)
             click.echo(' Done pre-training.')

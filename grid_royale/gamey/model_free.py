@@ -182,8 +182,8 @@ class ModelFreeLearningStrategy(QStrategy):
                 [observation.to_neurons()[np.newaxis, :] for observation in observations]
             )
             check_action_legality = True
-        prediction_output = np.mean(np.array([training_datas.model.predict(input_array) for
-                                               training_datas in self.training_datas]), axis=0)
+        training_data = random.choice(self.training_datas)
+        prediction_output = training_data.model.predict(input_array)
         actions = tuple(self.State.Action)
         if check_action_legality:
             return tuple(

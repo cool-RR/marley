@@ -285,11 +285,10 @@ def demo(n_training_games: int = 1_000, n_evaluation_games: int = 100) -> None:
         print(f'Training {model_free_learning_strategy} on {n_training_games:,} games',
               end='')
         sys.stdout.flush()
-        n_phases = 10
-        for _ in range(n_phases):
-            for _ in model_free_learning_strategy.culture.multi_game_train(
-                                                            n_games=(n_training_games // n_phases)):
-                print('.', end='')
+        trainer = model_free_learning_strategy.culture.multi_game_train(
+                                               n_total_games=n_training_games, n_games_per_phase=10)
+        for _ in more_itertools.chunked(trainer, 10):
+            print('.', end='')
         print(' Done.')
 
     print("\nNow let's run the old comparison again, and see what's the new score for the "
