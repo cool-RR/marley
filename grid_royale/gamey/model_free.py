@@ -18,6 +18,7 @@ from .base import Observation, Action, ActionObservation
 from .strategizing import Strategy, QStrategy
 from . import utils
 
+BATCH_SIZE = 64
 
 def _fit_external(model: keras.Model, *args, **kwargs) -> list:
     model.fit(*args, **kwargs)
@@ -25,22 +26,22 @@ def _fit_external(model: keras.Model, *args, **kwargs) -> list:
 
 class TrainingData:
     def __init__(self, model_free_learning_strategy: ModelFreeLearningStrategy, *,
-                  loss: str = 'mse', optimizer: str = 'rmsprop', max_size: int = 10_000) -> None:
+                  loss: str = 'mse', optimizer: str = 'rmsprop', max_size: int = 5_000) -> None:
 
         self.model_free_learning_strategy = model_free_learning_strategy
         self.model = keras.models.Sequential(
             layers=(
                 keras.layers.Dense(
-                    128, activation='relu',
+                    256, activation='relu',
                     input_dim=self.model_free_learning_strategy.State.Observation.n_neurons
                     ),
                 keras.layers.Dropout(rate=0.1),
                 keras.layers.Dense(
-                    128, activation='relu',
+                    256, activation='relu',
                     ),
                 keras.layers.Dropout(rate=0.1),
                 keras.layers.Dense(
-                    128, activation='relu',
+                    256, activation='relu',
                     ),
                 keras.layers.Dropout(rate=0.1),
                 keras.layers.Dense(
@@ -78,8 +79,15 @@ class TrainingData:
         if self.is_training_time():
 
             n_actions = len(self.model_free_learning_strategy.State.Action)
-            slicer = ((lambda x: x) if self.filled_max_size else
-                      (lambda x: x[:self.counter_modulo]))
+
+            pre_slicer = ((lambda x: x) if self.filled_max_size else
+                          (lambda x: x[:self.counter_modulo]))
+            random_indices = np.random.choice(
+                self.max_size if self.filled_max_size else self.counter_modulo,
+                BATCH_SIZE
+            )
+            slicer = lambda x: pre_slicer(x)[random_indices]
+
             old_observation_neurons = slicer(self.old_observation_neuron_array)
             new_observation_neurons = slicer(self.new_observation_neuron_array)
             action_neurons = slicer(self.action_neuron_array)
@@ -109,8 +117,6 @@ class TrainingData:
             fit_arguments = {
                 'x': old_observation_neurons,
                 'y': wip_q_values,
-                'epochs': max(10, int(self.model_free_learning_strategy.n_epochs *
-                                      (n_data_points / self.max_size))),
                 'verbose': 0,
             }
 
@@ -145,11 +151,10 @@ class TrainingData:
 
 
 class ModelFreeLearningStrategy(QStrategy):
-    def __init__(self, *, epsilon: numbers.Real = 0.3, gamma: numbers.Real = 0.9,
-                 training_batch_size: int = 100, n_epochs: int = 50, n_models: int = 2) -> None:
+    def __init__(self, *, epsilon: numbers.Real = 0.1, gamma: numbers.Real = 0.9,
+                 training_batch_size: int = 100, n_models: int = 2) -> None:
         self.epsilon = epsilon
         self.gamma = gamma
-        self.n_epochs = n_epochs
         self._fit_future: Optional[concurrent.futures.Future] = None
 
         self.training_batch_size = training_batch_size
