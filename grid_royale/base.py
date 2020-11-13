@@ -184,7 +184,6 @@ class _BaseGrid:
 class Observation(_BaseGrid, gamey.Observation):
 
     is_end = False
-    legal_actions = Action.all_actions
     legal_move_actions = Action.all_move_actions
 
     def __init__(self, state: Optional[State], position: Position, *,
@@ -227,6 +226,15 @@ class Observation(_BaseGrid, gamey.Observation):
             + N_CORE_STRATEGIES # Players of each strategy
         )
     )
+
+    @property
+    def legal_actions(self):
+        return (
+            *Action.all_move_actions,
+            *(Action.all_shoot_actions if self.state.allow_shooting else ()),
+            *(Action.all_wall_actions if self.state.allow_walling else ()),
+        )
+
 
     @property
     def simple_vision(self) -> np.ndarray:
@@ -369,6 +377,7 @@ class State(_BaseGrid, gamey.State):
     def __init__(self, culture: Culture, *, board_size: int,
                  player_id_to_observation: ImmutableDict[str, Observation],
                  food_positions: FrozenSet[Position], allow_shooting: bool = True,
+                 allow_walling: bool = True,
                  bullets: ImmutableDict[Position, FrozenSet[Bullet]] = ImmutableDict(),
                  living_wall_positions: FrozenSet[Position],
                  destroyed_wall_positions: FrozenSet[Position]) -> None:
@@ -377,6 +386,7 @@ class State(_BaseGrid, gamey.State):
         self.player_id_to_observation = player_id_to_observation
         self.bullets = bullets
         self.allow_shooting = allow_shooting
+        self.allow_walling = allow_walling
         assert all(bullets.values()) # No empty sets in this bad boy.
         self.all_bullets = frozenset(itertools.chain.from_iterable(bullets.values()))
         self.food_positions = food_positions
@@ -409,7 +419,8 @@ class State(_BaseGrid, gamey.State):
 
     @staticmethod
     def make_initial(culture: Culture, *, board_size: int, starting_score: int = 0,
-                     allow_shooting: bool = True, concurrent_food_tiles: int = 40) -> State:
+                     allow_shooting: bool = True, allow_walling: bool = True,
+                     concurrent_food_tiles: int = 40) -> State:
 
         n_players = len(culture.strategies)
         random_positions_firehose = utils.iterate_deduplicated(
@@ -435,6 +446,7 @@ class State(_BaseGrid, gamey.State):
             player_id_to_observation=ImmutableDict(player_id_to_observation),
             food_positions=food_positions,
             allow_shooting=allow_shooting,
+            allow_walling=allow_walling,
             living_wall_positions=frozenset(),
             destroyed_wall_positions=frozenset(),
         )
@@ -646,7 +658,7 @@ class State(_BaseGrid, gamey.State):
             culture=self.culture, board_size=self.board_size,
             player_id_to_observation=ImmutableDict(player_id_to_observation),
             food_positions=frozenset(wip_food_positions), bullets=bullets,
-            allow_shooting=self.allow_shooting,
+            allow_shooting=self.allow_shooting, allow_walling=self.allow_walling,
             living_wall_positions=frozenset(wip_living_wall_positions),
             destroyed_wall_positions=frozenset(wip_destroyed_wall_positions),
         )
@@ -745,11 +757,13 @@ class State(_BaseGrid, gamey.State):
 class Culture(gamey.ModelFreeLearningCulture):
 
     def __init__(self, n_players: int = 20, *, board_size: int = 20,
-                 allow_shooting: bool = True, concurrent_food_tiles: int = 40,
+                 allow_shooting: bool = True, allow_walling: bool = True,
+                 concurrent_food_tiles: int = 40,
                  core_strategies: Optional[Sequence[_GridRoyaleStrategy]] = None) -> None:
 
         self.board_size = board_size
         self.allow_shooting = allow_shooting
+        self.allow_walling = allow_walling
         self.default_concurrent_food_tiles = concurrent_food_tiles
         self.core_strategies = tuple(core_strategies or (Strategy(self) for _
                                                          in range(N_CORE_STRATEGIES)))
@@ -765,7 +779,7 @@ class Culture(gamey.ModelFreeLearningCulture):
                                  else self.default_concurrent_food_tiles)
         return State.make_initial(
             self, board_size=self.board_size, allow_shooting=self.allow_shooting,
-            concurrent_food_tiles=concurrent_food_tiles
+            allow_walling=self.allow_walling, concurrent_food_tiles=concurrent_food_tiles
         )
 
 
@@ -887,15 +901,16 @@ from . import server
 
 @grid_royale.command()
 @click.option('--allow-shooting/--disallow-shooting', default=True)
+@click.option('--allow-walling/--disallow-walling', default=True)
 @click.option('--pre-train/--dont-pre-train', default=False)
 @click.option('--browser/--no-browser', 'open_browser', default=True)
 @click.option('--host', default=server.DEFAULT_HOST)
 @click.option('--port', default=server.DEFAULT_PORT)
 @click.option('--max-length', default=None, type=int)
-def play(*, allow_shooting: bool, pre_train: bool, open_browser: bool, host: str, port: str,
-         max_length: Optional[int] = None) -> None:
+def play(*, allow_shooting: bool, allow_walling: bool, pre_train: bool, open_browser: bool,
+         host: str, port: str, max_length: Optional[int] = None) -> None:
     with server.ServerThread(host=host, port=port, quiet=True) as server_thread:
-        culture = Culture(allow_shooting=allow_shooting)
+        culture = Culture(allow_shooting=allow_shooting, allow_walling=allow_walling)
         state = culture.make_initial_state()
 
         if open_browser:
