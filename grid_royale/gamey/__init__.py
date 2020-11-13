@@ -12,7 +12,7 @@ See the `sample_games/blackjack.py` module for an example of using Gamey on Blac
 '''
 
 
-from .base import Observation, State, SinglePlayerState, Action, ActionObservation
+from .base import Observation, State, SinglePlayerState, Action, ActionEnum, ActionObservation
 from .strategizing import Strategy, RandomStrategy, SinglePlayerStrategy, QStrategy
 from .culturing import Culture, SinglePlayerCulture, ModelFreeLearningCulture
 from .model_free import ModelFreeLearningStrategy

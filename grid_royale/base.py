@@ -944,6 +944,14 @@ def blackjack(n_training_games: int, n_evaluation_games: int):
     blackjack.demo(n_training_games=n_training_games,
                    n_evaluation_games=n_evaluation_games)
 
+@grid_royale.command()
+@click.option('--n-training-games', default=1_000)
+@click.option('--n-evaluation-games', default=100)
+def griddler(n_training_games: int, n_evaluation_games: int):
+    from grid_royale.gamey.sample_games import griddler
+    griddler.demo(n_training_games=n_training_games,
+                  n_evaluation_games=n_evaluation_games)
+
 
 if __name__ == '__main__':
     grid_royale()

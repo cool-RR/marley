@@ -92,6 +92,15 @@ class Action(metaclass=_ActionType):
         return cls[tuple(neurons).index(1)]
 
 
+class _ActionEnumType(type(Action), type(enum.Enum)):
+    pass
+
+
+class ActionEnum(Action, enum.Enum, metaclass=_ActionEnumType):
+    # todo: use in Blackjack
+    pass
+
+
 class Observation(abc.ABC):
     state: State
     legal_actions: Tuple[Action, ...]
