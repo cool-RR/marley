@@ -900,6 +900,9 @@ def grid_royale() -> None:
 from . import server
 
 @grid_royale.command()
+@click.option('--board-size', type=int, default=20)
+@click.option('--n-players', type=int, default=20)
+@click.option('--concurrent-food-tiles', type=int, default=40)
 @click.option('--allow-shooting/--disallow-shooting', default=True)
 @click.option('--allow-walling/--disallow-walling', default=True)
 @click.option('--pre-train/--dont-pre-train', default=False)
@@ -907,10 +910,13 @@ from . import server
 @click.option('--host', default=server.DEFAULT_HOST)
 @click.option('--port', default=server.DEFAULT_PORT)
 @click.option('--max-length', default=None, type=int)
-def play(*, allow_shooting: bool, allow_walling: bool, pre_train: bool, open_browser: bool,
-         host: str, port: str, max_length: Optional[int] = None) -> None:
+def play(*, board_size: int, n_players: int, concurrent_food_tiles: int, allow_shooting: bool,
+         allow_walling: bool, pre_train: bool, open_browser: bool, host: str, port: str,
+         max_length: Optional[int] = None) -> None:
     with server.ServerThread(host=host, port=port, quiet=True) as server_thread:
-        culture = Culture(allow_shooting=allow_shooting, allow_walling=allow_walling)
+        culture = Culture(n_players=n_players, board_size=board_size,
+                          concurrent_food_tiles=concurrent_food_tiles,
+                          allow_shooting=allow_shooting, allow_walling=allow_walling)
         state = culture.make_initial_state()
 
         if open_browser:

@@ -1,10 +1,6 @@
 // Copyright 2020 Ram Rachum and collaborators.
 // This program is distributed under the MIT license.
 
-CELL_SIZE = 30;
-HALF_CELL_SIZE = CELL_SIZE / 2;
-BOARD_SIZE = 20;
-BOARD_WIDTH = BOARD_HEIGHT = CELL_SIZE * BOARD_SIZE;
 
 
 function re_match_all(pattern, string) {
@@ -32,11 +28,6 @@ tau = Math.PI * 2;
 
 player_avatars = new Map();
 
-font_size = Math.ceil(CELL_SIZE * (2 / 3));
-player_font = ('bold ' + font_size.toString() +
-               'px Consolas, SFMono-Regular, "Liberation Mono", Menlo, monospace');
-player_text_x_shift = 0;
-player_text_y_shift = font_size / 14;
 
 function update_ui() {
   document.getElementById('timepoint-text').textContent =
@@ -195,6 +186,17 @@ function animate_core() {
   canvas = document.getElementById('canvas');
   context = canvas.getContext('2d');
   context.clearRect(0, 0, 720, 720);
+
+  BOARD_SIZE = __BRYTHON__.$getitem(transition, 'board_size');
+  CELL_SIZE = 600 / BOARD_SIZE;
+  HALF_CELL_SIZE = CELL_SIZE / 2;
+  BOARD_WIDTH = BOARD_HEIGHT = CELL_SIZE * BOARD_SIZE;
+  font_size = Math.ceil(CELL_SIZE * (2 / 3));
+  player_font = ('bold ' + font_size.toString() +
+                 'px Consolas, SFMono-Regular, "Liberation Mono", Menlo, monospace');
+  player_text_x_shift = 0;
+  player_text_y_shift = font_size / 14;
+
 
 
   //////////////////////////////////////////////////////////////////////////////////////////////////

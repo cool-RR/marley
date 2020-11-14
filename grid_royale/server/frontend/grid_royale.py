@@ -15,11 +15,6 @@ import random
 from browser import document, html, ajax, timer, window
 
 
-CELL_SIZE = window.CELL_SIZE
-HALF_CELL_SIZE = window.HALF_CELL_SIZE
-BOARD_WIDTH = window.BOARD_WIDTH
-BOARD_HEIGHT = window.BOARD_HEIGHT
-
 def clamp(number, /, minimum, maximum):
     assert minimum <= maximum
     if number < minimum:

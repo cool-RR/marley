@@ -144,6 +144,7 @@ def animate(states: Iterable[State]) -> Iterator[dict]:
         ############################################################################################
 
         yield {
+            'board_size': old_state.board_size,
             'players': tuple(sorted(players)),
             'food': tuple(sorted(food)),
             'bullets': tuple(sorted(bullets)),
