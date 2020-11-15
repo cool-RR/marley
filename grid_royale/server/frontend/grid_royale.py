@@ -170,8 +170,6 @@ class Timeline(collections.abc.MutableSequence):
     def play(self, *, change_icon: bool = True) -> None:
         if not self.is_strong_playing:
             self._set_anchor()
-            if self.needle == len(self) - 1:
-                self.needle = 0
             self.is_playing = self.is_strong_playing = True
             if change_icon:
                 favorites.play_pause_button_img.attrs['src'] = 'pause.png'
