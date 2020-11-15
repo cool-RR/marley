@@ -26,30 +26,10 @@ def _fit_external(model: keras.Model, *args, **kwargs) -> list:
 
 class TrainingData:
     def __init__(self, model_free_learning_strategy: ModelFreeLearningStrategy, *,
-                  loss: str = 'mse', optimizer: str = 'rmsprop', max_size: int = 5_000) -> None:
+                 max_size: int = 5_000) -> None:
 
         self.model_free_learning_strategy = model_free_learning_strategy
-        self.model = keras.models.Sequential(
-            layers=(
-                keras.layers.Dense(
-                    256, activation='relu',
-                    input_dim=self.model_free_learning_strategy.State.Observation.n_neurons
-                    ),
-                keras.layers.Dropout(rate=0.1),
-                keras.layers.Dense(
-                    256, activation='relu',
-                    ),
-                keras.layers.Dropout(rate=0.1),
-                keras.layers.Dense(
-                    256, activation='relu',
-                    ),
-                keras.layers.Dropout(rate=0.1),
-                keras.layers.Dense(
-                    self.model_free_learning_strategy.State.Action.n_neurons, # activation='relu'
-                    ),
-                ),
-        )
-        self.model.compile(optimizer=optimizer, loss=loss, metrics=['accuracy'])
+        self.model = model_free_learning_strategy.create_model()
 
         self.max_size = max_size
         self.counter = 0
@@ -233,5 +213,30 @@ class ModelFreeLearningStrategy(QStrategy):
 
     def _extra_repr(self) -> str:
         return f'(<...>, n_models={len(self.training_datas)})'
+
+    def create_model(self):
+        model = keras.models.Sequential(
+            layers=(
+                keras.layers.Dense(
+                    256, activation='relu',
+                    input_dim=self.State.Observation.n_neurons
+                    ),
+                keras.layers.Dropout(rate=0.1),
+                keras.layers.Dense(
+                    256, activation='relu',
+                    ),
+                keras.layers.Dropout(rate=0.1),
+                keras.layers.Dense(
+                    256, activation='relu',
+                    ),
+                keras.layers.Dropout(rate=0.1),
+                keras.layers.Dense(
+                    self.State.Action.n_neurons, # activation='relu'
+                    ),
+                ),
+        )
+        model.compile(optimizer='rmsprop', loss='mse', metrics=['accuracy'])
+        return model
+
 
 
