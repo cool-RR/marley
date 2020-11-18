@@ -207,7 +207,8 @@ class ModelFreeLearningStrategy(QStrategy):
     def decide_action_for_observation(self, observation: Observation, *,
                                        forced_epsilon: Optional[numbers.Real] = None) -> Action:
         epsilon = self.epsilon if forced_epsilon is None else forced_epsilon
-        if 0 < epsilon > random.random(): # Clever shortcut-logic optimization.
+        if (epsilon > 0) and (epsilon == 1 or epsilon > random.random()):
+            # The verbose condition above is an optimized version of `if epsilon > random.random():`
             return random.choice(observation.legal_actions)
         else:
             try:
