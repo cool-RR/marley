@@ -276,15 +276,10 @@ class Observation(_BaseGrid, gamey.Observation):
         #                                                                                          #
         ### Finished calculating sequential subarray. ##############################################
 
-        ### Initializing arrays: ###################################################################
-        #                                                                                          #
         array = np.zeros((1,), dtype=[('grid', int, grid_array.shape),
                                       ('sequential', np.float64, sequential_array.shape)])
         array[0]['grid'] = grid_array
         array[0]['sequential'] = sequential_array
-        #                                                                                          #
-        ### Finished initializing arrays. ##########################################################
-
         return array
 
 
