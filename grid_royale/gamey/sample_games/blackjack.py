@@ -154,8 +154,8 @@ class BlackjackState(gamey.SinglePlayerState):
     n_neurons = 5
 
     @functools.lru_cache(maxsize=None)
-    def to_neurons(self) -> np.ndarray:
-        return np.array(
+    def to_neural(self) -> np.ndarray:
+        sequential_array = np.array(
             tuple((
                 self.player_sum / 21,
                 1 in self.player_cards,
@@ -164,6 +164,10 @@ class BlackjackState(gamey.SinglePlayerState):
                 float(self.player_stuck)
             ))
         )
+        array = np.zeros((1,), dtype=[('sequential', np.float64, sequential_array.shape)])
+        array['sequential'][0] = sequential_array
+        return array
+
 
 
 

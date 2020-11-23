@@ -60,3 +60,6 @@ class NiceDataclass(collections.abc.Sequence):
         (field.name for field in dataclasses.fields(self))
     )
     __getitem__ = lambda self, i: tuple(self)[i]
+
+def is_structured_array(array: np.ndarray) -> bool:
+    return isinstance(array.dtype, np.dtype) and len(array.dtype) >= 1

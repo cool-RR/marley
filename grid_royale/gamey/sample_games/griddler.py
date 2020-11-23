@@ -72,8 +72,12 @@ class GriddlerState(gamey.SinglePlayerState):
     n_neurons = 2
 
     @functools.lru_cache(maxsize=None)
-    def to_neurons(self) -> np.ndarray:
-        return np.array((self.x, self.y))
+    def to_neural(self) -> np.ndarray:
+        sequential_array = np.array((self.x, self.y))
+        array = np.zeros((1,), dtype=[('sequential', np.float64, sequential_array.shape)])
+        array['sequential'][0] = sequential_array
+        return array
+
 
 
 class GriddlerStrategy(gamey.SinglePlayerStrategy):
