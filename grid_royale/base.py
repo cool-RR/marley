@@ -86,8 +86,6 @@ FOOD_REWARD = 10
 VISION_RANGE = 4
 VISION_SIZE = VISION_RANGE * 2 + 1
 
-N_CORE_STRATEGIES = 5
-
 LETTERS = string_module.ascii_uppercase
 
 grid_royale_folder = pathlib.Path.home() / '.grid_royale'
@@ -240,7 +238,7 @@ class Observation(_BaseGrid, gamey.Observation):
         ### Calculating grid subarray: #############################################################
         #                                                                                          #
         grid_array = np.zeros((self.board_size, self.board_size,
-                               9 + len(self.culture.core_strategies)))
+                               9 + len(self.culture.strategies)))
         relative_player_position = Position(self.board_size // 2, self.board_size // 2)
         translation = relative_player_position - self.position
         culture = self.state.culture
@@ -262,7 +260,7 @@ class Observation(_BaseGrid, gamey.Observation):
                 observation: Observation
                 if observation.letter == self.letter:
                     grid_array[tuple(relative_position) + (8,)] = 1
-                strategy_index = culture.core_strategies.index(
+                strategy_index = culture.strategies.index(
                                                   culture.player_id_to_strategy[observation.letter])
                 grid_array[tuple(relative_position) + (9 + strategy_index,)] = 1
         #                                                                                          #
@@ -318,7 +316,7 @@ class Observation(_BaseGrid, gamey.Observation):
             distances_to_other_players.append(float('inf'))
 
 
-        for strategy in self.culture.core_strategies:
+        for strategy in self.culture.strategies:
             for i, positions in enumerate(field_of_view, start=1):
                 strategies = (
                     self.culture.player_id_to_strategy[observation.letter]
@@ -331,7 +329,7 @@ class Observation(_BaseGrid, gamey.Observation):
             else:
                 distances_to_other_players.append(float('inf'))
 
-        assert len(distances_to_other_players) == N_CORE_STRATEGIES + 1
+        assert len(distances_to_other_players) == len(self.culture.strategies) + 1
 
         distances_to_bullets = []
         for direction in Step.all_steps:
@@ -385,7 +383,6 @@ class State(_BaseGrid, gamey.State):
                  living_wall_positions: FrozenSet[Position],
                  destroyed_wall_positions: FrozenSet[Position]) -> None:
         self.culture = culture
-        assert len(self.culture.core_strategies) == N_CORE_STRATEGIES
         self.player_id_to_observation = player_id_to_observation
         self.bullets = bullets
         self.allow_shooting = allow_shooting
@@ -762,16 +759,14 @@ class Culture(gamey.ModelFreeLearningCulture):
     def __init__(self, n_players: int = 20, *, board_size: int = 20,
                  allow_shooting: bool = True, allow_walling: bool = True,
                  concurrent_food_tiles: int = 40,
-                 core_strategies: Optional[Sequence[_GridRoyaleStrategy]] = None) -> None:
-
+                 strategies: Optional[Sequence[_GridRoyaleStrategy]] = None) -> None:
+        if strategies is not None:
+            assert n_players == len(strategies)
         self.board_size = board_size
         self.allow_shooting = allow_shooting
         self.allow_walling = allow_walling
         self.default_concurrent_food_tiles = concurrent_food_tiles
-        self.core_strategies = tuple(core_strategies or (Strategy(self) for _
-                                                         in range(N_CORE_STRATEGIES)))
-        self.strategies = tuple(more_itertools.islice_extended(
-                                                 itertools.cycle(self.core_strategies))[:n_players])
+        self.strategies = tuple(strategies or (Strategy(self) for _ in range(n_players)))
         # self.executor = concurrent.futures.ProcessPoolExecutor(5)
         gamey.Culture.__init__(self, state_type=State,
                                player_id_to_strategy=dict(zip(LETTERS, self.strategies)))
@@ -819,80 +814,6 @@ class Strategy(_GridRoyaleStrategy, gamey.ModelFreeLearningStrategy):
     def __init__(self, culture: Culture, **kwargs) -> None:
         self.culture = culture
         gamey.ModelFreeLearningStrategy.__init__(self, training_batch_size=10, **kwargs)
-
-
-    @functools.cache
-    def get_neurals_of_sample_states_and_best_actions(self) -> Tuple[np.ndarray,
-                                                                     Tuple[Action, ...]]:
-
-        culture = Culture(n_players=1, core_strategies=(self,) * N_CORE_STRATEGIES)
-        def make_state(player_position: Position,
-                       food_positions: Iterable[Position]) -> State:
-            observation = Observation(None, player_position, letter=LETTERS[0],
-                                      score=0, reward=0, last_action=None)
-            player_id_to_observation = ImmutableDict({observation.letter: observation})
-            state = State(
-                culture, board_size=self.culture.board_size,
-                player_id_to_observation=player_id_to_observation,
-                food_positions=frozenset(food_positions)
-            )
-            observation.state = state
-            return state
-
-        def make_states(player_position: Position,
-                        food_positions: Iterable[Position]) -> Tuple[State]:
-            return tuple(
-                make_state(rotated_player_position, rotated_food_positions) for
-                rotated_player_position, *rotated_food_positions in zip(
-                    *map(lambda position: position.iterate_rotations_in_board(
-                                                                board_size=self.culture.board_size),
-                         itertools.chain((player_position,), food_positions))
-                )
-            )
-
-        player_positions = [Position(x, y) for x, y in itertools.product((5, 11, 16), repeat=2)]
-        states = []
-        for player_position in player_positions:
-            distances_lists = tuple(
-                itertools.chain.from_iterable(
-                    itertools.combinations(range(1, 4 + 1), i) for i in range(1, 3 + 1)
-                )
-            )
-            for distances, step in itertools.product(distances_lists, Step.all_steps):
-                states.extend(
-                    make_states(player_position,
-                                [player_position + distance * step for distance in distances])
-                )
-
-        observations = [more_itertools.one(state.player_id_to_observation.values())
-                        for state in states]
-
-        def _get_cute_score_for_action(observation: Observation,
-                                       legal_move_action: Action) -> int:
-            next_state = observation.state. \
-                                get_next_state_from_actions({observation.letter: legal_move_action})
-            return more_itertools.one(next_state.player_id_to_observation.values()).cute_score
-
-        return tuple((
-            np.concatenate([observation.to_neural()[np.newaxis, :] for
-                            observation in observations]),
-            tuple(
-                max(
-                    observation.legal_move_actions,
-                    key=lambda legal_action: _get_cute_score_for_action(observation, legal_action)
-                )
-                for observation in observations
-            )
-        ))
-
-    def measure(self) -> numbers.Real:
-        neurals_of_sample_states, best_actions = \
-                                                self.get_neurals_of_sample_states_and_best_actions()
-        q_maps = self.get_qs_for_observations(observations_neurons=neurals_of_sample_states)
-        decided_actions = tuple(max(q_map, key=q_map.__getitem__) for q_map in q_maps)
-        return statistics.mean(decided_action == best_action for decided_action, best_action in
-                               zip(decided_actions, best_actions))
-
 
     def create_model(self, observation: Observation, action: Action) -> keras.Model:
         observation_neural = observation.to_neural()
