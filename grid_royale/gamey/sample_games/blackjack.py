@@ -154,7 +154,7 @@ class BlackjackState(gamey.SinglePlayerState):
     n_neurons = 5
 
     @functools.lru_cache(maxsize=None)
-    def to_neurons(self) -> np.ndarray:
+    def to_neural(self) -> np.ndarray:
         return np.array(
             tuple((
                 self.player_sum / 21,

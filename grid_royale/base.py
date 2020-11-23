@@ -67,6 +67,7 @@ import click
 import numpy as np
 import scipy.special
 import more_itertools
+import keras
 
 from . import gamey
 from . import utils
@@ -81,10 +82,7 @@ STARTING_REWARD = 0
 NOTHING_REWARD = -1
 FOOD_REWARD = 10
 
-VISION_RANGE = 4
-VISION_SIZE = VISION_RANGE * 2 + 1
-
-N_CORE_STRATEGIES = 5
+N_CORE_STRATEGIES = 1 # 5
 
 LETTERS = string_module.ascii_uppercase
 
@@ -113,12 +111,13 @@ class Action(gamey.Action):
     __iter__ = lambda self: iter((self.move, self.shoot, self.wall))
 
 
-    def _to_neurons(self) -> np.ndarray:
+    def _to_neural(self) -> np.ndarray:
         result = np.zeros(12, dtype=np.float64)
         result[Action.all_actions.index(self)] = 1
-        return result
+        return result[:4] # Temp hack
+    _n_neurons = 4 # Temp hack
 
-    def to_neurons(self) -> np.ndarray:
+    def to_neural(self) -> np.ndarray:
         return _action_neuron_cache[self]
 
     @property
@@ -144,10 +143,10 @@ class Action(gamey.Action):
     Action.all_wall_actions = (Action(None, None, Step.up), Action(None, None, Step.right),
                                    Action(None, None, Step.down), Action(None, None, Step.left))
 
-Action.all_actions = Action.all_move_actions + Action.all_shoot_actions + Action.all_wall_actions
+Action.all_actions = Action.all_move_actions # + Action.all_shoot_actions + Action.all_wall_actions
 
 for action in Action:
-    _action_neuron_cache[action] = action._to_neurons()
+    _action_neuron_cache[action] = action._to_neural()
 
 
 @dataclasses.dataclass(order=True, frozen=True)
@@ -206,27 +205,6 @@ class Observation(_BaseGrid, gamey.Observation):
     def culture(self) -> Culture:
         return self.state.culture
 
-    n_neurons = (
-        # + 1 # Score
-        + len(Action) # Last action
-        + 8 * ( # The following for each vicinity
-            + 1 # Distance to closest player of each strategy
-            + N_CORE_STRATEGIES # Distance to closest player of each strategy
-            + 1 # Distance to closest food
-            + 4 # Distance to closest bullet in each direction
-            + 1 # Distance to closest edge
-            + 1 # Distance to closest living wall
-        )
-        + VISION_SIZE ** 2 * ( # Simple vision
-            + 1 # Edge
-            + 1 # Living wall
-            + 1 # Destroyed wall
-            + 1 # Food
-            + 4 # Bullets in each direction
-            + N_CORE_STRATEGIES # Players of each strategy
-        )
-    )
-
     @property
     def legal_actions(self):
         return (
@@ -236,56 +214,44 @@ class Observation(_BaseGrid, gamey.Observation):
         )
 
 
-    @property
-    def simple_vision(self) -> np.ndarray:
-        array = np.zeros((VISION_SIZE, VISION_SIZE, 8 + N_CORE_STRATEGIES), dtype=int)
-        relative_player_position = Position(VISION_SIZE // 2, VISION_SIZE // 2)
+    @functools.cache
+    def to_neural(self) -> np.ndarray:
+
+        ### Initializing arrays: ###################################################################
+        #                                                                                          #
+        array = np.zeros((1,), dtype=[('grid', int, (self.board_size, self.board_size, 3)),
+                                      ('sequential', np.float64, (7,))])
+        grid_subarray = array[0]['grid']
+        sequential_subarray = array[0]['sequential']
+        #                                                                                          #
+        ### Finished initializing arrays. ##########################################################
+
+        ### Calculating grid subarray: #############################################################
+        #                                                                                          #
+        relative_player_position = Position(self.board_size // 2, self.board_size // 2)
         translation = relative_player_position - self.position
 
-        for relative_position in Position.iterate_all(VISION_SIZE):
+        for relative_position in Position.iterate_all(self.board_size):
             absolute_position: Position = relative_position - translation
             if absolute_position not in self:
-                array[tuple(relative_position) + (0,)] = 1
+                grid_subarray[tuple(relative_position) + (0,)] = 1
             elif absolute_position in self.state.food_positions:
-                array[tuple(relative_position) + (1,)] = 1
-            elif absolute_position in self.state.living_wall_positions:
-                array[tuple(relative_position) + (2,)] = 1
-            elif absolute_position in self.state.destroyed_wall_positions:
-                array[tuple(relative_position) + (3,)] = 1
-            elif (bullets := self.state.bullets.get(absolute_position, None)):
-                for bullet in bullets:
-                    array[tuple(relative_position) + (4 + bullet.direction.index,)] = 1
-            elif (observation := self.state.position_to_observation.get(absolute_position, None)):
-                letter = self.culture.player_id_to_strategy[observation.letter]
-                array[tuple(relative_position) +
-                      (8 + self.culture.core_strategies.index(letter),)] = 1
+                grid_subarray[tuple(relative_position) + (1,)] = 1
+            elif absolute_position in self.state.position_to_observation:
+                assert len(set(relative_position)) == 1
+                grid_subarray[tuple(relative_position) + (2,)] = 1
+        #                                                                                          #
+        ### Finished calculating grid subarray. ####################################################
+
+        ### Calculating sequential subarray: #######################################################
+        #                                                                                          #
+        if self.last_action is not None: # If no last action, stick with zeros.
+            sequential_subarray[:4] = self.last_action.to_neural()
+        #                                                                                          #
+        ### Finished calculating sequential subarray. ##############################################
 
         return array
 
-    @functools.cache
-    def to_neurons(self) -> np.ndarray:
-        last_action_neurons = (np.zeros(len(Action)) if self.last_action is None
-                               else self.last_action.to_neurons())
-        return np.concatenate((
-            np.array(
-                tuple(
-                    itertools.chain.from_iterable(
-                        self.processed_distances(vicinity) for vicinity in Vicinity.all_vicinities
-                    )
-                )
-            ),
-            np.array(
-                tuple(
-                    self.processed_distance_to_edge(vicinity) for vicinity in
-                    Vicinity.all_vicinities
-                )
-            ),
-            last_action_neurons,
-            self.simple_vision.flatten(),
-            # (scipy.special.expit(self.score / 10),),
-        ))
-
-    _distance_base = 1.2
 
     @functools.cache
     def processed_distances(self, vicinity: Vicinity) -> numbers.Real:
@@ -819,7 +785,7 @@ class Strategy(_GridRoyaleStrategy, gamey.ModelFreeLearningStrategy):
 
 
     @functools.cache
-    def get_neurons_of_sample_states_and_best_actions(self) -> Tuple[np.ndarray,
+    def get_neurals_of_sample_states_and_best_actions(self) -> Tuple[np.ndarray,
                                                                      Tuple[Action, ...]]:
 
         culture = Culture(n_players=1, core_strategies=(self,) * N_CORE_STRATEGIES)
@@ -871,7 +837,7 @@ class Strategy(_GridRoyaleStrategy, gamey.ModelFreeLearningStrategy):
             return more_itertools.one(next_state.player_id_to_observation.values()).cute_score
 
         return tuple((
-            np.concatenate([observation.to_neurons()[np.newaxis, :] for
+            np.concatenate([observation.to_neural()[np.newaxis, :] for
                             observation in observations]),
             tuple(
                 max(
@@ -883,12 +849,60 @@ class Strategy(_GridRoyaleStrategy, gamey.ModelFreeLearningStrategy):
         ))
 
     def measure(self) -> numbers.Real:
-        neurons_of_sample_states, best_actions = \
-                                                self.get_neurons_of_sample_states_and_best_actions()
-        q_maps = self.get_qs_for_observations(observations_neurons=neurons_of_sample_states)
+        neurals_of_sample_states, best_actions = \
+                                                self.get_neurals_of_sample_states_and_best_actions()
+        q_maps = self.get_qs_for_observations(observations_neurons=neurals_of_sample_states)
         decided_actions = tuple(max(q_map, key=q_map.__getitem__) for q_map in q_maps)
         return statistics.mean(decided_action == best_action for decided_action, best_action in
                                zip(decided_actions, best_actions))
+
+
+    def create_model(self, observation: Observation, action: Action) -> keras.Model:
+        observation_neural = observation.to_neural()
+
+        grid_input = keras.Input(
+            shape=observation_neural[0]['grid'].shape,
+            name='grid_input'
+        )
+        grid_0 = keras.layers.Conv2D(
+            16, 2, activation='relu',
+            kernel_initializer='orthogonal'
+        )(grid_input)
+        _ = keras.layers.Dropout(rate=0.1)(grid_0)
+        _ = keras.layers.Conv2D(
+            16, 2, activation='relu',
+            kernel_initializer='orthogonal'
+        )(_)
+        _ = keras.layers.Dropout(rate=0.1)(_)
+        _ = keras.layers.Conv2D(
+            16, 2, activation='relu',
+            kernel_initializer='orthogonal'
+        )(_)
+        _ = keras.layers.Flatten()(_)
+        grid_output = keras.layers.Dropout(rate=0.1)(_)
+
+        sequential_input = keras.Input(
+            shape=observation_neural[0]['sequential'].shape,
+            name='sequential_input'
+        )
+
+        concatenate_layer = keras.layers.concatenate([grid_output, sequential_input])
+
+        _ = keras.layers.Dense(
+            128, activation='relu',
+        )(concatenate_layer)
+        _ = keras.layers.Dropout(rate=0.1)(_)
+        _ = keras.layers.Dense(
+            128, activation='relu',
+        )(_)
+        _ = keras.layers.Dropout(rate=0.1)(_)
+        output = keras.layers.Dense(
+            more_itertools.one(action.to_neural().shape),
+        )(_)
+        model = keras.Model([grid_input, sequential_input], output)
+        model.compile(optimizer='rmsprop', loss='mse', metrics=['accuracy'])
+        return model
+
 
 
 

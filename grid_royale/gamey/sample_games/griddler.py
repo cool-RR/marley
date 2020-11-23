@@ -72,7 +72,7 @@ class GriddlerState(gamey.SinglePlayerState):
     n_neurons = 2
 
     @functools.lru_cache(maxsize=None)
-    def to_neurons(self) -> np.ndarray:
+    def to_neural(self) -> np.ndarray:
         return np.array((self.x, self.y))
 
 

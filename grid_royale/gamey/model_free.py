@@ -26,52 +26,48 @@ def _fit_external(model: keras.Model, *args, **kwargs) -> list:
 
 class TrainingData:
     def __init__(self, model_free_learning_strategy: ModelFreeLearningStrategy, *,
-                  loss: str = 'mse', optimizer: str = 'rmsprop', max_size: int = 5_000) -> None:
+                 max_size: int = 5_000) -> None:
 
         self.model_free_learning_strategy = model_free_learning_strategy
-        self.model = keras.models.Sequential(
-            layers=(
-                keras.layers.Dense(
-                    256, activation='relu',
-                    input_dim=self.model_free_learning_strategy.State.Observation.n_neurons
-                    ),
-                keras.layers.Dropout(rate=0.1),
-                keras.layers.Dense(
-                    256, activation='relu',
-                    ),
-                keras.layers.Dropout(rate=0.1),
-                keras.layers.Dense(
-                    256, activation='relu',
-                    ),
-                keras.layers.Dropout(rate=0.1),
-                keras.layers.Dense(
-                    self.model_free_learning_strategy.State.Action.n_neurons, # activation='relu'
-                    ),
-                ),
-        )
-        self.model.compile(optimizer=optimizer, loss=loss, metrics=['accuracy'])
+        self.model: Optional[keras.Model] = None
 
         self.max_size = max_size
         self.counter = 0
         self._last_trained_batch = 0
-        self.old_observation_neuron_array = np.zeros(
-            (max_size, model_free_learning_strategy.State.Observation.n_neurons)
-        )
-        self.new_observation_neuron_array = np.zeros(
-            (max_size, model_free_learning_strategy.State.Observation.n_neurons)
-        )
-        self.action_neuron_array = np.zeros(
-            (max_size, model_free_learning_strategy.State.Action.n_neurons)
-        )
+        self.old_observation_neuron_array = None
+        self.new_observation_neuron_array = None
+        self.action_neuron_array = None
         self.reward_array = np.zeros(max_size)
         self.are_not_end_array = np.zeros(max_size)
         self.other_training_data = self
+        self._created_arrays_and_model = False
+
+    def _create_arrays_and_model(self, observation: Observation, action: Action,):
+        self.model = self.model_free_learning_strategy.create_model(observation, action)
+        observation_neural = observation.to_neural()
+        self.old_observation_neuron_array = np.zeros(
+            # (self.max_size, *observation_neural.shape),
+            (self.max_size,),  # With this we're supporting only multiarray, maybe that's good
+            dtype=observation_neural.dtype
+        )
+        self.new_observation_neuron_array = np.zeros(
+            self.old_observation_neuron_array.shape,
+            dtype=observation_neural.dtype
+        )
+        self.action_neuron_array = np.zeros(
+            (self.max_size, type(action).n_neurons)
+        )
+        self._created_arrays_and_model = True
+
+
 
     def add_and_maybe_train(self, observation: Observation, action: Action,
                             next_observation: Observation) -> None:
-        self.old_observation_neuron_array[self.counter_modulo] = observation.to_neurons()
-        self.action_neuron_array[self.counter_modulo] = action.to_neurons()
-        self.new_observation_neuron_array[self.counter_modulo] = next_observation.to_neurons()
+        if not self._created_arrays_and_model:
+            self._create_arrays_and_model(observation, action)
+        self.old_observation_neuron_array[self.counter_modulo] = observation.to_neural()
+        self.action_neuron_array[self.counter_modulo] = action.to_neural()
+        self.new_observation_neuron_array[self.counter_modulo] = next_observation.to_neural()
         self.reward_array[self.counter_modulo] = next_observation.reward
         self.are_not_end_array[self.counter_modulo] = int(not next_observation.is_end)
         self.counter += 1
@@ -88,23 +84,23 @@ class TrainingData:
             )
             slicer = lambda x: pre_slicer(x)[random_indices]
 
-            old_observation_neurons = slicer(self.old_observation_neuron_array)
-            new_observation_neurons = slicer(self.new_observation_neuron_array)
-            action_neurons = slicer(self.action_neuron_array)
+            old_observation_neurals = slicer(self.old_observation_neuron_array)
+            new_observation_neurals = slicer(self.new_observation_neuron_array)
+            action_neurals = slicer(self.action_neuron_array)
             are_not_ends = slicer(self.are_not_end_array)
             rewards = slicer(self.reward_array)
-            n_data_points = old_observation_neurons.shape[0]
+            n_data_points = old_observation_neurals.shape[0]
 
-            prediction = self.model.predict(
-                np.concatenate((old_observation_neurons, new_observation_neurons))
+            prediction = self.predict(
+                np.concatenate((old_observation_neurals, new_observation_neurals))
             )
             wip_q_values, new_q_values = np.split(prediction, 2)
-            new_other_q_values = self.other_training_data.model.predict(
-                new_observation_neurons
+            new_other_q_values = self.other_training_data.predict(
+                new_observation_neurals
             )
 
             # Assumes discrete actions:
-            action_indices = np.dot(action_neurons, range(n_actions)).astype(np.int32)
+            action_indices = np.dot(action_neurals, range(n_actions)).astype(np.int32)
 
             batch_index = np.arange(n_data_points, dtype=np.int32)
             wip_q_values[batch_index, action_indices] = (
@@ -114,8 +110,10 @@ class TrainingData:
 
             )
 
+
             fit_arguments = {
-                'x': old_observation_neurons,
+                'x': {name: old_observation_neurals[name] for name
+                      in old_observation_neurals.dtype.names},
                 'y': wip_q_values,
                 'verbose': 0,
             }
@@ -145,6 +143,14 @@ class TrainingData:
     def filled_max_size(self) -> bool:
         return self.counter >= self.max_size
 
+    def predict(self, input_array):
+        dtype = input_array.dtype
+        is_multi_array = isinstance(dtype, np.dtype) and len(dtype) >= 2
+        if is_multi_array:
+            predict_argument = {name: input_array[name] for name in dtype.names}
+        else:
+            predict_argument = input_array
+        return self.model.predict(predict_argument)
 
 
 
@@ -174,33 +180,30 @@ class ModelFreeLearningStrategy(QStrategy):
         training_data.add_and_maybe_train(observation, action, next_observation)
 
 
-    def get_qs_for_observations(self, observations: Optional[Sequence[Observation]] = None, *,
-                                 observations_neurons: Optional[np.ndarray] = None) \
+    def get_qs_for_observations(self, observations: Sequence[Observation] = None) \
                                                             -> Tuple[Mapping[Action, numbers.Real]]:
-        if observations is None:
-            assert observations_neurons is not None
-            input_array = observations_neurons
-            check_action_legality = False
+        if not observations:
+            return ()
+        observation_neurals = [observation.to_neural() for observation in observations]
+        dtype = observation_neurals[0].dtype
+        is_multi_array = isinstance(dtype, np.dtype) and len(dtype) >= 2
+        if is_multi_array:
+            processed_neurals = observation_neurals
         else:
-            assert observations_neurons is None
-            input_array = np.concatenate(
-                [observation.to_neurons()[np.newaxis, :] for observation in observations]
-            )
-            check_action_legality = True
+            processed_neurals = [observation_neural[np.newaxis, :] for observation_neural in
+                                 observation_neurals]
+        input_array = np.concatenate(processed_neurals)
         training_data = random.choice(self.training_datas)
-        prediction_output = training_data.model.predict(input_array)
-        actions = tuple(self.State.Action)
-        if check_action_legality:
-            return tuple(
-                {action: q for action, q in dict(zip(actions, output_row)).items()
-                 if (action in observation.legal_actions)}
-                for observation, output_row in zip(observations, prediction_output)
-            )
+        if training_data.model is None:
+            prediction_output = np.random.rand(input_array.shape[0], self.State.Action.n_neurons)
         else:
-            return tuple(
-                {action: q for action, q in dict(zip(actions, output_row)).items()}
-                for output_row in prediction_output
-            )
+            prediction_output = training_data.predict(input_array)
+        actions = tuple(self.State.Action)
+        return tuple(
+            {action: q for action, q in dict(zip(actions, output_row)).items()
+             if (action in observation.legal_actions)}
+            for observation, output_row in zip(observations, prediction_output)
+        )
 
 
 
@@ -233,5 +236,30 @@ class ModelFreeLearningStrategy(QStrategy):
 
     def _extra_repr(self) -> str:
         return f'(<...>, n_models={len(self.training_datas)})'
+
+    def create_model(self, observation: Observation, action: Action) -> keras.Model:
+        model = keras.models.Sequential(
+            layers=(
+                keras.layers.Dense(
+                    256, activation='relu',
+                    input_shape=observation.to_neural.shape
+                    ),
+                keras.layers.Dropout(rate=0.1),
+                keras.layers.Dense(
+                    256, activation='relu',
+                    ),
+                keras.layers.Dropout(rate=0.1),
+                keras.layers.Dense(
+                    256, activation='relu',
+                    ),
+                keras.layers.Dropout(rate=0.1),
+                keras.layers.Dense(
+                    action.to_neural().shape[0] # activation='relu'
+                ),
+            ),
+        )
+        model.compile(optimizer='rmsprop', loss='mse', metrics=['accuracy'])
+        return model
+
 
 

@@ -77,19 +77,19 @@ class Action(metaclass=_ActionType):
         assert _action_regex.fullmatch(result)
         return result
 
-    def to_neurons(self) -> np.ndarray:
+    def to_neural(self) -> np.ndarray:
         # Implementation for simple discrete actions. Can override.
         try:
-            return self._to_neurons
+            return self._to_neural
         except AttributeError:
-            self._to_neurons = np.array([int(self == action) for action in type(self)],
+            self._to_neural = np.array([int(self == action) for action in type(self)],
                                         dtype=np.float64)
-            return self._to_neurons
+            return self._to_neural
 
     @classmethod
-    def from_neurons(cls, neurons: Iterable) -> Action:
+    def from_neural(cls, neurons: Iterable) -> Action:
         # Implementation for simple discrete actions. Can override.
-        return cls[tuple(neurons).index(1)]
+        return cls[tuple(neural).index(1)]
 
 
 class _ActionEnumType(type(Action), type(enum.Enum)):
@@ -106,10 +106,9 @@ class Observation(abc.ABC):
     legal_actions: Tuple[Action, ...]
     is_end: bool
     reward: numbers.Real
-    n_neurons: int
 
     @abc.abstractmethod
-    def to_neurons(self) -> np.ndarray:
+    def to_neural(self) -> np.ndarray:
         '''Represent the observation as an array of numbers for a neural network.'''
         raise NotImplementedError
 
