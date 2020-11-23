@@ -63,7 +63,7 @@ H  Go 5 states back
 J  Go 1 state back
 
 K  Go 1 state forward
-L Go 5 states forward
+L  Go 5 states forward
 ;  Go to end of simulation
 
 I  Hold to slow down playback
