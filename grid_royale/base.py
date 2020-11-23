@@ -240,24 +240,31 @@ class Observation(_BaseGrid, gamey.Observation):
         ### Calculating grid subarray: #############################################################
         #                                                                                          #
         grid_array = np.zeros((self.board_size, self.board_size,
-                               3 + len(self.culture.core_strategies)))
+                               9 + len(self.culture.core_strategies)))
         relative_player_position = Position(self.board_size // 2, self.board_size // 2)
         translation = relative_player_position - self.position
         culture = self.state.culture
 
         for relative_position in Position.iterate_all(self.board_size):
             absolute_position: Position = relative_position - translation
+            if absolute_position in self.state.food_positions:
+                grid_array[tuple(relative_position) + (1,)] = 1
             if absolute_position not in self:
                 grid_array[tuple(relative_position) + (0,)] = 1
-            elif absolute_position in self.state.food_positions:
-                grid_array[tuple(relative_position) + (1,)] = 1
+            elif (bullets := self.state.bullets.get(absolute_position, None)):
+                for bullet in bullets:
+                    grid_array[tuple(relative_position) + (2 + bullet.direction.index,)] = 1
+            elif absolute_position in self.state.living_wall_positions:
+                grid_array[tuple(relative_position) + (6,)] = 1
+            elif absolute_position in self.state.destroyed_wall_positions:
+                grid_array[tuple(relative_position) + (7,)] = 1
             elif (observation := self.state.position_to_observation.get(absolute_position, None)):
                 observation: Observation
                 if observation.letter == self.letter:
-                    grid_array[tuple(relative_position) + (2,)] = 1
+                    grid_array[tuple(relative_position) + (8,)] = 1
                 strategy_index = culture.core_strategies.index(
                                                   culture.player_id_to_strategy[observation.letter])
-                grid_array[tuple(relative_position) + (3 + strategy_index,)] = 1
+                grid_array[tuple(relative_position) + (9 + strategy_index,)] = 1
         #                                                                                          #
         ### Finished calculating grid subarray. ####################################################
 
