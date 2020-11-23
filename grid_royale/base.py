@@ -91,8 +91,7 @@ N_CORE_STRATEGIES = 5
 LETTERS = string_module.ascii_uppercase
 
 grid_royale_folder = pathlib.Path.home() / '.grid_royale'
-
-games_folder: pathlib.Path = grid_royale_folder / 'games'
+config_path = grid_royale_folder / 'config.json'
 
 logging.getLogger('tensorflow').addFilter(
     lambda record: 'Tracing is expensive and the excessive' not in record.msg
@@ -100,6 +99,24 @@ logging.getLogger('tensorflow').addFilter(
 
 _action_neuron_cache = {}
 
+@functools.cache
+def read_config() -> dict:
+    try:
+        content = config_path.read_text()
+    except FileNotFoundError:
+        return {}
+    return json.loads(content)
+
+@functools.cache
+def get_games_folder() -> pathlib.Path:
+    config = read_config()
+    try:
+        games_folder_string = config['games_folder']
+    except KeyError:
+        return grid_royale_folder / 'games'
+    games_folder = pathlib.Path(games_folder_string)
+    assert games_folder.is_dir()
+    return games_folder
 
 
 @dataclasses.dataclass(order=True, frozen=True)
@@ -717,7 +734,7 @@ class State(_BaseGrid, gamey.State):
         now = datetime_module.datetime.now()
         game_folder_name = now.isoformat(sep='-', timespec='microseconds'
                                                                ).replace(':', '-').replace('.', '-')
-        game_folder = games_folder / game_folder_name
+        game_folder = get_games_folder() / game_folder_name
         # print(f'Writing to {game_folder.name} ...')
         for state in self.write_to_folder(game_folder, chunk=chunk, max_length=max_length):
             yield state

@@ -16,7 +16,7 @@ from typing import (Optional, Tuple, Union, Container, Hashable, Iterator,
 
 import flask
 
-from grid_royale.base import games_folder
+from grid_royale.base import get_games_folder
 
 
 DEFAULT_HOST = '127.0.0.1'
@@ -78,14 +78,14 @@ def shutdown() -> str:
 
 @app.route('/games')
 def games() -> str:
-    return json.dumps([path.name for path in games_folder.iterdir()
+    return json.dumps([path.name for path in get_games_folder().iterdir()
                        if path.is_dir() and any(path.iterdir())])
 
 @app.route('/games/<game>/<chunk>.json')
 def game_chunk(game: str, chunk: str) -> str:
     assert re.fullmatch('^[0-9]+$', chunk)
     try:
-        return (games_folder / game / f'{chunk}.json').read_text()
+        return (get_games_folder() / game / f'{chunk}.json').read_text()
     except FileNotFoundError:
         raise flask.abort(404)
 
