@@ -871,7 +871,7 @@ from . import server
 @click.option('--n-players', type=int, default=20)
 @click.option('--concurrent-food-tiles', type=int, default=40)
 @click.option('--allow-shooting/--no-shooting', default=True)
-@click.option('--allow-walling/--no-walling', default=True)
+@click.option('--allow-walling/--no-walling', default=False)
 @click.option('--pre-train/--dont-pre-train', default=False)
 @click.option('--browser/--no-browser', 'open_browser', default=True)
 @click.option('--host', default=server.DEFAULT_HOST)
