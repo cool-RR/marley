@@ -237,11 +237,9 @@ class Observation(_BaseGrid, gamey.Observation):
 
         ### Calculating grid subarray: #############################################################
         #                                                                                          #
-        grid_array = np.zeros((self.board_size, self.board_size,
-                               9 + len(self.culture.strategies)))
+        grid_array = np.zeros((self.board_size, self.board_size, 10))
         relative_player_position = Position(self.board_size // 2, self.board_size // 2)
         translation = relative_player_position - self.position
-        culture = self.state.culture
 
         for relative_position in Position.iterate_all(self.board_size):
             absolute_position: Position = relative_position - translation
@@ -260,9 +258,8 @@ class Observation(_BaseGrid, gamey.Observation):
                 observation: Observation
                 if observation.letter == self.letter:
                     grid_array[tuple(relative_position) + (8,)] = 1
-                strategy_index = culture.strategies.index(
-                                                  culture.player_id_to_strategy[observation.letter])
-                grid_array[tuple(relative_position) + (9 + strategy_index,)] = 1
+                else:
+                    grid_array[tuple(relative_position) + (9,)] = 1
         #                                                                                          #
         ### Finished calculating grid subarray. ####################################################
 
