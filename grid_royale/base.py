@@ -88,6 +88,10 @@ VISION_SIZE = VISION_RANGE * 2 + 1
 
 LETTERS = string_module.ascii_uppercase
 
+DEFAULT_BOARD_SIZE = 12
+DEFAULT_CONCURRENT_FOOD_TILES = 20
+DEFAULT_N_PLAYERS = 10
+
 grid_royale_folder = pathlib.Path.home() / '.grid_royale'
 config_path = grid_royale_folder / 'config.json'
 
@@ -412,7 +416,7 @@ class State(_BaseGrid, gamey.State):
     @staticmethod
     def make_initial(culture: Culture, *, board_size: int, starting_score: int = 0,
                      allow_shooting: bool = True, allow_walling: bool = True,
-                     concurrent_food_tiles: int = 40) -> State:
+                     concurrent_food_tiles: int = DEFAULT_CONCURRENT_FOOD_TILES) -> State:
 
         n_players = len(culture.strategies)
         random_positions_firehose = utils.iterate_deduplicated(
@@ -748,9 +752,9 @@ class State(_BaseGrid, gamey.State):
 
 class Culture(gamey.ModelFreeLearningCulture):
 
-    def __init__(self, n_players: int = 20, *, board_size: int = 20,
+    def __init__(self, n_players: int = DEFAULT_N_PLAYERS, *, board_size: int = DEFAULT_BOARD_SIZE,
                  allow_shooting: bool = True, allow_walling: bool = True,
-                 concurrent_food_tiles: int = 40,
+                 concurrent_food_tiles: int = DEFAULT_CONCURRENT_FOOD_TILES,
                  strategies: Optional[Sequence[_GridRoyaleStrategy]] = None) -> None:
         if strategies is not None:
             assert n_players == len(strategies)
@@ -864,9 +868,9 @@ def grid_royale() -> None:
 from . import server
 
 @grid_royale.command()
-@click.option('--board-size', type=int, default=20)
-@click.option('--n-players', type=int, default=20)
-@click.option('--concurrent-food-tiles', type=int, default=40)
+@click.option('--board-size', type=int, default=DEFAULT_BOARD_SIZE)
+@click.option('--n-players', type=int, default=DEFAULT_N_PLAYERS)
+@click.option('--concurrent-food-tiles', type=int, default=DEFAULT_CONCURRENT_FOOD_TILES)
 @click.option('--allow-shooting/--no-shooting', default=True)
 @click.option('--allow-walling/--no-walling', default=False)
 @click.option('--pre-train/--dont-pre-train', default=False)
