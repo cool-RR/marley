@@ -82,8 +82,8 @@ class Action(metaclass=_ActionType):
         try:
             return self._to_neural
         except AttributeError:
-            self._to_neural = np.array([int(self == action) for action in type(self)],
-                                        dtype=np.float64)
+            self._to_neural = np.array([(self == action) for action in type(self)],
+                                        dtype=bool)
             return self._to_neural
 
     @classmethod

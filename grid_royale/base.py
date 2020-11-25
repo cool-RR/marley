@@ -135,8 +135,8 @@ class Action(gamey.Action):
 
 
     def _to_neural(self) -> np.ndarray:
-        result = np.zeros(12, dtype=np.float64)
-        result[Action.all_actions.index(self)] = 1
+        result = np.zeros(12, dtype=bool)
+        result[Action.all_actions.index(self)] = True
         return result
 
     def to_neural(self) -> np.ndarray:
@@ -241,29 +241,29 @@ class Observation(_BaseGrid, gamey.Observation):
 
         ### Calculating grid subarray: #############################################################
         #                                                                                          #
-        grid_array = np.zeros((self.board_size, self.board_size, 10))
+        grid_array = np.zeros((self.board_size, self.board_size, 10), dtype=bool)
         relative_player_position = Position(self.board_size // 2, self.board_size // 2)
         translation = relative_player_position - self.position
 
         for relative_position in Position.iterate_all(self.board_size):
             absolute_position: Position = relative_position - translation
             if absolute_position in self.state.food_positions:
-                grid_array[tuple(relative_position) + (1,)] = 1
+                grid_array[tuple(relative_position) + (1,)] = True
             if absolute_position not in self:
-                grid_array[tuple(relative_position) + (0,)] = 1
+                grid_array[tuple(relative_position) + (0,)] = True
             elif (bullets := self.state.bullets.get(absolute_position, None)):
                 for bullet in bullets:
-                    grid_array[tuple(relative_position) + (2 + bullet.direction.index,)] = 1
+                    grid_array[tuple(relative_position) + (2 + bullet.direction.index,)] = True
             elif absolute_position in self.state.living_wall_positions:
-                grid_array[tuple(relative_position) + (6,)] = 1
+                grid_array[tuple(relative_position) + (6,)] = True
             elif absolute_position in self.state.destroyed_wall_positions:
-                grid_array[tuple(relative_position) + (7,)] = 1
+                grid_array[tuple(relative_position) + (7,)] = True
             elif (observation := self.state.position_to_observation.get(absolute_position, None)):
                 observation: Observation
                 if observation.letter == self.letter:
-                    grid_array[tuple(relative_position) + (8,)] = 1
+                    grid_array[tuple(relative_position) + (8,)] = True
                 else:
-                    grid_array[tuple(relative_position) + (9,)] = 1
+                    grid_array[tuple(relative_position) + (9,)] = True
         #                                                                                          #
         ### Finished calculating grid subarray. ####################################################
 
@@ -277,8 +277,8 @@ class Observation(_BaseGrid, gamey.Observation):
         #                                                                                          #
         ### Finished calculating sequential subarray. ##############################################
 
-        array = np.zeros((1,), dtype=[('grid', int, grid_array.shape),
-                                      ('sequential', np.float64, sequential_array.shape)])
+        array = np.zeros((1,), dtype=[('grid', grid_array.dtype, grid_array.shape),
+                                      ('sequential', sequential_array.dtype, sequential_array.shape)])
         array[0]['grid'] = grid_array
         array[0]['sequential'] = sequential_array
         return array
