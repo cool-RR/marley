@@ -26,6 +26,8 @@ _needle_on_screen = null;
 ceil_needle = 0;
 tau = Math.PI * 2;
 
+BORDER_WIDTH = 2
+
 player_avatars = new Map();
 
 
@@ -55,8 +57,8 @@ function mix_colors(old_color, new_color, linear_transition_complement, linear_t
 function draw_player(context, letter, x, y, color, opacity) {
     context.save();
     context.globalAlpha = opacity;
-    context.translate(x * CELL_SIZE + HALF_CELL_SIZE,
-                      y * CELL_SIZE + HALF_CELL_SIZE);
+    context.translate(BORDER_WIDTH + x * CELL_SIZE + HALF_CELL_SIZE,
+                      BORDER_WIDTH + y * CELL_SIZE + HALF_CELL_SIZE);
 
     context.fillStyle = color;
     context.beginPath();
@@ -74,8 +76,8 @@ function draw_player(context, letter, x, y, color, opacity) {
 function draw_food(context, x, y, opacity) {
     context.save();
     context.globalAlpha = opacity;
-    context.translate(x * CELL_SIZE + HALF_CELL_SIZE,
-                      y * CELL_SIZE + HALF_CELL_SIZE);
+    context.translate(BORDER_WIDTH + x * CELL_SIZE + HALF_CELL_SIZE,
+                      BORDER_WIDTH + y * CELL_SIZE + HALF_CELL_SIZE);
 
     context.fillStyle = '#666666';
     context.beginPath();
@@ -89,8 +91,8 @@ function draw_food(context, x, y, opacity) {
 function draw_bullet(context, x, y, angle_offset, opacity) {
     context.save();
     context.globalAlpha = opacity;
-    context.translate(x * CELL_SIZE + HALF_CELL_SIZE,
-                      y * CELL_SIZE + HALF_CELL_SIZE);
+    context.translate(BORDER_WIDTH + x * CELL_SIZE + HALF_CELL_SIZE,
+                      BORDER_WIDTH + y * CELL_SIZE + HALF_CELL_SIZE);
     context.rotate(angle_offset);
 
     context.lineWidth = 0.2 * HALF_CELL_SIZE;
@@ -119,13 +121,24 @@ function draw_bullet(context, x, y, angle_offset, opacity) {
 function draw_wall(context, x, y, opacity) {
     context.save();
     context.globalAlpha = opacity;
-    context.translate(x * CELL_SIZE + HALF_CELL_SIZE,
-                      y * CELL_SIZE + HALF_CELL_SIZE);
+    context.translate(BORDER_WIDTH + x * CELL_SIZE + HALF_CELL_SIZE,
+                      BORDER_WIDTH + y * CELL_SIZE + HALF_CELL_SIZE);
 
     context.strokeStyle = '#aaaaaa';
     context.lineWidth = 8;
     context.strokeRect(- HALF_CELL_SIZE + 5, - HALF_CELL_SIZE + 5,
                        CELL_SIZE - 10, CELL_SIZE - 10);
+
+    context.restore();
+}
+
+
+function draw_edge(context) {
+    context.save();
+
+    context.strokeStyle = '#aaaaaa';
+    context.lineWidth = BORDER_WIDTH;
+    context.strokeRect(0, 0, 600, 600);
 
     context.restore();
 }
@@ -188,7 +201,7 @@ function animate_core() {
   context.clearRect(0, 0, 720, 720);
 
   BOARD_SIZE = __BRYTHON__.$getitem(transition, 'board_size');
-  CELL_SIZE = 600 / BOARD_SIZE;
+  CELL_SIZE = (600 - 2 * BORDER_WIDTH) / BOARD_SIZE;
   HALF_CELL_SIZE = CELL_SIZE / 2;
   BOARD_WIDTH = BOARD_HEIGHT = CELL_SIZE * BOARD_SIZE;
   font_size = Math.ceil(CELL_SIZE * (2 / 3));
@@ -197,7 +210,7 @@ function animate_core() {
   player_text_x_shift = 0;
   player_text_y_shift = font_size / 14;
 
-
+  draw_edge(context);
 
   //////////////////////////////////////////////////////////////////////////////////////////////////
   //// Drawing players: ////////////////////////////////////////////////////////////////////////////
