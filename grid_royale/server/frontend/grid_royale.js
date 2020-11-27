@@ -26,7 +26,7 @@ _needle_on_screen = null;
 ceil_needle = 0;
 tau = Math.PI * 2;
 
-BORDER_WIDTH = 2
+BORDER_WIDTH = 5
 
 player_avatars = new Map();
 
