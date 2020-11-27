@@ -89,7 +89,7 @@ VISION_SIZE = VISION_RANGE * 2 + 1
 LETTERS = string_module.ascii_uppercase
 
 DEFAULT_BOARD_SIZE = 12
-DEFAULT_CONCURRENT_FOOD_TILES = 20
+DEFAULT_N_FOOD_TILES = 20
 DEFAULT_N_PLAYERS = 10
 
 grid_royale_folder = pathlib.Path.home() / '.grid_royale'
@@ -416,19 +416,19 @@ class State(_BaseGrid, gamey.State):
     @staticmethod
     def make_initial(culture: Culture, *, board_size: int, starting_score: int = 0,
                      allow_shooting: bool = True, allow_walling: bool = True,
-                     concurrent_food_tiles: int = DEFAULT_CONCURRENT_FOOD_TILES) -> State:
+                     n_food_tiles: int = DEFAULT_N_FOOD_TILES) -> State:
 
         n_players = len(culture.strategies)
         random_positions_firehose = utils.iterate_deduplicated(
                                      State.iterate_random_positions(board_size=board_size))
         random_positions = tuple(
             more_itertools.islice_extended(
-                random_positions_firehose)[:(n_players + concurrent_food_tiles)]
+                random_positions_firehose)[:(n_players + n_food_tiles)]
         )
 
         player_positions = random_positions[:n_players]
         food_positions = frozenset(random_positions[n_players:])
-        assert len(food_positions) == concurrent_food_tiles
+        assert len(food_positions) == n_food_tiles
 
         player_id_to_observation = {}
         for letter, player_position in zip(LETTERS, player_positions):
@@ -754,26 +754,26 @@ class Culture(gamey.ModelFreeLearningCulture):
 
     def __init__(self, n_players: int = DEFAULT_N_PLAYERS, *, board_size: int = DEFAULT_BOARD_SIZE,
                  allow_shooting: bool = True, allow_walling: bool = True,
-                 concurrent_food_tiles: int = DEFAULT_CONCURRENT_FOOD_TILES,
+                 n_food_tiles: int = DEFAULT_N_FOOD_TILES,
                  strategies: Optional[Sequence[_GridRoyaleStrategy]] = None) -> None:
         if strategies is not None:
             assert n_players == len(strategies)
         self.board_size = board_size
         self.allow_shooting = allow_shooting
         self.allow_walling = allow_walling
-        self.default_concurrent_food_tiles = concurrent_food_tiles
+        self.default_n_food_tiles = n_food_tiles
         self.strategies = tuple(strategies or (Strategy(self) for _ in range(n_players)))
         # self.executor = concurrent.futures.ProcessPoolExecutor(5)
         gamey.Culture.__init__(self, state_type=State,
                                player_id_to_strategy=dict(zip(LETTERS, self.strategies)))
 
 
-    def make_initial_state(self, *, concurrent_food_tiles: Optional[int] = None) -> State:
-        concurrent_food_tiles = (concurrent_food_tiles if concurrent_food_tiles is not None
-                                 else self.default_concurrent_food_tiles)
+    def make_initial_state(self, *, n_food_tiles: Optional[int] = None) -> State:
+        n_food_tiles = (n_food_tiles if n_food_tiles is not None
+                                 else self.default_n_food_tiles)
         return State.make_initial(
             self, board_size=self.board_size, allow_shooting=self.allow_shooting,
-            allow_walling=self.allow_walling, concurrent_food_tiles=concurrent_food_tiles
+            allow_walling=self.allow_walling, n_food_tiles=n_food_tiles
         )
 
 
@@ -870,7 +870,7 @@ from . import server
 @grid_royale.command()
 @click.option('--board-size', type=int, default=DEFAULT_BOARD_SIZE)
 @click.option('--n-players', type=int, default=DEFAULT_N_PLAYERS)
-@click.option('--concurrent-food-tiles', type=int, default=DEFAULT_CONCURRENT_FOOD_TILES)
+@click.option('--n-food-tiles', type=int, default=DEFAULT_N_FOOD_TILES)
 @click.option('--allow-shooting/--no-shooting', default=True)
 @click.option('--allow-walling/--no-walling', default=False)
 @click.option('--pre-train/--dont-pre-train', default=False)
@@ -878,12 +878,11 @@ from . import server
 @click.option('--host', default=server.DEFAULT_HOST)
 @click.option('--port', default=server.DEFAULT_PORT)
 @click.option('--max-length', default=None, type=int)
-def play(*, board_size: int, n_players: int, concurrent_food_tiles: int, allow_shooting: bool,
+def play(*, board_size: int, n_players: int, n_food_tiles: int, allow_shooting: bool,
          allow_walling: bool, pre_train: bool, open_browser: bool, host: str, port: str,
          max_length: Optional[int] = None) -> None:
     with server.ServerThread(host=host, port=port, quiet=True) as server_thread:
-        culture = Culture(n_players=n_players, board_size=board_size,
-                          concurrent_food_tiles=concurrent_food_tiles,
+        culture = Culture(n_players=n_players, board_size=board_size, n_food_tiles=n_food_tiles,
                           allow_shooting=allow_shooting, allow_walling=allow_walling)
         state = culture.make_initial_state()
 
