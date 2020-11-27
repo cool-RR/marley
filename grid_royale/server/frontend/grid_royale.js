@@ -196,6 +196,15 @@ function animate_core() {
   cute_transition_complement = Math.atan((-1 / linear_transition_complement) +
                                          (1 / (1 - linear_transition_complement))) / Math.PI + 0.5;
   cute_transition = 1 - cute_transition_complement;
+  if (linear_transition <= 0.5) {
+    eaten_food_transition = 0;
+  } else if (linear_transition >= 0.7) {
+    eaten_food_transition = 1;
+  } else {
+    eaten_food_transition = (linear_transition - 0.5) / 0.2
+  }
+  eaten_food_transition_complement = 1 - eaten_food_transition;
+
   canvas = document.getElementById('canvas');
   context = canvas.getContext('2d');
   context.clearRect(0, 0, 720, 720);
@@ -277,7 +286,12 @@ function animate_core() {
   food = __BRYTHON__.$getitem(transition, 'food');
   for (let i = 0; i < food.length; i++) {
     [[food_x, food_y], [old_opacity, new_opacity]] = food[i];
-    opacity = linear_transition_complement * old_opacity + linear_transition * new_opacity;
+    if (old_opacity == 1 & new_opacity == 0) { // Food eaten
+      opacity = (eaten_food_transition_complement * old_opacity +
+                 eaten_food_transition * new_opacity);
+    } else {
+      opacity = linear_transition_complement * old_opacity + linear_transition * new_opacity;
+    }
 
     draw_food(context, food_x, food_y, opacity);
   }
