@@ -75,8 +75,8 @@ into each other and shoot each other. Eating a piece of food grants the creature
 into another creature costs 5 points. Getting shot costs 10 points.
 
 I used Keras to write a Q-learning algorithm with a neural network, and that got them to learn how
-to walk towards the food and avoid bumping into each other. They're still pretty dumb most of the
-time.
+to walk towards the food and avoid bumping into each other. They're not smart enough yet to avoid
+bullets or have a strategy.
 
 There's a nice browser interface that lets you see the entire animation and skip to any timepoint
 you'd like.
