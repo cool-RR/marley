@@ -893,12 +893,17 @@ def play(*, board_size: int, n_players: int, n_food_tiles: int, allow_shooting: 
             click.echo(f'Open {server_thread.url} in your browser to view the game.')
 
         if pre_train:
-            pre_train_n_games = 4
-            pre_train_max_length = 20
-            click.echo(f'Pre-training {pre_train_n_games} games, each with '
-                       f'{pre_train_max_length} states...', nl=False)
+            pre_train_n_games = 50
+            pre_train_max_length = 50
+            pre_train_n_games_per_phase = 10
+            click.echo(
+                f'Pre-training {pre_train_n_games} games, each with '
+                f'{pre_train_max_length} states, with {pre_train_n_games_per_phase} games per '
+                f'phase...', nl=False
+            )
             for _ in culture.multi_game_train(n_total_games=pre_train_n_games,
-                                              max_length=pre_train_max_length):
+                                              max_length=pre_train_max_length,
+                                              n_games_per_phase=pre_train_n_games_per_phase):
                 click.echo('.', nl=False)
             click.echo(' Done pre-training.')
 
