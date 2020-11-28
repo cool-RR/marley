@@ -893,8 +893,8 @@ def play(*, board_size: int, n_players: int, n_food_tiles: int, allow_shooting: 
             click.echo(f'Open {server_thread.url} in your browser to view the game.')
 
         if pre_train:
-            pre_train_n_games = 80
-            pre_train_max_length = 80
+            pre_train_n_games = 100
+            pre_train_max_length = 100
             pre_train_n_games_per_phase = 10
             click.echo(
                 f'Pre-training {pre_train_n_games} games, each with '
