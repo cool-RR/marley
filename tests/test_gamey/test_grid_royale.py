@@ -9,7 +9,7 @@ def test_simple():
     culture = Culture(n_players=1, board_size=4)
     state_0 = culture.make_initial_state(n_food_tiles=2)
     assert len(state_0.food_positions) == 2
-    (letter,) = culture.player_id_to_strategy
+    (letter,) = culture.player_id_to_policy
     assert isinstance(state_0, State)
     assert state_0.board_size == 4
     assert not state_0.is_end

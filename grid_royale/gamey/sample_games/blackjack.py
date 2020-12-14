@@ -9,6 +9,7 @@ import itertools
 import random
 import enum
 import functools
+import numbers
 import numpy as np
 
 import more_itertools
@@ -53,20 +54,24 @@ BlackjackAction.all_actions = (BlackjackAction.hit, BlackjackAction.stick,
                                BlackjackAction.wait)
 
 _card_distribution = tuple(range(1, 10 + 1)) + (10,) * 3
-def get_random_card() -> int:
-    return random.choice(_card_distribution)
+# def get_random_card() -> int:
+    # return random.choice(_card_distribution)
 
-class BlackjackState(gamey.SinglePlayerState):
+def get_shuffled_deck() -> tuple:
+    return tuple(gamey.utils.shuffled(_card_distribution * 4))
 
-    Action = BlackjackAction
 
-    reward = 0
+class BlackjackState(gamey.SoloState):
 
-    def __init__(self, player_cards: Tuple[int, ...], dealer_cards: Tuple[int, ...]) -> None:
+    def __init__(self, player_cards: Tuple[int, ...], dealer_cards: Tuple[int, ...],
+                 deck: Tuple[int, ...]) -> None:
+        gamey.SoloState.__init__(self)
         self.player_cards = tuple(sorted(player_cards))
         self.dealer_cards = tuple(sorted(dealer_cards))
+        self.deck = deck
 
         self.player_stuck = (len(self.dealer_cards) >= 2)
+        self.is_first_state = (len(self.player_cards) == len(self.dealer_cards) == 0)
         self.player_sum = sum_cards(self.player_cards)
         self.dealer_sum = sum_cards(self.dealer_cards)
 
@@ -89,10 +94,10 @@ class BlackjackState(gamey.SinglePlayerState):
             else:
                 assert self.player_sum == self.dealer_sum
                 self.reward = 0
-        else: # len(self.dealer_cards) == 1
-            assert 2 <= self.dealer_sum <= 16
+        elif 2 <= self.dealer_sum <= 16:
             if self.player_stuck:
                 self.is_end = False
+                self.reward = 0
                 assert self.player_sum <= 20
             else: # not self.player_stuck
                 if self.player_sum > 21:
@@ -104,6 +109,12 @@ class BlackjackState(gamey.SinglePlayerState):
                 else:
                     assert self.player_sum <= 20
                     self.is_end = False
+                    self.reward = 0
+        else:
+            assert self.is_first_state
+            self.is_end = False
+            self.reward = 0
+
         #                                                                     #
         ### Finished calculating end value, if any. ###########################
 
@@ -111,31 +122,40 @@ class BlackjackState(gamey.SinglePlayerState):
             self.legal_actions = ()
         elif self.player_stuck:
             self.legal_actions = (BlackjackAction.wait,)
+        elif self.is_first_state:
+            self.legal_actions = (BlackjackAction.wait,)
         else:
             self.legal_actions = (BlackjackAction.hit, BlackjackAction.stick,)
 
 
 
-    def get_next_state_from_action(self, action: BlackjackAction) -> BlackjackState:
+    def get_next_reward_and_state(self, action: BlackjackAction) -> Tuple[numbers.Number,
+                                                                          BlackjackState]:
         if action not in self.legal_actions:
             raise gamey.exceptions.IllegalAction(action)
-        if self.player_stuck or action == BlackjackAction.stick:
-            return BlackjackState(
+        if self.is_first_state:
+            state = BlackjackState(
+                self.deck[-2:],
+                (self.deck[-3],),
+                self.deck[:-3]
+            )
+        elif self.player_stuck or action == BlackjackAction.stick:
+            state = BlackjackState(
                 self.player_cards,
-                self.dealer_cards + (get_random_card(),)
+                self.dealer_cards + self.deck[-1:],
+                self.deck[:-1]
             )
         else:
-            return BlackjackState(
-                self.player_cards + (get_random_card(),),
-                self.dealer_cards
+            state = BlackjackState(
+                self.player_cards + self.deck[-1:],
+                self.dealer_cards,
+                self.deck[:-1]
             )
+        return (state.reward, state)
 
     @staticmethod
     def make_initial() -> BlackjackState:
-        return BlackjackState(
-            (get_random_card(), get_random_card()),
-            (get_random_card(),)
-        )
+        return BlackjackState((), (), get_shuffled_deck())
 
     def __repr__(self) -> str:
         return (f'{type(self).__name__}'
@@ -151,7 +171,7 @@ class BlackjackState(gamey.SinglePlayerState):
         return ((type(self) is type(other)) and
                 (self._as_tuple() == other._as_tuple()))
 
-    n_neurons = 5
+    neural_dtype = np.dtype([('sequential', np.float64, 5)])
 
     @functools.lru_cache(maxsize=None)
     def to_neural(self) -> np.ndarray:
@@ -164,36 +184,41 @@ class BlackjackState(gamey.SinglePlayerState):
                 float(self.player_stuck)
             ))
         )
-        array = np.zeros((1,), dtype=[('sequential', np.float64, sequential_array.shape)])
+        array = np.zeros((1,), dtype=self.neural_dtype)
         array['sequential'][0] = sequential_array
         return array
 
 
 
+class BlackjackPolicy(gamey.SoloEpisodicPolicy):
+    pass
 
-class BlackjackStrategy(gamey.SinglePlayerStrategy):
-    State = BlackjackState
 
 
-class AlwaysHitStrategy(BlackjackStrategy):
-    def decide_action_for_observation(self, observation: BlackjackState) -> BlackjackAction:
+
+
+class RandomPolicy(BlackjackPolicy, gamey.RandomPolicy):
+    pass
+
+class AlwaysHitPolicy(BlackjackPolicy, gamey.StaticPolicy):
+    def get_next_action(self, observation: BlackjackState) -> BlackjackAction:
         return (BlackjackAction.hit if (BlackjackAction.hit in observation.legal_actions)
                 else BlackjackAction.wait)
 
-class AlwaysStickStrategy(BlackjackStrategy):
-    '''A strategy that always sticks, no matter what.'''
-    def decide_action_for_observation(self, observation: BlackjackState) -> BlackjackAction:
+class AlwaysStickPolicy(BlackjackPolicy, gamey.StaticPolicy):
+    '''A policy that always sticks, no matter what.'''
+    def get_next_action(self, observation: BlackjackState) -> BlackjackAction:
         return (BlackjackAction.stick if (BlackjackAction.stick in observation.legal_actions)
                 else BlackjackAction.wait)
 
-class ThresholdStrategy(BlackjackStrategy):
+class ThresholdPolicy(BlackjackPolicy, gamey.StaticPolicy):
     '''
-    A strategy that sticks if the sum of cards is below the given threshold.
+    A policy that sticks if the sum of cards is below the given threshold.
     '''
     def __init__(self, threshold: int = 17) -> None:
         self.threshold = threshold
 
-    def decide_action_for_observation(self, observation: BlackjackState) -> BlackjackAction:
+    def get_next_action(self, observation: BlackjackState) -> BlackjackAction:
         if BlackjackAction.wait in observation.legal_actions:
             return BlackjackAction.wait
         elif observation.player_sum >= self.threshold:
@@ -205,103 +230,87 @@ class ThresholdStrategy(BlackjackStrategy):
         return f'(threshold={self.threshold})'
 
 
-class RandomStrategy(BlackjackStrategy, gamey.RandomStrategy):
-    pass
 
-class ModelBasedEpisodicLearningStrategy(BlackjackStrategy,
-                                         gamey.ModelBasedEpisodicLearningStrategy):
-    pass
-
-class ModelFreeLearningStrategy(BlackjackStrategy, gamey.ModelFreeLearningStrategy):
-
-    @property
-    def culture(self):
-        try:
-            return self._culture
-        except AttributeError:
-            self._culture = ModelFreeLearningCulture(strategy=self)
-            return self._culture
-
-    def get_score(self, n: int = 1_000, state_factory: Optional[Callable] = None,
-                  max_length: Optional[int] = None) -> int:
-        state_factory = (self.culture.make_initial_state if state_factory is None
-                         else state_factory)
-        last_states = [None] * n
-        for states in self.culture.iterate_games(state_factory() for _ in range(n)):
-            for i, state in enumerate(states):
-                if state is not None:
-                    last_states[i] = state
-        return np.mean([last_state.reward for last_state in last_states])
+class ModelFreeLearningPolicy(gamey.ModelFreeLearningPolicy, BlackjackPolicy):
+    Observation = BlackjackState
+    Action = BlackjackAction
 
 
-class ModelFreeLearningCulture(gamey.ModelFreeLearningCulture, gamey.SinglePlayerCulture):
-    def __init__(self, *, strategy) -> None:
-        gamey.SinglePlayerCulture.__init__(self, state_type=BlackjackState, strategy=strategy)
+# class ModelBasedEpisodicLearningPolicy(gamey.ModelBasedEpisodicLearningPolicy, BlackjackPolicy):
+    # pass
 
 
 
 
-def demo(n_training_games: int = 1_000, n_evaluation_games: int = 100) -> None:
+def demo(n_training_states: int = 1_000, n_evaluation_games: int = 100) -> None:
     print('Starting Blackjack demo.')
 
-    # model_free_learning_strategy.get_score(n=1_000)
-    learning_strategies = [
-        model_based_episodic_learning_strategy := ModelBasedEpisodicLearningStrategy(),
-        single_model_free_learning_strategy := ModelFreeLearningStrategy(gamma=1, n_models=1),
-        double_model_free_learning_strategy := ModelFreeLearningStrategy(gamma=1, n_models=2),
+    # model_free_learning_policy.get_score(n=1_000)
+    learning_policies = [
+        # model_based_episodic_learning_policy := ModelBasedEpisodicLearningPolicy(),
+        single_model_free_learning_policy := ModelFreeLearningPolicy(gamma=1, n_models=1),
+        double_model_free_learning_policy := ModelFreeLearningPolicy(gamma=1, n_models=2),
     ]
-    strategies = [
-        RandomStrategy(),
-        AlwaysHitStrategy(),
-        AlwaysStickStrategy(),
-        ThresholdStrategy(15),
-        ThresholdStrategy(16),
-        ThresholdStrategy(17),
-        *learning_strategies,
+    policies = [
+        RandomPolicy(),
+        AlwaysHitPolicy(),
+        AlwaysStickPolicy(),
+        ThresholdPolicy(15),
+        ThresholdPolicy(16),
+        ThresholdPolicy(17),
+        *learning_policies,
     ]
 
 
-    print(f"Let's compare {len(strategies)} Blackjack strategies. First we'll play "
-          f"{n_evaluation_games:,} games on each strategy and observe the scores:\n")
+    print(f"Let's compare {len(policies)} Blackjack policies. First we'll play "
+          f"{n_evaluation_games:,} games on each policy and observe the scores:\n")
 
     def print_summary():
-        strategies_and_scores = sorted(
-            ((strategy, strategy.get_score(n_evaluation_games)) for strategy in strategies),
+        policies_and_scores = sorted(
+            ((policy, policy.get_score(BlackjackState.make_initial, n_evaluation_games))
+             for policy in policies),
             key=lambda x: x[1], reverse=True
         )
-        for strategy, score in strategies_and_scores:
-            print(f'    {strategy}: '.ljust(60), end='')
+        for policy, score in policies_and_scores:
+            print(f'    {policy}: '.ljust(60), end='')
             print(f'{score: .3f}')
 
     print_summary()
 
-    print(f"\nThat's nice. Now we want to see that the learning strategies can be better than "
+    print(f"\nThat's nice. Now we want to see that the learning policies can be better than "
           f"the dumb ones, if we give them time to learn.")
 
-    print(f'Training {model_based_episodic_learning_strategy} on {n_training_games:,} games... ',
-          end='')
-    sys.stdout.flush()
-    model_based_episodic_learning_strategy.get_score(n=n_training_games)
-    print('Done.')
+    # print(f'Training {model_based_episodic_learning_policy} on {n_training_games:,} games... ',
+          # end='')
+    # sys.stdout.flush()
+    # model_based_episodic_learning_policy.get_score(n=n_training_games)
+    # print('Done.')
 
-    for model_free_learning_strategy in (single_model_free_learning_strategy,
-                                         double_model_free_learning_strategy):
-        print(f'Training {model_free_learning_strategy} on {n_training_games:,} games',
+    for model_free_learning_policy in (single_model_free_learning_policy,
+                                       double_model_free_learning_policy):
+        print(f'Training {model_free_learning_policy} on {n_training_states:,} states...',
               end='')
         sys.stdout.flush()
-        trainer = model_free_learning_strategy.culture.multi_game_train(
-                                               n_total_games=n_training_games, n_games_per_phase=10)
-        for _ in more_itertools.chunked(trainer, 10):
-            print('.', end='')
+
+        new_model_free_learning_policy = model_free_learning_policy.train(
+                                               BlackjackState.make_initial, n_training_states)
+        policies[policies.index(model_free_learning_policy)] = new_model_free_learning_policy
         print(' Done.')
 
     print("\nNow let's run the old comparison again, and see what's the new score for the "
-          "learning strategies:\n")
+          "learning policies:\n")
 
     print_summary()
 
 
 
 if __name__ == '__main__':
-    demo()
+    try:
+        n_training_states = int(sys.argv[1])
+    except IndexError:
+        demo()
+    else:
+        demo(n_training_states=n_training_states)
+
+
 

@@ -23,7 +23,7 @@ class GriddlerAction(gamey.ActionEnum):
 GriddlerAction.all_actions = (GriddlerAction.down, GriddlerAction.right)
 
 
-class GriddlerState(gamey.SinglePlayerState):
+class GriddlerState(gamey.SoloState):
 
     Action = GriddlerAction
 
@@ -80,24 +80,24 @@ class GriddlerState(gamey.SinglePlayerState):
 
 
 
-class GriddlerStrategy(gamey.SinglePlayerStrategy):
+class GriddlerPolicy(gamey.SinglePlayerPolicy):
     State = GriddlerState
 
 
 
 
 class ModelFreeLearningCulture(gamey.ModelFreeLearningCulture, gamey.SinglePlayerCulture):
-    def __init__(self, *, strategy) -> None:
-        gamey.SinglePlayerCulture.__init__(self, state_type=GriddlerState, strategy=strategy)
+    def __init__(self, *, policy) -> None:
+        gamey.SinglePlayerCulture.__init__(self, state_type=GriddlerState, policy=policy)
 
-class ModelFreeLearningStrategy(GriddlerStrategy, gamey.ModelFreeLearningStrategy):
+class ModelFreeLearningPolicy(GriddlerPolicy, gamey.ModelFreeLearningPolicy):
 
     @property
     def culture(self):
         try:
             return self._culture
         except AttributeError:
-            self._culture = ModelFreeLearningCulture(strategy=self)
+            self._culture = ModelFreeLearningCulture(policy=self)
             return self._culture
 
     def get_score(self, n: int = 1_000, state_factory: Optional[Callable] = None,
@@ -112,11 +112,11 @@ class ModelFreeLearningStrategy(GriddlerStrategy, gamey.ModelFreeLearningStrateg
         return np.mean([last_state.reward for last_state in last_states])
 
 
-class RandomStrategy(GriddlerStrategy, gamey.RandomStrategy):
+class RandomPolicy(GriddlerPolicy, gamey.RandomPolicy):
     pass
 
-class ModelBasedEpisodicLearningStrategy(GriddlerStrategy,
-                                         gamey.ModelBasedEpisodicLearningStrategy):
+class ModelBasedEpisodicLearningPolicy(GriddlerPolicy,
+                                         gamey.ModelBasedEpisodicLearningPolicy):
     pass
 
 
@@ -126,54 +126,54 @@ class ModelBasedEpisodicLearningStrategy(GriddlerStrategy,
 def demo(n_training_games: int = 1_000, n_evaluation_games: int = 100) -> None:
     print('Starting Griddler demo.')
 
-    # model_free_learning_strategy.get_score(n=1_000)
-    learning_strategies = [
-        model_based_episodic_learning_strategy := ModelBasedEpisodicLearningStrategy(),
-        single_model_free_learning_strategy := ModelFreeLearningStrategy(gamma=1, n_models=1),
-        double_model_free_learning_strategy := ModelFreeLearningStrategy(gamma=1, n_models=2),
+    # model_free_learning_policy.get_score(n=1_000)
+    learning_policies = [
+        model_based_episodic_learning_policy := ModelBasedEpisodicLearningPolicy(),
+        single_model_free_learning_policy := ModelFreeLearningPolicy(gamma=1, n_models=1),
+        double_model_free_learning_policy := ModelFreeLearningPolicy(gamma=1, n_models=2),
     ]
-    strategies = [
-        RandomStrategy(),
-        *learning_strategies,
+    policies = [
+        RandomPolicy(),
+        *learning_policies,
     ]
 
 
-    print(f"Let's compare {len(strategies)} Griddler strategies. First we'll play "
-          f"{n_evaluation_games:,} games on each strategy and observe the scores:\n")
+    print(f"Let's compare {len(policies)} Griddler policies. First we'll play "
+          f"{n_evaluation_games:,} games on each policy and observe the scores:\n")
 
     def print_summary():
-        strategies_and_scores = sorted(
-            ((strategy, strategy.get_score(n_evaluation_games)) for strategy in strategies),
+        policies_and_scores = sorted(
+            ((policy, policy.get_score(n_evaluation_games)) for policy in policies),
             key=lambda x: x[1], reverse=True
         )
-        for strategy, score in strategies_and_scores:
-            print(f'    {strategy}: '.ljust(60), end='')
+        for policy, score in policies_and_scores:
+            print(f'    {policy}: '.ljust(60), end='')
             print(f'{score: .3f}')
 
     print_summary()
 
-    print(f"\nThat's nice. Now we want to see that the learning strategies can be better than "
+    print(f"\nThat's nice. Now we want to see that the learning policies can be better than "
           f"the dumb ones, if we give them time to learn.")
 
-    print(f'Training {model_based_episodic_learning_strategy} on {n_training_games:,} games... ',
+    print(f'Training {model_based_episodic_learning_policy} on {n_training_games:,} games... ',
           end='')
     sys.stdout.flush()
-    model_based_episodic_learning_strategy.get_score(n=n_training_games)
+    model_based_episodic_learning_policy.get_score(n=n_training_games)
     print('Done.')
 
-    for model_free_learning_strategy in (single_model_free_learning_strategy,
-                                         double_model_free_learning_strategy):
-        print(f'Training {model_free_learning_strategy} on {n_training_games:,} games',
+    for model_free_learning_policy in (single_model_free_learning_policy,
+                                         double_model_free_learning_policy):
+        print(f'Training {model_free_learning_policy} on {n_training_games:,} games',
               end='')
         sys.stdout.flush()
-        trainer = model_free_learning_strategy.culture.multi_game_train(
+        trainer = model_free_learning_policy.culture.multi_game_train(
                                                n_total_games=n_training_games, n_games_per_phase=10)
         for _ in more_itertools.chunked(trainer, 10):
             print('.', end='')
         print(' Done.')
 
     print("\nNow let's run the old comparison again, and see what's the new score for the "
-          "learning strategies:\n")
+          "learning policies:\n")
 
     print_summary()
 

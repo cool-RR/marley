@@ -70,8 +70,8 @@ import scipy.special
 import more_itertools
 import keras
 
-from . import gamey
 from . import utils
+from . import gamey
 from .utils import zip
 from .gamey.utils import ImmutableDict
 from .vectoring import Vector, Step, Position, Translation, Vicinity
@@ -99,7 +99,7 @@ logging.getLogger('tensorflow').addFilter(
     lambda record: 'Tracing is expensive and the excessive' not in record.msg
 )
 
-_action_neuron_cache = {}
+_action_neural_cache = {}
 
 @functools.cache
 def read_config() -> dict:
@@ -140,7 +140,7 @@ class Action(gamey.Action):
         return result
 
     def to_neural(self) -> np.ndarray:
-        return _action_neuron_cache[self]
+        return _action_neural_cache[self]
 
     @property
     def name(self) -> str:
@@ -168,7 +168,7 @@ class Action(gamey.Action):
 Action.all_actions = Action.all_move_actions + Action.all_shoot_actions + Action.all_wall_actions
 
 for action in Action:
-    _action_neuron_cache[action] = action._to_neural()
+    _action_neural_cache[action] = action._to_neural()
 
 
 @dataclasses.dataclass(order=True, frozen=True)
@@ -186,7 +186,7 @@ class Bullet:
 
 
 
-class _BaseGrid:
+class Grid:
     '''Base class that represents a 2-dimensional square grid.'''
     board_size: int
     def __contains__(self, position: Position) -> bool:
@@ -202,7 +202,10 @@ class _BaseGrid:
 
 
 
-class Observation(_BaseGrid, gamey.Observation):
+
+
+
+class Observation(Grid, gamey.Observation):
 
     is_end = False
     legal_move_actions = Action.all_move_actions
@@ -224,10 +227,6 @@ class Observation(_BaseGrid, gamey.Observation):
         return self.state.board_size
 
     @property
-    def culture(self) -> Culture:
-        return self.state.culture
-
-    @property
     def legal_actions(self):
         return (
             *Action.all_move_actions,
@@ -235,13 +234,26 @@ class Observation(_BaseGrid, gamey.Observation):
             *(Action.all_wall_actions if self.state.allow_walling else ()),
         )
 
+    @staticmethod
+    def get_neural_dtype_for_board_size(board_size: int) -> np.dtype:
+        return np.dtype(
+            [('grid', bool, (board_size, board_size, 10)),
+             ('sequential', bool, (len(Action),))]
+        )
+
+    @property
+    def neural_dtype(self):
+        return self.get_neural_dtype_for_board_size(self.board_size)
 
     @functools.cache
     def to_neural(self) -> np.ndarray:
 
+        array = np.zeros((1,), dtype=self.neural_dtype)
+        grid_array = array[0]['grid']
+        sequential_array = array[0]['sequential']
+
         ### Calculating grid subarray: #############################################################
         #                                                                                          #
-        grid_array = np.zeros((self.board_size, self.board_size, 10), dtype=bool)
         relative_player_position = Position(self.board_size // 2, self.board_size // 2)
         translation = relative_player_position - self.position
 
@@ -258,9 +270,8 @@ class Observation(_BaseGrid, gamey.Observation):
                 grid_array[tuple(relative_position) + (6,)] = True
             elif absolute_position in self.state.destroyed_wall_positions:
                 grid_array[tuple(relative_position) + (7,)] = True
-            elif (observation := self.state.position_to_observation.get(absolute_position, None)):
-                observation: Observation
-                if observation.letter == self.letter:
+            elif (letter := self.state.position_to_letter.get(absolute_position, None)):
+                if letter == self.letter:
                     grid_array[tuple(relative_position) + (8,)] = True
                 else:
                     grid_array[tuple(relative_position) + (9,)] = True
@@ -269,117 +280,35 @@ class Observation(_BaseGrid, gamey.Observation):
 
         ### Calculating sequential subarray: #######################################################
         #                                                                                          #
-        last_action_neurons = (self.last_action.to_neural() if self.last_action is not None
+        last_action_neurals = (self.last_action.to_neural() if self.last_action is not None
                                else np.zeros(len(Action)))
-        sequential_array = np.concatenate((
-            last_action_neurons,
+        sequential_array[:] = np.concatenate((
+            last_action_neurals,
         ))
         #                                                                                          #
         ### Finished calculating sequential subarray. ##############################################
 
-        array = np.zeros((1,), dtype=[('grid', grid_array.dtype, grid_array.shape),
-                                      ('sequential', sequential_array.dtype, sequential_array.shape)])
-        array[0]['grid'] = grid_array
-        array[0]['sequential'] = sequential_array
         return array
 
 
-    @functools.cache
-    def processed_distances(self, vicinity: Vicinity) -> numbers.Real:
-        field_of_view = self.position.field_of_view(vicinity, self.board_size)
-
-        for distance_to_food, positions in enumerate(field_of_view, start=1):
-            if positions & self.state.food_positions:
-                break
-        else:
-            distance_to_food = float('inf')
-
-        for distance_to_living_wall, positions in enumerate(field_of_view, start=1):
-            if positions & self.state.living_wall_positions:
-                break
-        else:
-            distance_to_living_wall = float('inf')
-
-
-        distances_to_other_players = []
-
-        for i, positions in enumerate(field_of_view, start=1):
-            if any((player_position in positions) for player_position in
-                   self.state.position_to_observation):
-                distances_to_other_players.append(i)
-                break
-        else:
-            distances_to_other_players.append(float('inf'))
-
-
-        for strategy in self.culture.strategies:
-            for i, positions in enumerate(field_of_view, start=1):
-                strategies = (
-                    self.culture.player_id_to_strategy[observation.letter]
-                    for position in positions if (observation :=
-                                 self.state.position_to_observation.get(position, None)) is not None
-                )
-                if strategy in strategies:
-                    distances_to_other_players.append(i)
-                    break
-            else:
-                distances_to_other_players.append(float('inf'))
-
-        assert len(distances_to_other_players) == len(self.culture.strategies) + 1
-
-        distances_to_bullets = []
-        for direction in Step.all_steps:
-            for i, positions in enumerate(field_of_view, start=1):
-                bullets = itertools.chain.from_iterable(
-                    self.state.bullets.get(position, ()) for position in positions
-                )
-                if any(bullet.direction == direction for bullet in bullets):
-                    distances_to_bullets.append(i)
-                    break
-            else:
-                distances_to_bullets.append(float('inf'))
-
-
-        return tuple(self._distance_base ** (-distance)
-                     for distance in ([distance_to_food, distance_to_living_wall] +
-                                      distances_to_other_players + distances_to_bullets))
-
-
-    @functools.cache
-    def processed_distance_to_edge(self, vicinity: Vicinity) -> numbers.Real:
-        position = self.position
-        for i in itertools.count():
-            if position not in self:
-                distance_to_edge = i
-                break
-            position += vicinity
-        return 1.2 ** (-distance_to_edge)
-
-    @property
-    def cute_score(self) -> int:
-        return self.score - min((self.position @ food_position
-                                for food_position in self.state.food_positions),
-                                default=(-100))
 
     def p(self) -> None:
         print(self.state.ascii)
 
 
-class State(_BaseGrid, gamey.State):
+class State(Grid, gamey.State):
 
     Observation = Observation
     Action = Action
     is_end = False
 
-    def __init__(self, culture: Culture, *, board_size: int,
-                 player_id_to_observation: ImmutableDict[str, Observation],
+    def __init__(self, *, board_size: int, letter_to_observation: Mapping[str, Observation],
                  food_positions: FrozenSet[Position], allow_shooting: bool = True,
                  allow_walling: bool = True,
                  bullets: ImmutableDict[Position, FrozenSet[Bullet]] = ImmutableDict(),
                  living_wall_positions: FrozenSet[Position],
                  destroyed_wall_positions: FrozenSet[Position]) -> None:
-        self.culture = culture
-        self.player_id_to_observation = player_id_to_observation
+        gamey.State.__init__(self, letter_to_observation)
         self.bullets = bullets
         self.allow_shooting = allow_shooting
         self.allow_walling = allow_walling
@@ -387,8 +316,8 @@ class State(_BaseGrid, gamey.State):
         self.all_bullets = frozenset(itertools.chain.from_iterable(bullets.values()))
         self.food_positions = food_positions
         self.board_size = board_size
-        self.position_to_observation = ImmutableDict(
-            {observation.position: observation for observation in player_id_to_observation.values()}
+        self.position_to_letter = ImmutableDict(
+            {observation.position: letter for letter, observation in self.items()}
         )
         self.living_wall_positions = living_wall_positions
         self.destroyed_wall_positions = destroyed_wall_positions
@@ -399,8 +328,7 @@ class State(_BaseGrid, gamey.State):
             type(self),
             frozenset(
                 (letter, observation.position, observation.score, observation.reward,
-                 observation.last_action) for letter, observation in
-                self.player_id_to_observation.items()
+                 observation.last_action) for letter, observation in self.items()
             ),
             self.bullets, self.food_positions, self.board_size, self.living_wall_positions,
             self.destroyed_wall_positions
@@ -414,11 +342,11 @@ class State(_BaseGrid, gamey.State):
 
 
     @staticmethod
-    def make_initial(culture: Culture, *, board_size: int, starting_score: int = 0,
-                     allow_shooting: bool = True, allow_walling: bool = True,
-                     n_food_tiles: int = DEFAULT_N_FOOD_TILES) -> State:
+    def make_initial(*, n_players: int = DEFAULT_N_PLAYERS, board_size: int = DEFAULT_BOARD_SIZE,
+                     starting_score: int = 0, allow_shooting: bool = True,
+                     allow_walling: bool = True, n_food_tiles: int = DEFAULT_N_FOOD_TILES) -> State:
+        assert 1 <= n_players <= len(LETTERS)
 
-        n_players = len(culture.strategies)
         random_positions_firehose = utils.iterate_deduplicated(
                                      State.iterate_random_positions(board_size=board_size))
         random_positions = tuple(
@@ -430,16 +358,15 @@ class State(_BaseGrid, gamey.State):
         food_positions = frozenset(random_positions[n_players:])
         assert len(food_positions) == n_food_tiles
 
-        player_id_to_observation = {}
+        letter_to_observation = {}
         for letter, player_position in zip(LETTERS, player_positions):
-            player_id_to_observation[letter] = Observation(state=None, position=player_position,
+            letter_to_observation[letter] = Observation(state=None, position=player_position,
                                                         score=starting_score, letter=letter,
                                                         last_action=None)
 
         state = State(
-            culture=culture,
             board_size=board_size,
-            player_id_to_observation=ImmutableDict(player_id_to_observation),
+            letter_to_observation=letter_to_observation,
             food_positions=food_positions,
             allow_shooting=allow_shooting,
             allow_walling=allow_walling,
@@ -447,20 +374,20 @@ class State(_BaseGrid, gamey.State):
             destroyed_wall_positions=frozenset(),
         )
 
-        for observation in player_id_to_observation.values():
+        for observation in letter_to_observation.values():
             observation.state = state
 
         return state
 
 
-    def get_next_state_from_actions(self, player_id_to_action: Mapping[Position, Action]) -> State:
+    def get_next_payoff_and_state(self, activity: gamey.Activity) -> Tuple[gamey.Payoff, State]:
         new_player_position_to_olds = collections.defaultdict(set)
         wip_living_wall_positions = set(self.living_wall_positions)
         wip_destroyed_wall_positions = set() # Ignoring old destroyed walls, they're gone.
 
-        for letter, action in player_id_to_action.items():
+        for letter, action in activity.items():
             action: Action
-            old_observation = self.player_id_to_observation[letter]
+            old_observation = self[letter]
             assert action in old_observation.legal_actions
             old_player_position = old_observation.position
             if action.move:
@@ -560,9 +487,9 @@ class State(_BaseGrid, gamey.State):
             wip_bullets[new_bullet.position].add(new_bullet)
 
         # Processing new bullets that were just fired:
-        for letter, action in player_id_to_action.items():
+        for letter, action in activity.items():
             if action.shoot is not None:
-                player_position = self.player_id_to_observation[letter].position
+                player_position = self[letter].position
                 new_bullet = Bullet(player_position + action.shoot, action.shoot)
                 wip_bullets[new_bullet.position].add(new_bullet)
 
@@ -612,7 +539,7 @@ class State(_BaseGrid, gamey.State):
         wip_food_positions = set(self.food_positions)
         random_positions_firehose = utils.iterate_deduplicated(
             State.iterate_random_positions(board_size=self.board_size),
-            seen=(set(itertools.chain(new_player_position_to_old, self.position_to_observation)) |
+            seen=(set(itertools.chain(new_player_position_to_old, self.position_to_letter)) |
                   self.food_positions)
         )
         for new_player_position in new_player_position_to_old:
@@ -627,11 +554,11 @@ class State(_BaseGrid, gamey.State):
         ### Finished figuring out food. ############################################################
         ############################################################################################
 
-        player_id_to_observation = {}
+        letter_to_observation = {}
 
         for new_player_position, old_player_position in new_player_position_to_old.items():
-            letter = self.position_to_observation[old_player_position].letter
-            old_observation: Observation = self.player_id_to_observation[letter]
+            letter = self.position_to_letter[old_player_position]
+            old_observation: Observation = self[letter]
 
             reward = (
                 SHOT_REWARD if new_player_position in new_player_positions_that_were_shot else
@@ -640,29 +567,31 @@ class State(_BaseGrid, gamey.State):
                 NOTHING_REWARD
             )
 
-            player_id_to_observation[letter] = Observation(
+            letter_to_observation[letter] = Observation(
                 state=None,
                 position=new_player_position,
                 score=old_observation.score + reward,
                 reward=reward,
                 letter=letter,
-                last_action=player_id_to_action[letter]
+                last_action=activity[letter]
             )
 
 
         state = State(
-            culture=self.culture, board_size=self.board_size,
-            player_id_to_observation=ImmutableDict(player_id_to_observation),
+            board_size=self.board_size,
+            letter_to_observation=letter_to_observation,
             food_positions=frozenset(wip_food_positions), bullets=bullets,
             allow_shooting=self.allow_shooting, allow_walling=self.allow_walling,
             living_wall_positions=frozenset(wip_living_wall_positions),
             destroyed_wall_positions=frozenset(wip_destroyed_wall_positions),
         )
 
-        for observation in player_id_to_observation.values():
+        for observation in letter_to_observation.values():
             observation.state = state
 
-        return state
+        payoff = gamey.Payoff({letter: observation.reward for letter, observation in
+                               letter_to_observation.items()})
+        return (payoff, state)
 
     @property
     def ascii(self) -> None:
@@ -671,11 +600,11 @@ class State(_BaseGrid, gamey.State):
         for position in Position.iterate_all(self):
             if position.x == 0 and position.y != 0:
                 string_io.write('|\n')
-            if position in self.position_to_observation:
-                observation = self.position_to_observation[position]
-                letter = (observation.letter.lower() if observation.reward < NOTHING_REWARD
-                          else observation.letter)
-                string_io.write(letter)
+            if position in self.position_to_letter:
+                letter = self.position_to_letter[position]
+                observation = self[letter]
+                string_io.write(letter.lower() if observation.reward < NOTHING_REWARD
+                                else observation.letter)
             elif (bullets := self.bullets.get(position, None)):
                 if len(bullets) >= 2:
                     string_io.write('Ӿ')
@@ -698,6 +627,37 @@ class State(_BaseGrid, gamey.State):
         print(self.ascii)
 
 
+
+
+    @property
+    def average_reward(self) -> numbers.Real:
+        return statistics.mean(observation.reward for observation in self.values())
+
+
+
+
+
+class Culture(gamey.Culture):
+    @classmethod
+    def make_initial(cls, n_players: int = DEFAULT_N_PLAYERS,
+                     board_size: int = DEFAULT_BOARD_SIZE) -> Culture:
+        observation_neural_dtype = Observation.get_neural_dtype_for_board_size(board_size)
+        return cls({letter: Policy(observation_neural_dtype=observation_neural_dtype)
+                    for letter in LETTERS[:n_players]})
+
+    def train(self, make_initial_state: Callable[[], State], n_games: int = 20,
+              n_states_per_game: int = 30) -> Culture:
+        culture = self
+        for _ in range(n_games):
+            game = Game.from_state_culture(make_initial_state(), culture)
+            game.crunch(n_states_per_game)
+            culture = game.cultures[-1]
+            yield
+        return culture
+
+
+
+class Game(gamey.Game):
     def write_to_folder(self, folder: pathlib.Path, *, chunk: int = 10,
                         max_length: Optional[int] = None) -> Iterator[State]:
         from .animating import animate
@@ -713,7 +673,7 @@ class State(_BaseGrid, gamey.State):
 
         paths = ((folder / f'{i:06d}.json') for i in range(10 ** 6))
         state_iterator, state_iterator_copy = itertools.tee(
-                                             self.culture.iterate_game(self, max_length=max_length))
+                                                  more_itertools.islice_extended(self)[:max_length])
         transition_iterator = animate(state_iterator_copy)
         for path in paths:
             chunked_iterator = more_itertools.islice_extended(
@@ -741,54 +701,19 @@ class State(_BaseGrid, gamey.State):
         # print(f'Finished writing to {game_folder.name} .')
 
 
-    @property
-    def average_reward(self) -> numbers.Real:
-        return statistics.mean(observation.reward for observation in
-                               self.player_id_to_observation.values())
+class _GridRoyalePolicy(gamey.Policy):
+    Action = Action
 
 
-
-
-
-class Culture(gamey.ModelFreeLearningCulture):
-
-    def __init__(self, n_players: int = DEFAULT_N_PLAYERS, *, board_size: int = DEFAULT_BOARD_SIZE,
-                 allow_shooting: bool = True, allow_walling: bool = True,
-                 n_food_tiles: int = DEFAULT_N_FOOD_TILES,
-                 strategies: Optional[Sequence[_GridRoyaleStrategy]] = None) -> None:
-        if strategies is not None:
-            assert n_players == len(strategies)
-        self.board_size = board_size
-        self.allow_shooting = allow_shooting
-        self.allow_walling = allow_walling
-        self.default_n_food_tiles = n_food_tiles
-        self.strategies = tuple(strategies or (Strategy(self) for _ in range(n_players)))
-        # self.executor = concurrent.futures.ProcessPoolExecutor(5)
-        gamey.Culture.__init__(self, state_type=State,
-                               player_id_to_strategy=dict(zip(LETTERS, self.strategies)))
-
-
-    def make_initial_state(self, *, n_food_tiles: Optional[int] = None) -> State:
-        n_food_tiles = (n_food_tiles if n_food_tiles is not None
-                                 else self.default_n_food_tiles)
-        return State.make_initial(
-            self, board_size=self.board_size, allow_shooting=self.allow_shooting,
-            allow_walling=self.allow_walling, n_food_tiles=n_food_tiles
-        )
-
-
-
-class _GridRoyaleStrategy(gamey.Strategy):
-    State = State
-
-
-class SimpleStrategy(_GridRoyaleStrategy):
+class SimplePolicy(_GridRoyalePolicy):
 
     def __init__(self, epsilon: int = 0.2) -> None:
         self.epsilon = epsilon
 
+    def get_next_policy(self, story: gamey.Story) -> SimplePolicy:
+        return self
 
-    def decide_action_for_observation(self, observation: Observation) -> Action:
+    def get_next_action(self, reward: numbers.Number, observation: Observation) -> Action:
         if random.random() <= self.epsilon or not observation.state.food_positions:
             return random.choice(observation.legal_actions)
         else:
@@ -805,17 +730,16 @@ class SimpleStrategy(_GridRoyaleStrategy):
 
 
 
-class Strategy(_GridRoyaleStrategy, gamey.ModelFreeLearningStrategy):
+class Policy(_GridRoyalePolicy, gamey.ModelFreeLearningPolicy):
 
-    def __init__(self, culture: Culture, **kwargs) -> None:
-        self.culture = culture
-        gamey.ModelFreeLearningStrategy.__init__(self, training_batch_size=10, **kwargs)
+    def __init__(self, training_period=10, **kwargs) -> None:
+        gamey.ModelFreeLearningPolicy.__init__(self, training_period=training_period, **kwargs)
 
-    def create_model(self, observation: Observation, action: Action) -> keras.Model:
-        observation_neural = observation.to_neural()
+    @staticmethod
+    def create_model(observation_neural_dtype: np.dtype, action_n_neurons: int) -> keras.Model:
 
         grid_input = keras.Input(
-            shape=observation_neural[0]['grid'].shape,
+            shape=observation_neural_dtype['grid'].shape,
             name='grid_input'
         )
         grid_0 = keras.layers.Conv2D(
@@ -836,7 +760,7 @@ class Strategy(_GridRoyaleStrategy, gamey.ModelFreeLearningStrategy):
         grid_output = keras.layers.Dropout(rate=0.1)(_)
 
         sequential_input = keras.Input(
-            shape=observation_neural[0]['sequential'].shape,
+            shape=observation_neural_dtype['sequential'].shape,
             name='sequential_input'
         )
 
@@ -855,6 +779,7 @@ class Strategy(_GridRoyaleStrategy, gamey.ModelFreeLearningStrategy):
         )(_)
         model = keras.Model([grid_input, sequential_input], output)
         model.compile(optimizer='rmsprop', loss='mse', metrics=['accuracy'])
+
         return model
 
 
@@ -882,9 +807,15 @@ def play(*, board_size: int, n_players: int, n_food_tiles: int, allow_shooting: 
          allow_walling: bool, pre_train: bool, open_browser: bool, host: str, port: str,
          max_length: Optional[int] = None) -> None:
     with server.ServerThread(host=host, port=port, quiet=True) as server_thread:
-        culture = Culture(n_players=n_players, board_size=board_size, n_food_tiles=n_food_tiles,
-                          allow_shooting=allow_shooting, allow_walling=allow_walling)
-        state = culture.make_initial_state()
+        culture = Culture.make_initial(n_players=n_players, board_size=board_size)
+        make_initial_state = lambda: (
+            State.make_initial(
+                n_players=n_players, board_size=board_size, allow_shooting=allow_shooting,
+                allow_walling=allow_walling, n_food_tiles=n_food_tiles
+            )
+        )
+        state = make_initial_state()
+        game = Game.from_state_culture(state, culture)
 
         if open_browser:
             click.echo(f'Opening {server_thread.url} in your browser to view the game.')
@@ -893,17 +824,15 @@ def play(*, board_size: int, n_players: int, n_food_tiles: int, allow_shooting: 
             click.echo(f'Open {server_thread.url} in your browser to view the game.')
 
         if pre_train:
-            pre_train_n_games = 100
-            pre_train_max_length = 100
-            pre_train_n_games_per_phase = 10
+            pre_train_n_games = 500
+            pre_train_n_states_per_game = 30
             click.echo(
                 f'Pre-training {pre_train_n_games} games, each with '
-                f'{pre_train_max_length} states, with {pre_train_n_games_per_phase} games per '
-                f'phase...', nl=False
+                f'{pre_train_n_states_per_game} states...', nl=False
             )
-            for _ in culture.multi_game_train(n_total_games=pre_train_n_games,
-                                              max_length=pre_train_max_length,
-                                              n_games_per_phase=pre_train_n_games_per_phase):
+            for _ in culture.train(make_initial_state,
+                                   n_games=pre_train_n_games,
+                                   n_states_per_game=pre_train_n_states_per_game):
                 click.echo('.', nl=False)
             click.echo(' Done pre-training.')
 
@@ -912,7 +841,7 @@ def play(*, board_size: int, n_players: int, n_food_tiles: int, allow_shooting: 
         else:
             click.echo(f'Calculating {max_length} states, press Ctrl-C to stop.')
 
-        for state in state.write_to_game_folder(max_length=max_length):
+        for state in game.write_to_game_folder(max_length=max_length):
             pass
         click.echo(f'Finished calculating {max_length} states, still serving forever.')
         while True:
@@ -931,17 +860,17 @@ def serve(*, host: str, port: str) -> None:
 
 @grid_royale.command()
 @click.argument('game_name', default='blackjack')
-@click.option('--n-training-games', default=1_000)
+@click.option('--n-training-states', default=10_000)
 @click.option('--n-evaluation-games', default=100)
-def sample(game_name: str, n_training_games: int, n_evaluation_games: int):
+def sample(game_name: str, n_training_states: int, n_evaluation_games: int):
     assert re.match('^[a-z_][a-z0-9_]{1,100}', game_name)
-    from grid_royale.gamey.sample_games import blackjack, griddler
+    from grid_royale.gamey.sample_games import blackjack# , griddler
     games = {
         'blackjack': blackjack,
-        'griddler': griddler,
+        # 'griddler': griddler,
     }
     game = games[game_name]
-    game.demo(n_training_games=n_training_games,
+    game.demo(n_training_states=n_training_states,
               n_evaluation_games=n_evaluation_games)
 
 @grid_royale.command()
