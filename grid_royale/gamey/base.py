@@ -114,12 +114,25 @@ class Observation(abc.ABC):
 
 PlayerId = TypeVar('PlayerId', bound=Hashable)
 
+
 class State(abc.ABC):
     Observation: Type[Observation]
     Action: Type[Action]
     is_end: bool
     player_id_to_observation: ImmutableDict[PlayerId, Observation]
     player_id_to_strategy: ImmutableDict[PlayerId, strategizing.Strategy]
+
+
+    def player_id_to_observation_strategy(self):
+        try:
+            return self._player_id_to_observation_strategy
+        except AttributeError:
+            self._player_id_to_observation_strategy = ImmutableDict({
+                player_id: (observation, self.player_id_to_strategy[player_id]) for
+                player_id, observation in self.player_id_to_observation.items()
+            })
+            return self._player_id_to_observation_strategy
+
 
     @abc.abstractmethod
     def get_next_state_from_actions(self, player_id_to_action: Mapping[PlayerId, Action]) -> State:
@@ -130,6 +143,23 @@ class State(abc.ABC):
     def make_initial() -> State:
         '''Create an initial world state that we can start playing with.'''
         raise NotImplementedError
+
+    def get_next_state(self) -> State:
+        if self.is_end:
+            raise exceptions.GameOver
+        player_id_to_action = {
+            player_id: strategy.decide_action_for_observation(observation)
+            for player_id, (observation, strategy) in self.player_id_to_observation_strategy.items()
+            if not observation.is_end
+        }
+        next_state = self.
+        get_next_state_from_actions(player_id_to_action)
+        for player_id, action in player_id_to_action.items():
+            strategy = self.player_id_to_strategy[player_id]
+            observation = self.player_id_to_observation[player_id]
+            strategy.train(observation, action, next_state.player_id_to_observation[player_id])
+        return next_state
+
 
 
 class _SinglePlayerStateType(abc.ABCMeta):

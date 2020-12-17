@@ -27,9 +27,6 @@ class Culture:
         return {strategy: tuple(player_ids) for strategy, player_ids
                 in strategy_to_player_ids.items()}
 
-    def make_initial_state(self, *args, **kwargs):
-        return self.State.make_initial(*args, **kwargs)
-
 
     def iterate_many_games(self, *, n: int = 10, max_length: int = 100,
                            state_factory: Optional[Callable] = None, be_training: bool = True) \
@@ -53,22 +50,6 @@ class Culture:
             yield state
 
 
-    def get_next_state(self, state: State, *, be_training: bool = True) -> State:
-        if state.is_end:
-            raise exceptions.GameOver
-        player_id_to_action = {
-            player_id: self.player_id_to_strategy[player_id
-                                                        ].decide_action_for_observation(observation)
-            for player_id, observation in state.player_id_to_observation.items()
-            if not observation.is_end
-        }
-        next_state = state.get_next_state_from_actions(player_id_to_action)
-        if be_training:
-            for player_id, action in player_id_to_action.items():
-                strategy = self.player_id_to_strategy[player_id]
-                observation = state.player_id_to_observation[player_id]
-                strategy.train(observation, action, next_state.player_id_to_observation[player_id])
-        return next_state
 
 
 class SinglePlayerCulture(Culture):
