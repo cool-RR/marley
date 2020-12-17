@@ -119,6 +119,7 @@ class State(abc.ABC):
     Action: Type[Action]
     is_end: bool
     player_id_to_observation: ImmutableDict[PlayerId, Observation]
+    player_id_to_strategy: ImmutableDict[PlayerId, strategizing.Strategy]
 
     @abc.abstractmethod
     def get_next_state_from_actions(self, player_id_to_action: Mapping[PlayerId, Action]) -> State:
