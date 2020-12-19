@@ -185,9 +185,8 @@ class SinglePlayerState(State, Observation, metaclass=_SinglePlayerStateType):
 class Activity:
     pass
 
-
-
-
+class Payoff:
+    pass
 
 
 

@@ -54,6 +54,9 @@ class Mind(abc.ABC):
         pass # Put your training logic here, if you wish your strategy to have training.
 
 
+class Culture:
+    pass
+
 class SinglePlayerStrategy(Mind):
 
     def get_score(self, n: int = 1_000, state_factory: Optional[Callable] = None,
