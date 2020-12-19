@@ -102,7 +102,7 @@ class ActionEnum(Action, enum.Enum, metaclass=_ActionEnumType):
 
 
 class Observation(abc.ABC):
-    nib: Nib
+    state: State
     legal_actions: Tuple[Action, ...]
     is_end: bool
     reward: numbers.Real
@@ -115,7 +115,7 @@ class Observation(abc.ABC):
 PlayerId = TypeVar('PlayerId', bound=Hashable)
 
 
-class Nib(abc.ABC):
+class State(abc.ABC):
     Observation: Type[Observation]
     Action: Type[Action]
     is_end: bool
