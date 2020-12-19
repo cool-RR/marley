@@ -87,7 +87,7 @@ class Action(metaclass=_ActionType):
             return self._to_neural
 
     @classmethod
-    def from_neural(cls, neurons: Iterable) -> Action:
+    def from_neural(cls, neural: Iterable) -> Action:
         # Implementation for simple discrete actions. Can override.
         return cls[tuple(neural).index(1)]
 
@@ -102,7 +102,7 @@ class ActionEnum(Action, enum.Enum, metaclass=_ActionEnumType):
 
 
 class Observation(abc.ABC):
-    state: State
+    nib: Nib
     legal_actions: Tuple[Action, ...]
     is_end: bool
     reward: numbers.Real
@@ -115,7 +115,7 @@ class Observation(abc.ABC):
 PlayerId = TypeVar('PlayerId', bound=Hashable)
 
 
-class State(abc.ABC):
+class Nib(abc.ABC):
     Observation: Type[Observation]
     Action: Type[Action]
     is_end: bool
