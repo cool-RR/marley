@@ -15,7 +15,7 @@ from . import strategizing
 
 class Culture:
     def __init__(self, state_type: Type[State],
-                 player_id_to_strategy: Mapping[PlayerId, strategizing.Strategy]) -> None:
+                 player_id_to_strategy: Mapping[PlayerId, strategizing.Mind]) -> None:
         self.State = state_type
         self.player_id_to_strategy = player_id_to_strategy
 
@@ -55,7 +55,7 @@ class Culture:
 class SinglePlayerCulture(Culture):
 
     def __init__(self, state_type: Type[SinglePlayerState], *,
-                 strategy: strategizing.Strategy) -> None:
+                 strategy: strategizing.Mind) -> None:
         self.strategy = strategy
         Culture.__init__(self, state_type=state_type,
                          player_id_to_strategy=ImmutableDict({None: strategy}))

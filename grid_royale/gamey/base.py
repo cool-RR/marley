@@ -120,7 +120,7 @@ class State(abc.ABC):
     Action: Type[Action]
     is_end: bool
     player_id_to_observation: ImmutableDict[PlayerId, Observation]
-    player_id_to_strategy: ImmutableDict[PlayerId, strategizing.Strategy]
+    player_id_to_strategy: ImmutableDict[PlayerId, strategizing.Mind]
 
 
     def player_id_to_observation_strategy(self):
@@ -180,6 +180,12 @@ class SinglePlayerState(State, Observation, metaclass=_SinglePlayerStateType):
     def get_next_state_from_actions(self, player_id_to_action: Mapping[PlayerId, Action]) \
                                                                                -> SinglePlayerState:
         return self.get_next_state_from_action(more_itertools.one(player_id_to_action.values()))
+
+
+class Activity:
+    pass
+
+
 
 
 

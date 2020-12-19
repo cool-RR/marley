@@ -24,12 +24,12 @@ import keras.models
 import tensorflow as tf
 import numpy as np
 
-from .strategizing import Strategy
+from .strategizing import Mind
 from .base import Observation, Action, ActionObservation
 from . import utils
 
 
-class ModelBasedEpisodicLearningStrategy(Strategy):
+class ModelBasedEpisodicLearningStrategy(Mind):
     '''
     Model-based episodic learning strategy.
 

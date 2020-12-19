@@ -30,7 +30,7 @@ from . import utils
 
 
 
-class Strategy(abc.ABC):
+class Mind(abc.ABC):
     '''
     Logic for deciding which action to take in a given observation.
 
@@ -54,7 +54,7 @@ class Strategy(abc.ABC):
         pass # Put your training logic here, if you wish your strategy to have training.
 
 
-class SinglePlayerStrategy(Strategy):
+class SinglePlayerStrategy(Mind):
 
     def get_score(self, n: int = 1_000, state_factory: Optional[Callable] = None,
                   max_length: Optional[int] = None) -> int:
@@ -68,12 +68,12 @@ class SinglePlayerStrategy(Strategy):
 
 
 
-class RandomStrategy(Strategy):
+class RandomStrategy(Mind):
     def decide_action_for_observation(self, observation: Observation) -> Action:
         return random.choice(observation.legal_actions)
 
 
-class QStrategy(Strategy):
+class QStrategy(Mind):
     '''A strategy that calculates q-value for observation-actions.'''
 
     # @abc.abstractmethod

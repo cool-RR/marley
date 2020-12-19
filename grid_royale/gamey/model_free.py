@@ -15,7 +15,7 @@ import more_itertools
 import numpy as np
 
 from .base import Observation, Action, ActionObservation
-from .strategizing import Strategy, QStrategy
+from .strategizing import Mind, QStrategy
 from . import utils
 
 BATCH_SIZE = 64
