@@ -9,6 +9,7 @@ import itertools
 import random
 import enum
 import functools
+import numbers
 import numpy as np
 
 import more_itertools
@@ -56,9 +57,10 @@ _card_distribution = tuple(range(1, 10 + 1)) + (10,) * 3
 def get_random_card() -> int:
     return random.choice(_card_distribution)
 
-class BlackjackState(gamey.State):
+class BlackjackState(gamey.SoloState):
 
     def __init__(self, player_cards: Tuple[int, ...], dealer_cards: Tuple[int, ...]) -> None:
+        gamey.SoloState.__init__(self)
         self.player_cards = tuple(sorted(player_cards))
         self.dealer_cards = tuple(sorted(dealer_cards))
 
@@ -112,7 +114,7 @@ class BlackjackState(gamey.State):
 
 
 
-    def get_next_state_from_action(self, action: BlackjackAction) -> BlackjackState:
+    def get_next_reward_and_state(self, action: BlackjackAction) -> Tuple[numbers.Number, BlackjackState]:
         if action not in self.legal_actions:
             raise gamey.exceptions.IllegalAction(action)
         if self.player_stuck or action == BlackjackAction.stick:
