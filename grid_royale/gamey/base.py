@@ -120,7 +120,7 @@ class State(abc.ABC):
     Action: Type[Action]
     is_end: bool
     player_id_to_observation: ImmutableDict[PlayerId, Observation]
-    player_id_to_strategy: ImmutableDict[PlayerId, strategizing.Mind]
+    player_id_to_strategy: ImmutableDict[PlayerId, strategizing.Policy]
 
 
     def player_id_to_observation_strategy(self):
@@ -135,7 +135,7 @@ class State(abc.ABC):
 
 
     @abc.abstractmethod
-    def get_next_state_from_actions(self, player_id_to_action: Mapping[PlayerId, Action]) -> State:
+    def get_next_payoff_and_state(self, activity: Activity) -> Tuple[Payoff, State]:
         raise NotImplementedError
 
     @staticmethod
@@ -181,12 +181,27 @@ class SinglePlayerState(State, Observation, metaclass=_SinglePlayerStateType):
                                                                                -> SinglePlayerState:
         return self.get_next_state_from_action(more_itertools.one(player_id_to_action.values()))
 
+class BaseAggregatePlayerValue(collections.abc.Mapping):
+    value_type: Type
+    
+    def __init__(self, player_id_to_value: Mapping[PlayerId, Any]):
+        self.player_id_to_value = ImmutableDict(player_id_to_value)
+        assert all(type(value) == self.value_type for value in self.player_id_to_value.values())
+        
+    def __getitem__(self, player_id: PlayerId) -> Any:
+        return self.player_id_to_value[player_id]
+        
+        
 
-class Activity:
-    pass
+class Activity(BaseAggregatePlayerValue):
+    value_type = Action
 
-class Payoff:
-    pass
+class Payoff(BaseAggregatePlayerValue):
+    value_type = numbers.Number
+
+class Culture(BaseAggregatePlayerValue):
+    value_type = strategizing.Policy
+
 
 
 
