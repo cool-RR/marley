@@ -56,11 +56,7 @@ _card_distribution = tuple(range(1, 10 + 1)) + (10,) * 3
 def get_random_card() -> int:
     return random.choice(_card_distribution)
 
-class BlackjackState(gamey.SinglePlayerState):
-
-    Action = BlackjackAction
-
-    reward = 0
+class BlackjackState(gamey.State):
 
     def __init__(self, player_cards: Tuple[int, ...], dealer_cards: Tuple[int, ...]) -> None:
         self.player_cards = tuple(sorted(player_cards))

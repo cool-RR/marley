@@ -98,8 +98,6 @@ class ActionEnum(Action, enum.Enum, metaclass=_ActionEnumType):
 class Observation(abc.ABC):
     state: State
     legal_actions: Tuple[Action, ...]
-    is_end: bool
-    reward: numbers.Real
 
     @abc.abstractmethod
     def to_neural(self) -> np.ndarray:
@@ -109,7 +107,6 @@ class Observation(abc.ABC):
 PlayerId = TypeVar('PlayerId', bound=Hashable)
 
 
-# class SinglePlayerState(State, Observation, metaclass=_SinglePlayerStateType):
 
 class BaseAggregatePlayerValue(collections.abc.Mapping):
     __value_type: Type
@@ -155,33 +152,20 @@ class Culture(BaseAggregatePlayerValue):
 class State(BaseAggregatePlayerValue):
     __value_type = Observation
     Observation: Type[Observation]
-    Action: Type[Action]
     is_end: bool
-    player_id_to_observation: ImmutableDict[PlayerId, Observation]
-    player_id_to_strategy: ImmutableDict[PlayerId, strategizing.Policy]
-
-
-    def player_id_to_observation_strategy(self):
-        try:
-            return self._player_id_to_observation_strategy
-        except AttributeError:
-            self._player_id_to_observation_strategy = ImmutableDict({
-                player_id: (observation, self.player_id_to_strategy[player_id]) for
-                player_id, observation in self.player_id_to_observation.items()
-            })
-            return self._player_id_to_observation_strategy
-
 
     @staticmethod
     @abc.abstractmethod
-    def make_initial() -> State:
+    def make_initial(*args, **kwargs) -> State:
         '''Create an initial world state that we can start playing with.'''
         raise NotImplementedError
 
     @abc.abstractmethod
     def get_next_payoff_and_state(self, activity: Activity) -> Tuple[Payoff, State]:
-        pass
+        raise NotImplementedError
 
+class SoloState(State, Observation):
+    pass
 
 
 
