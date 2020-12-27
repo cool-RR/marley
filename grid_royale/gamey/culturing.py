@@ -54,7 +54,7 @@ class Culture:
 
 class SinglePlayerCulture(Culture):
 
-    def __init__(self, state_type: Type[SinglePlayerState], *,
+    def __init__(self, state_type: Type[SoloState], *,
                  strategy: strategizing.Policy) -> None:
         self.strategy = strategy
         Culture.__init__(self, state_type=state_type,

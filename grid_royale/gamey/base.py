@@ -174,9 +174,10 @@ class SoloState(State, Observation, metaclass=_SoloStateType):
     def __init__(self):
         self._BaseAggregatePlayerValue__player_id_to_value = ImmutableDict({None: self})
         
-    @abc.abstractmethod
     def get_next_payoff_and_state(self, activity: Activity) -> Tuple[Payoff, State]:
-        raise NotImplementedError
+        reward, state = self.get_next_reward_and_state(more_itertools.one(activity.values()))
+        payoff = Payoff({None: reward})
+        return (payoff, state)
 
     @abc.abstractmethod
     def get_next_reward_and_state(self, action: Action) -> Tuple[numbers.Number, SoloState]:

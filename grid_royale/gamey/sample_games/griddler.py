@@ -23,7 +23,7 @@ class GriddlerAction(gamey.ActionEnum):
 GriddlerAction.all_actions = (GriddlerAction.down, GriddlerAction.right)
 
 
-class GriddlerState(gamey.SinglePlayerState):
+class GriddlerState(gamey.SoloState):
 
     Action = GriddlerAction
 
