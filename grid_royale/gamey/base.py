@@ -112,11 +112,11 @@ class BaseAggregatePlayerValue(collections.abc.Mapping):
     __value_type: Type
     
     def __init__(self, player_id_to_value: Union[Mapping[PlayerId, Any], Iterable]):
-        self.player_id_to_value = ImmutableDict(player_id_to_value)
-        assert all(type(value) == self.__value_type for value in self.player_id_to_value.values())
+        self.__player_id_to_value = ImmutableDict(player_id_to_value)
+        assert all(type(value) == self.__value_type for value in self.__player_id_to_value.values())
         
     def __getitem__(self, player_id: PlayerId) -> Any:
-        return self.player_id_to_value[player_id]
+        return self.__player_id_to_value[player_id]
     
     def __add__(self, other: BaseAggregatePlayerValue):
         if not isinstance(other, BaseAggregatePlayerValue):
@@ -164,10 +164,23 @@ class State(BaseAggregatePlayerValue):
     def get_next_payoff_and_state(self, activity: Activity) -> Tuple[Payoff, State]:
         raise NotImplementedError
 
-class SoloState(State, Observation):
-    pass
 
+class _SoloStateType(abc.ABCMeta):
+    @property
+    def Observation(cls) -> _SoloStateType:
+        return cls
 
+class SoloState(State, Observation, metaclass=_SoloStateType):
+    def __init__(self):
+        self._BaseAggregatePlayerValue__player_id_to_value = ImmutableDict({None: self})
+        
+    @abc.abstractmethod
+    def get_next_payoff_and_state(self, activity: Activity) -> Tuple[Payoff, State]:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def get_next_reward_and_state(self, action: Action) -> Tuple[numbers.Number, SoloState]:
+        raise NotImplementedError
 
 
 
