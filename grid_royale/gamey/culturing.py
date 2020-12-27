@@ -15,7 +15,7 @@ from . import strategizing
 
 class Culture:
     def __init__(self, state_type: Type[State],
-                 player_id_to_strategy: Mapping[PlayerId, strategizing.Mind]) -> None:
+                 player_id_to_strategy: Mapping[PlayerId, strategizing.Policy]) -> None:
         self.State = state_type
         self.player_id_to_strategy = player_id_to_strategy
 
@@ -55,7 +55,7 @@ class Culture:
 class SinglePlayerCulture(Culture):
 
     def __init__(self, state_type: Type[SinglePlayerState], *,
-                 strategy: strategizing.Mind) -> None:
+                 strategy: strategizing.Policy) -> None:
         self.strategy = strategy
         Culture.__init__(self, state_type=state_type,
                          player_id_to_strategy=ImmutableDict({None: strategy}))
@@ -94,7 +94,7 @@ class ModelFreeLearningCulture(Culture):
                 continue
             player_id_to_action = {
                 player_id: self.player_id_to_strategy[player_id
-                                                      ].decide_action_for_observation(observation)
+                                                      ].get_next_action_and_policy(observation)
                 for player_id, observation in state.player_id_to_observation.items()
                 if not observation.is_end
             }

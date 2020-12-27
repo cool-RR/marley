@@ -779,7 +779,7 @@ class Culture(gamey.ModelFreeLearningCulture):
 
 
 
-class _GridRoyaleStrategy(gamey.Mind):
+class _GridRoyaleStrategy(gamey.Policy):
     State = State
 
 

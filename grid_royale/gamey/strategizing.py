@@ -24,13 +24,13 @@ import keras.models
 import tensorflow as tf
 import numpy as np
 
-from .base import Observation, Action, ActionObservation
+from .base import Observation, Action
 from . import utils
 
 
 
 
-class Mind(abc.ABC):
+class Policy(abc.ABC):
     '''
     Logic for deciding which action to take in a given observation.
 
@@ -40,7 +40,8 @@ class Mind(abc.ABC):
     State: Type[State]
 
     @abc.abstractmethod
-    def decide_action_for_observation(self, observation: Observation) -> Action:
+    def get_next_action_and_policy(self, reward: numbers.Number,
+                                   observation: Observation) -> Tuple(Action, Policy):
         raise NotImplementedError
 
     def __repr__(self) -> str:
@@ -54,10 +55,7 @@ class Mind(abc.ABC):
         pass # Put your training logic here, if you wish your strategy to have training.
 
 
-class Culture:
-    pass
-
-class SinglePlayerStrategy(Mind):
+class SinglePlayerStrategy(Policy):
 
     def get_score(self, n: int = 1_000, state_factory: Optional[Callable] = None,
                   max_length: Optional[int] = None) -> int:
@@ -71,12 +69,12 @@ class SinglePlayerStrategy(Mind):
 
 
 
-class RandomStrategy(Mind):
+class RandomStrategy(Policy):
     def decide_action_for_observation(self, observation: Observation) -> Action:
         return random.choice(observation.legal_actions)
 
 
-class QStrategy(Mind):
+class QStrategy(Policy):
     '''A strategy that calculates q-value for observation-actions.'''
 
     # @abc.abstractmethod
@@ -90,7 +88,6 @@ class QStrategy(Mind):
 
     def get_qs_for_observation(self, observation: Observation) -> Mapping[Action, numbers.Real]:
         return more_itertools.one(self.get_qs_for_observations((observation,)))
-
 
 
 

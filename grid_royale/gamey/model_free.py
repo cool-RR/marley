@@ -14,8 +14,8 @@ import keras.models
 import more_itertools
 import numpy as np
 
-from .base import Observation, Action, ActionObservation
-from .strategizing import Mind, QStrategy
+from .base import Observation, Action
+from .strategizing import Policy, QStrategy
 from . import utils
 
 BATCH_SIZE = 64

@@ -23,7 +23,7 @@ import more_itertools
 import numpy as np
 
 from .base import State, Action, Activity, Payoff
-from .strategizing import Mind, Culture
+from .strategizing import Policy
 
 class FStage:
     pass
@@ -67,7 +67,7 @@ class Fo(FStage):
     def get_fum(self):
         return Fi(
             *self,
-            *self.culture.get_activity_and_culture(self.payoff, self.state)
+            *self.culture.get_next_activity_and_culture(self.payoff, self.state)
         )
 
     get_next_f_stage = get_fum

@@ -28,12 +28,6 @@ from . import exceptions
 
 
 
-@dataclasses.dataclass(order=True, frozen=True)
-class ActionObservation(utils.NiceDataclass):
-    action: Optional[Action]
-    observation: Observation
-
-
 class _ActionType(abc.ABCMeta):# collections.abc.Sequence):
     __iter__ = lambda cls: iter(cls.all_actions)
     __len__ = lambda cls: len(cls.all_actions)
@@ -115,7 +109,51 @@ class Observation(abc.ABC):
 PlayerId = TypeVar('PlayerId', bound=Hashable)
 
 
-class State(abc.ABC):
+# class SinglePlayerState(State, Observation, metaclass=_SinglePlayerStateType):
+
+class BaseAggregatePlayerValue(collections.abc.Mapping):
+    __value_type: Type
+    
+    def __init__(self, player_id_to_value: Union[Mapping[PlayerId, Any], Iterable]):
+        self.player_id_to_value = ImmutableDict(player_id_to_value)
+        assert all(type(value) == self.__value_type for value in self.player_id_to_value.values())
+        
+    def __getitem__(self, player_id: PlayerId) -> Any:
+        return self.player_id_to_value[player_id]
+    
+    def __add__(self, other: BaseAggregatePlayerValue):
+        if not isinstance(other, BaseAggregatePlayerValue):
+            raise NotImplementedError
+        to_tuple = lambda x: (x if isinstance(x, tuple) else (x,))
+        return _CombinedAggregatePlayerValue(
+            (player_id, (*to_tuple(value), *to_tuple(other[player_id]))) for
+            player_id, value in self.items()
+        )
+        
+class _CombinedAggregatePlayerValue(collections.abc.Mapping):
+    __value_type : tuple
+
+class Activity(BaseAggregatePlayerValue):
+    __value_type = Action
+
+class Payoff(BaseAggregatePlayerValue):
+    __value_type = numbers.Number
+
+class Culture(BaseAggregatePlayerValue):
+    __value_type = strategizing.Policy
+    
+    def get_next_activity_and_culture(self, payoff: Payoff, state: State) -> Tuple[Activity, Culture]:
+        activity_dict = {}
+        culture_dict = {}
+        for player_id, policy, reward, observation in (self + payoff + state):
+            policy: strategizing.Policy
+            (activity_dict[player_id], culture_dict[player_id]) = \
+                                              policy.get_next_action_and_policy(reward, observation)
+            
+        return (Activity(activity_dict), Culture(culture_dict))
+        
+class State(BaseAggregatePlayerValue):
+    __value_type = Observation
     Observation: Type[Observation]
     Action: Type[Action]
     is_end: bool
@@ -134,73 +172,18 @@ class State(abc.ABC):
             return self._player_id_to_observation_strategy
 
 
-    @abc.abstractmethod
-    def get_next_payoff_and_state(self, activity: Activity) -> Tuple[Payoff, State]:
-        raise NotImplementedError
-
     @staticmethod
     @abc.abstractmethod
     def make_initial() -> State:
         '''Create an initial world state that we can start playing with.'''
         raise NotImplementedError
 
-    def get_next_state(self) -> State:
-        if self.is_end:
-            raise exceptions.GameOver
-        player_id_to_action = {
-            player_id: strategy.decide_action_for_observation(observation)
-            for player_id, (observation, strategy) in self.player_id_to_observation_strategy.items()
-            if not observation.is_end
-        }
-        next_state = self.
-        get_next_state_from_actions(player_id_to_action)
-        for player_id, action in player_id_to_action.items():
-            strategy = self.player_id_to_strategy[player_id]
-            observation = self.player_id_to_observation[player_id]
-            strategy.train(observation, action, next_state.player_id_to_observation[player_id])
-        return next_state
-
-
-
-class _SinglePlayerStateType(abc.ABCMeta):
-    @property
-    def Observation(cls) -> _SinglePlayerStateType:
-        return cls
-
-
-class SinglePlayerState(State, Observation, metaclass=_SinglePlayerStateType):
-
-    player_id_to_observation = property(lambda self: ImmutableDict({None: self}))
-
-
     @abc.abstractmethod
-    def get_next_state_from_action(self, action: Action) -> SinglePlayerState:
-        raise NotImplementedError
+    def get_next_payoff_and_state(self, activity: Activity) -> Tuple[Payoff, State]:
+        pass
 
-    def get_next_state_from_actions(self, player_id_to_action: Mapping[PlayerId, Action]) \
-                                                                               -> SinglePlayerState:
-        return self.get_next_state_from_action(more_itertools.one(player_id_to_action.values()))
 
-class BaseAggregatePlayerValue(collections.abc.Mapping):
-    value_type: Type
-    
-    def __init__(self, player_id_to_value: Mapping[PlayerId, Any]):
-        self.player_id_to_value = ImmutableDict(player_id_to_value)
-        assert all(type(value) == self.value_type for value in self.player_id_to_value.values())
-        
-    def __getitem__(self, player_id: PlayerId) -> Any:
-        return self.player_id_to_value[player_id]
-        
-        
 
-class Activity(BaseAggregatePlayerValue):
-    value_type = Action
-
-class Payoff(BaseAggregatePlayerValue):
-    value_type = numbers.Number
-
-class Culture(BaseAggregatePlayerValue):
-    value_type = strategizing.Policy
 
 
 
