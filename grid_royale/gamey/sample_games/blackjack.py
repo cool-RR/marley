@@ -114,7 +114,8 @@ class BlackjackState(gamey.SoloState):
 
 
 
-    def get_next_reward_and_state(self, action: BlackjackAction) -> Tuple[numbers.Number, BlackjackState]:
+    def get_next_reward_and_state(self, action: BlackjackAction) -> Tuple[numbers.Number,
+                                                                          BlackjackState]:
         if action not in self.legal_actions:
             raise gamey.exceptions.IllegalAction(action)
         if self.player_stuck or action == BlackjackAction.stick:
