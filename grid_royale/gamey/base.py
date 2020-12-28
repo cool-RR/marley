@@ -25,6 +25,7 @@ import numpy as np
 from .utils import ImmutableDict
 from . import utils
 from . import exceptions
+from .f_staging import FStage, Fee, Fi, Fo, Fum
 
 
 
@@ -110,14 +111,20 @@ PlayerId = TypeVar('PlayerId', bound=Hashable)
 
 class BaseAggregatePlayerValue(collections.abc.Mapping):
     __value_type: Type
-    
+
     def __init__(self, player_id_to_value: Union[Mapping[PlayerId, Any], Iterable]):
         self.__player_id_to_value = ImmutableDict(player_id_to_value)
         assert all(type(value) == self.__value_type for value in self.__player_id_to_value.values())
-        
+
     def __getitem__(self, player_id: PlayerId) -> Any:
         return self.__player_id_to_value[player_id]
-    
+
+    def __iter__(self) -> Iterator:
+        return iter(self.__player_id_to_value)
+
+    def __len__(self) -> int:
+        return len(self.__player_id_to_value)
+
     def __add__(self, other: BaseAggregatePlayerValue):
         if not isinstance(other, BaseAggregatePlayerValue):
             raise NotImplementedError
@@ -126,7 +133,7 @@ class BaseAggregatePlayerValue(collections.abc.Mapping):
             (player_id, (*to_tuple(value), *to_tuple(other[player_id]))) for
             player_id, value in self.items()
         )
-        
+
 class _CombinedAggregatePlayerValue(collections.abc.Mapping):
     __value_type : tuple
 
@@ -138,17 +145,18 @@ class Payoff(BaseAggregatePlayerValue):
 
 class Culture(BaseAggregatePlayerValue):
     __value_type = strategizing.Policy
-    
-    def get_next_activity_and_culture(self, payoff: Payoff, state: State) -> Tuple[Activity, Culture]:
+
+    def get_next_activity_and_culture(self, payoff: Payoff, state: State) -> Tuple[Activity,
+                                                                                   Culture]:
         activity_dict = {}
         culture_dict = {}
-        for player_id, policy, reward, observation in (self + payoff + state):
+        for player_id, (policy, reward, observation) in (self + payoff + state):
             policy: strategizing.Policy
             (activity_dict[player_id], culture_dict[player_id]) = \
                                               policy.get_next_action_and_policy(reward, observation)
-            
+
         return (Activity(activity_dict), Culture(culture_dict))
-        
+
 class State(BaseAggregatePlayerValue):
     __value_type = Observation
     Observation: Type[Observation]
@@ -173,7 +181,7 @@ class _SoloStateType(abc.ABCMeta):
 class SoloState(State, Observation, metaclass=_SoloStateType):
     def __init__(self):
         self._BaseAggregatePlayerValue__player_id_to_value = ImmutableDict({None: self})
-        
+
     def get_next_payoff_and_state(self, activity: Activity) -> Tuple[Payoff, State]:
         reward, state = self.get_next_reward_and_state(more_itertools.one(activity.values()))
         payoff = Payoff({None: reward})
@@ -182,7 +190,6 @@ class SoloState(State, Observation, metaclass=_SoloStateType):
     @abc.abstractmethod
     def get_next_reward_and_state(self, action: Action) -> Tuple[numbers.Number, SoloState]:
         raise NotImplementedError
-
 
 
 
