@@ -170,22 +170,19 @@ class BlackjackState(gamey.SoloState):
 
 
 
-class BlackjackPolicy(gamey.SinglePlayerPolicy):
-    State = BlackjackState
 
-
-class AlwaysHitPolicy(BlackjackPolicy):
+class AlwaysHitPolicy(gamey.Policy):
     def decide_action_for_observation(self, observation: BlackjackState) -> BlackjackAction:
         return (BlackjackAction.hit if (BlackjackAction.hit in observation.legal_actions)
                 else BlackjackAction.wait)
 
-class AlwaysStickPolicy(BlackjackPolicy):
+class AlwaysStickPolicy(gamey.Policy):
     '''A policy that always sticks, no matter what.'''
     def decide_action_for_observation(self, observation: BlackjackState) -> BlackjackAction:
         return (BlackjackAction.stick if (BlackjackAction.stick in observation.legal_actions)
                 else BlackjackAction.wait)
 
-class ThresholdPolicy(BlackjackPolicy):
+class ThresholdPolicy(gamey.Policy):
     '''
     A policy that sticks if the sum of cards is below the given threshold.
     '''
@@ -204,15 +201,8 @@ class ThresholdPolicy(BlackjackPolicy):
         return f'(threshold={self.threshold})'
 
 
-class RandomPolicy(BlackjackPolicy, gamey.RandomPolicy):
-    pass
 
-class ModelBasedEpisodicLearningPolicy(BlackjackPolicy,
-                                         gamey.ModelBasedEpisodicLearningPolicy):
-    pass
-
-class ModelFreeLearningPolicy(BlackjackPolicy, gamey.ModelFreeLearningPolicy):
-
+class ModelFreeLearningPolicy(gamey.ModelFreeLearningPolicy):
     @property
     def culture(self):
         try:
@@ -245,12 +235,12 @@ def demo(n_training_games: int = 1_000, n_evaluation_games: int = 100) -> None:
 
     # model_free_learning_policy.get_score(n=1_000)
     learning_policies = [
-        model_based_episodic_learning_policy := ModelBasedEpisodicLearningPolicy(),
+        model_based_episodic_learning_policy := gamey.ModelBasedEpisodicLearningPolicy(),
         single_model_free_learning_policy := ModelFreeLearningPolicy(gamma=1, n_models=1),
         double_model_free_learning_policy := ModelFreeLearningPolicy(gamma=1, n_models=2),
     ]
     policies = [
-        RandomPolicy(),
+        gamey.RandomPolicy(),
         AlwaysHitPolicy(),
         AlwaysStickPolicy(),
         ThresholdPolicy(15),

@@ -142,6 +142,12 @@ class Activity(BaseAggregatePlayerValue):
 class Payoff(BaseAggregatePlayerValue):
     __value_type = numbers.Number
 
+    @staticmethod
+    def make_zero(aggregate_player_value: BaseAggregatePlayerValue) -> Payoff:
+        return Payoff(zip(aggregate_player_value, itertools.repeat(0)))
+
+
+
 class Culture(BaseAggregatePlayerValue):
     __value_type = policing.Policy
 

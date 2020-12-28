@@ -29,9 +29,9 @@ from .base import Culture, Payoff, State, Activity
 
 
 class Game:
-    def __init__(self, culture: Culture, payoff: Payoff, state: State) -> None:
+    def __init__(self, culture: Culture, state: State, payoff: Optional[Payoff] = None) -> None:
         self.cultures = [culture]
-        self.payoffs = [payoff]
+        self.payoffs = [payoff if (payoff is not None) else Payoff.make_zero(culture)]
         self.states = [state]
         self.activities = []
 
