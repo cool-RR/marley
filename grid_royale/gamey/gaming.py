@@ -25,7 +25,6 @@ import numpy as np
 from .utils import ImmutableDict
 from . import utils
 from . import exceptions
-from .f_staging import FStage, Fee, Fi, Fo, Fum
 from .base import Culture, Payoff, State, Activity
 
 class Game:
@@ -34,30 +33,7 @@ class Game:
         self.payoffs = [payoff]
         self.states = [state]
         self.activities = []
-        self.f_stage: FStage = Fee(culture=culture, payoff=payoff, state=state)
 
-    def _advance_f_stage(self):
-        f_stage = self.f_stage = self.f_stage.get_next_f_stage()
-
-        try:
-            self.cultures.append(f_stage.next_culture)
-        except AttributeError:
-            pass
-
-        try:
-            self.payoffs.append(f_stage.next_payoff)
-        except AttributeError:
-            pass
-
-        try:
-            self.states.append(f_stage.next_state)
-        except AttributeError:
-            pass
-
-        try:
-            self.activities.append(f_stage.next_activity)
-        except AttributeError:
-            pass
 
     def __iter__(self) -> Iterator[State]:
         yield from self.states
