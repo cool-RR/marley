@@ -170,24 +170,24 @@ class BlackjackState(gamey.SoloState):
 
 
 
-class BlackjackStrategy(gamey.SinglePlayerStrategy):
+class BlackjackPolicy(gamey.SinglePlayerPolicy):
     State = BlackjackState
 
 
-class AlwaysHitStrategy(BlackjackStrategy):
+class AlwaysHitPolicy(BlackjackPolicy):
     def decide_action_for_observation(self, observation: BlackjackState) -> BlackjackAction:
         return (BlackjackAction.hit if (BlackjackAction.hit in observation.legal_actions)
                 else BlackjackAction.wait)
 
-class AlwaysStickStrategy(BlackjackStrategy):
-    '''A strategy that always sticks, no matter what.'''
+class AlwaysStickPolicy(BlackjackPolicy):
+    '''A policy that always sticks, no matter what.'''
     def decide_action_for_observation(self, observation: BlackjackState) -> BlackjackAction:
         return (BlackjackAction.stick if (BlackjackAction.stick in observation.legal_actions)
                 else BlackjackAction.wait)
 
-class ThresholdStrategy(BlackjackStrategy):
+class ThresholdPolicy(BlackjackPolicy):
     '''
-    A strategy that sticks if the sum of cards is below the given threshold.
+    A policy that sticks if the sum of cards is below the given threshold.
     '''
     def __init__(self, threshold: int = 17) -> None:
         self.threshold = threshold
@@ -204,21 +204,21 @@ class ThresholdStrategy(BlackjackStrategy):
         return f'(threshold={self.threshold})'
 
 
-class RandomStrategy(BlackjackStrategy, gamey.RandomStrategy):
+class RandomPolicy(BlackjackPolicy, gamey.RandomPolicy):
     pass
 
-class ModelBasedEpisodicLearningStrategy(BlackjackStrategy,
-                                         gamey.ModelBasedEpisodicLearningStrategy):
+class ModelBasedEpisodicLearningPolicy(BlackjackPolicy,
+                                         gamey.ModelBasedEpisodicLearningPolicy):
     pass
 
-class ModelFreeLearningStrategy(BlackjackStrategy, gamey.ModelFreeLearningStrategy):
+class ModelFreeLearningPolicy(BlackjackPolicy, gamey.ModelFreeLearningPolicy):
 
     @property
     def culture(self):
         try:
             return self._culture
         except AttributeError:
-            self._culture = ModelFreeLearningCulture(strategy=self)
+            self._culture = ModelFreeLearningCulture(policy=self)
             return self._culture
 
     def get_score(self, n: int = 1_000, state_factory: Optional[Callable] = None,
@@ -234,8 +234,8 @@ class ModelFreeLearningStrategy(BlackjackStrategy, gamey.ModelFreeLearningStrate
 
 
 class ModelFreeLearningCulture(gamey.ModelFreeLearningCulture, gamey.SinglePlayerCulture):
-    def __init__(self, *, strategy) -> None:
-        gamey.SinglePlayerCulture.__init__(self, state_type=BlackjackState, strategy=strategy)
+    def __init__(self, *, policy) -> None:
+        gamey.SinglePlayerCulture.__init__(self, state_type=BlackjackState, policy=policy)
 
 
 
@@ -243,59 +243,59 @@ class ModelFreeLearningCulture(gamey.ModelFreeLearningCulture, gamey.SinglePlaye
 def demo(n_training_games: int = 1_000, n_evaluation_games: int = 100) -> None:
     print('Starting Blackjack demo.')
 
-    # model_free_learning_strategy.get_score(n=1_000)
-    learning_strategies = [
-        model_based_episodic_learning_strategy := ModelBasedEpisodicLearningStrategy(),
-        single_model_free_learning_strategy := ModelFreeLearningStrategy(gamma=1, n_models=1),
-        double_model_free_learning_strategy := ModelFreeLearningStrategy(gamma=1, n_models=2),
+    # model_free_learning_policy.get_score(n=1_000)
+    learning_policies = [
+        model_based_episodic_learning_policy := ModelBasedEpisodicLearningPolicy(),
+        single_model_free_learning_policy := ModelFreeLearningPolicy(gamma=1, n_models=1),
+        double_model_free_learning_policy := ModelFreeLearningPolicy(gamma=1, n_models=2),
     ]
-    strategies = [
-        RandomStrategy(),
-        AlwaysHitStrategy(),
-        AlwaysStickStrategy(),
-        ThresholdStrategy(15),
-        ThresholdStrategy(16),
-        ThresholdStrategy(17),
-        *learning_strategies,
+    policies = [
+        RandomPolicy(),
+        AlwaysHitPolicy(),
+        AlwaysStickPolicy(),
+        ThresholdPolicy(15),
+        ThresholdPolicy(16),
+        ThresholdPolicy(17),
+        *learning_policies,
     ]
 
 
-    print(f"Let's compare {len(strategies)} Blackjack strategies. First we'll play "
-          f"{n_evaluation_games:,} games on each strategy and observe the scores:\n")
+    print(f"Let's compare {len(policies)} Blackjack policies. First we'll play "
+          f"{n_evaluation_games:,} games on each policy and observe the scores:\n")
 
     def print_summary():
-        strategies_and_scores = sorted(
-            ((strategy, strategy.get_score(n_evaluation_games)) for strategy in strategies),
+        policies_and_scores = sorted(
+            ((policy, policy.get_score(n_evaluation_games)) for policy in policies),
             key=lambda x: x[1], reverse=True
         )
-        for strategy, score in strategies_and_scores:
-            print(f'    {strategy}: '.ljust(60), end='')
+        for policy, score in policies_and_scores:
+            print(f'    {policy}: '.ljust(60), end='')
             print(f'{score: .3f}')
 
     print_summary()
 
-    print(f"\nThat's nice. Now we want to see that the learning strategies can be better than "
+    print(f"\nThat's nice. Now we want to see that the learning policies can be better than "
           f"the dumb ones, if we give them time to learn.")
 
-    print(f'Training {model_based_episodic_learning_strategy} on {n_training_games:,} games... ',
+    print(f'Training {model_based_episodic_learning_policy} on {n_training_games:,} games... ',
           end='')
     sys.stdout.flush()
-    model_based_episodic_learning_strategy.get_score(n=n_training_games)
+    model_based_episodic_learning_policy.get_score(n=n_training_games)
     print('Done.')
 
-    for model_free_learning_strategy in (single_model_free_learning_strategy,
-                                         double_model_free_learning_strategy):
-        print(f'Training {model_free_learning_strategy} on {n_training_games:,} games',
+    for model_free_learning_policy in (single_model_free_learning_policy,
+                                         double_model_free_learning_policy):
+        print(f'Training {model_free_learning_policy} on {n_training_games:,} games',
               end='')
         sys.stdout.flush()
-        trainer = model_free_learning_strategy.culture.multi_game_train(
+        trainer = model_free_learning_policy.culture.multi_game_train(
                                                n_total_games=n_training_games, n_games_per_phase=10)
         for _ in more_itertools.chunked(trainer, 10):
             print('.', end='')
         print(' Done.')
 
     print("\nNow let's run the old comparison again, and see what's the new score for the "
-          "learning strategies:\n")
+          "learning policies:\n")
 
     print_summary()
 

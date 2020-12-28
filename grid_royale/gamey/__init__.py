@@ -5,7 +5,7 @@
 Gamey is a cute reinforcement learning framework.
 
 I wrote Gamey so I would have a clear separation between generic reinforcement learning architecture
-and the specific game of GridRoyale. Gamey defineds states, observations, actions, strategies,
+and the specific game of GridRoyale. Gamey defineds states, observations, actions, policies,
 cultures. It defines these as base classes that should be overridden.
 
 See the `sample_games/blackjack.py` module for an example of using Gamey on Blackjack.
@@ -13,8 +13,8 @@ See the `sample_games/blackjack.py` module for an example of using Gamey on Blac
 
 
 from .base import Observation, State, SoloState, Action, ActionEnum
-from .strategizing import Policy, RandomStrategy, SinglePlayerStrategy, QStrategy
+from .policing import Policy, RandomPolicy, SinglePlayerPolicy, QPolicy
 from .culturing import Culture, SinglePlayerCulture, ModelFreeLearningCulture
-from .model_free import ModelFreeLearningStrategy
-from .model_based import ModelBasedEpisodicLearningStrategy
+from .model_free import ModelFreeLearningPolicy
+from .model_based import ModelBasedEpisodicLearningPolicy
 from . import exceptions

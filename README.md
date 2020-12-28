@@ -58,7 +58,7 @@ I'm hoping I could use that to model human behaviors in the real world.
 
 I could use neural networks to optimize the creatures' behaviors according to the rewards that they
 get, use Python to manage the state of the world and make it easy for people to write different
-strategies for the creatures to use, and then display the simulation in a nice Canvas animation in
+policies for the creatures to use, and then display the simulation in a nice Canvas animation in
 the browser.
 
 I started working on this project in June of 2020. This included giving myself a crash course in
@@ -76,7 +76,7 @@ into another creature costs 5 points. Getting shot costs 10 points.
 
 I used Keras to write a Q-learning algorithm with a neural network, and that got them to learn how
 to walk towards the food and avoid bumping into each other. They're not smart enough yet to avoid
-bullets or have a strategy.
+bullets or have a policy.
 
 There's a nice browser interface that lets you see the entire animation and skip to any timepoint
 you'd like.
@@ -160,15 +160,15 @@ This will automatically open a browser window and show you your simulation.
 
 # How to extend this code #
 
-The creatures' strategy is defined by the [`Strategy`
+The creatures' policy is defined by the [`Policy`
 class](https://github.com/cool-RR/grid_royale/blob/master/grid_royale/base.py#L691) class. Most of
-its logic is defined by the more general [`ModelFreeLearningStrategy`
+its logic is defined by the more general [`ModelFreeLearningPolicy`
 class](https://github.com/cool-RR/grid_royale/blob/3613de40f775722fac83fba910365f36424eb6c7/grid_royale/gamey/model_free.py#L75),
 which defines a neural network and uses it to decide on actions. You can change the logic in any of
 these classes and see what changes come out in the simulation. The main two methods that get called
 by outside code are `decide_action_for_observation` and `train`.
 
-I wrote the code to be nice and modular, so when you're writing your logic in the `Strategy` class,
+I wrote the code to be nice and modular, so when you're writing your logic in the `Policy` class,
 you don't need to think at all about maintaining the rules of the game or showing the animation. The
 `decide_action_for_observation` method gets an observation of the world and needs to return an
 action, and all the rest is taken care of.

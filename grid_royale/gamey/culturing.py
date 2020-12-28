@@ -11,21 +11,21 @@ import more_itertools
 from .utils import ImmutableDict
 from .base import State, PlayerId, SinglePlayerState
 from . import exceptions
-from . import strategizing
+from . import policing
 
 class Culture:
     def __init__(self, state_type: Type[State],
-                 player_id_to_strategy: Mapping[PlayerId, strategizing.Policy]) -> None:
+                 player_id_to_policy: Mapping[PlayerId, policing.Policy]) -> None:
         self.State = state_type
-        self.player_id_to_strategy = player_id_to_strategy
+        self.player_id_to_policy = player_id_to_policy
 
     @property
-    def strategy_to_player_ids(self):
-        strategy_to_player_ids = collections.defaultdict(list)
-        for player_id, strategy in self.player_id_to_strategy.items():
-            strategy_to_player_ids[strategy].append(player_id)
-        return {strategy: tuple(player_ids) for strategy, player_ids
-                in strategy_to_player_ids.items()}
+    def policy_to_player_ids(self):
+        policy_to_player_ids = collections.defaultdict(list)
+        for player_id, policy in self.player_id_to_policy.items():
+            policy_to_player_ids[policy].append(player_id)
+        return {policy: tuple(player_ids) for policy, player_ids
+                in policy_to_player_ids.items()}
 
 
     def iterate_many_games(self, *, n: int = 10, max_length: int = 100,
@@ -55,10 +55,10 @@ class Culture:
 class SinglePlayerCulture(Culture):
 
     def __init__(self, state_type: Type[SoloState], *,
-                 strategy: strategizing.Policy) -> None:
-        self.strategy = strategy
+                 policy: policing.Policy) -> None:
+        self.policy = policy
         Culture.__init__(self, state_type=state_type,
-                         player_id_to_strategy=ImmutableDict({None: strategy}))
+                         player_id_to_policy=ImmutableDict({None: policy}))
 
 
 class ModelFreeLearningCulture(Culture):
@@ -70,20 +70,20 @@ class ModelFreeLearningCulture(Culture):
 
     def _get_next_states(self, states: Iterable[Optional[State]], *, be_training: bool = True) \
                                                                           -> Tuple[Optional[State]]:
-        from .model_free import ModelFreeLearningStrategy
+        from .model_free import ModelFreeLearningPolicy
         states = tuple(states)
-        # strategy_to_player_ids = self.strategy_to_player_ids
-        strategy_to_observations = collections.defaultdict(list)
+        # policy_to_player_ids = self.policy_to_player_ids
+        policy_to_observations = collections.defaultdict(list)
         for state in states:
             if state is None or state.is_end:
                 continue
             for player_id, observation in state.player_id_to_observation.items():
-                strategy_to_observations[self.player_id_to_strategy[player_id]].append(observation)
+                policy_to_observations[self.player_id_to_policy[player_id]].append(observation)
 
-        for strategy, observations in strategy_to_observations.items():
-            strategy: ModelFreeLearningStrategy
-            q_maps = strategy.get_qs_for_observations(observations)
-            strategy.q_map_cache.update(dict(zip(observations, q_maps)))
+        for policy, observations in policy_to_observations.items():
+            policy: ModelFreeLearningPolicy
+            q_maps = policy.get_qs_for_observations(observations)
+            policy.q_map_cache.update(dict(zip(observations, q_maps)))
 
 
         next_states = []
@@ -93,7 +93,7 @@ class ModelFreeLearningCulture(Culture):
                 next_states.append(None)
                 continue
             player_id_to_action = {
-                player_id: self.player_id_to_strategy[player_id
+                player_id: self.player_id_to_policy[player_id
                                                       ].get_next_action_and_policy(observation)
                 for player_id, observation in state.player_id_to_observation.items()
                 if not observation.is_end
@@ -102,9 +102,9 @@ class ModelFreeLearningCulture(Culture):
             next_states.append(next_state)
             if be_training:
                 for player_id, action in player_id_to_action.items():
-                    strategy = self.player_id_to_strategy[player_id]
+                    policy = self.player_id_to_policy[player_id]
                     observation = state.player_id_to_observation[player_id]
-                    strategy.train(observation, action,
+                    policy.train(observation, action,
                                    next_state.player_id_to_observation[player_id])
 
         return tuple(next_states)

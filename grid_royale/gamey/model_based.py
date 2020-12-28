@@ -24,7 +24,7 @@ import keras.models
 import tensorflow as tf
 import numpy as np
 
-from .strategizing import Policy
+from .policing import Policy
 from .base import Observation, Action
 from . import utils
 
@@ -36,11 +36,11 @@ class ActionObservation(utils.NiceDataclass):
 
 
 
-class ModelBasedEpisodicLearningStrategy(Policy):
+class ModelBasedEpisodicLearningPolicy(Policy):
     '''
-    Model-based episodic learning strategy.
+    Model-based episodic learning policy.
 
-    This strategy assumes we're playing full episodes to the end, and there is no reward
+    This policy assumes we're playing full episodes to the end, and there is no reward
     discounting.
     '''
     def __init__(self, curiosity: numbers.Real = 2, gamma: numbers.Real = 0.9) -> None:

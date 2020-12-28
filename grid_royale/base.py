@@ -313,20 +313,20 @@ class Observation(_BaseGrid, gamey.Observation):
             distances_to_other_players.append(float('inf'))
 
 
-        for strategy in self.culture.strategies:
+        for policy in self.culture.policies:
             for i, positions in enumerate(field_of_view, start=1):
-                strategies = (
-                    self.culture.player_id_to_strategy[observation.letter]
+                policies = (
+                    self.culture.player_id_to_policy[observation.letter]
                     for position in positions if (observation :=
                                  self.state.position_to_observation.get(position, None)) is not None
                 )
-                if strategy in strategies:
+                if policy in policies:
                     distances_to_other_players.append(i)
                     break
             else:
                 distances_to_other_players.append(float('inf'))
 
-        assert len(distances_to_other_players) == len(self.culture.strategies) + 1
+        assert len(distances_to_other_players) == len(self.culture.policies) + 1
 
         distances_to_bullets = []
         for direction in Step.all_steps:
@@ -419,7 +419,7 @@ class State(_BaseGrid, gamey.State):
                      allow_shooting: bool = True, allow_walling: bool = True,
                      n_food_tiles: int = DEFAULT_N_FOOD_TILES) -> State:
 
-        n_players = len(culture.strategies)
+        n_players = len(culture.policies)
         random_positions_firehose = utils.iterate_deduplicated(
                                      State.iterate_random_positions(board_size=board_size))
         random_positions = tuple(
@@ -756,17 +756,17 @@ class Culture(gamey.ModelFreeLearningCulture):
     def __init__(self, n_players: int = DEFAULT_N_PLAYERS, *, board_size: int = DEFAULT_BOARD_SIZE,
                  allow_shooting: bool = True, allow_walling: bool = True,
                  n_food_tiles: int = DEFAULT_N_FOOD_TILES,
-                 strategies: Optional[Sequence[_GridRoyaleStrategy]] = None) -> None:
-        if strategies is not None:
-            assert n_players == len(strategies)
+                 policies: Optional[Sequence[_GridRoyalePolicy]] = None) -> None:
+        if policies is not None:
+            assert n_players == len(policies)
         self.board_size = board_size
         self.allow_shooting = allow_shooting
         self.allow_walling = allow_walling
         self.default_n_food_tiles = n_food_tiles
-        self.strategies = tuple(strategies or (Strategy(self) for _ in range(n_players)))
+        self.policies = tuple(policies or (Policy(self) for _ in range(n_players)))
         # self.executor = concurrent.futures.ProcessPoolExecutor(5)
         gamey.Culture.__init__(self, state_type=State,
-                               player_id_to_strategy=dict(zip(LETTERS, self.strategies)))
+                               player_id_to_policy=dict(zip(LETTERS, self.policies)))
 
 
     def make_initial_state(self, *, n_food_tiles: Optional[int] = None) -> State:
@@ -779,11 +779,11 @@ class Culture(gamey.ModelFreeLearningCulture):
 
 
 
-class _GridRoyaleStrategy(gamey.Policy):
+class _GridRoyalePolicy(gamey.Policy):
     State = State
 
 
-class SimpleStrategy(_GridRoyaleStrategy):
+class SimplePolicy(_GridRoyalePolicy):
 
     def __init__(self, epsilon: int = 0.2) -> None:
         self.epsilon = epsilon
@@ -806,11 +806,11 @@ class SimpleStrategy(_GridRoyaleStrategy):
 
 
 
-class Strategy(_GridRoyaleStrategy, gamey.ModelFreeLearningStrategy):
+class Policy(_GridRoyalePolicy, gamey.ModelFreeLearningPolicy):
 
     def __init__(self, culture: Culture, **kwargs) -> None:
         self.culture = culture
-        gamey.ModelFreeLearningStrategy.__init__(self, training_batch_size=10, **kwargs)
+        gamey.ModelFreeLearningPolicy.__init__(self, training_batch_size=10, **kwargs)
 
     def create_model(self, observation: Observation, action: Action) -> keras.Model:
         observation_neural = observation.to_neural()

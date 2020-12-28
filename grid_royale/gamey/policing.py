@@ -52,16 +52,16 @@ class Policy(abc.ABC):
 
     def train(self, observation: Observation, action: Action,
               next_observation: Observation) -> None:
-        pass # Put your training logic here, if you wish your strategy to have training.
+        pass # Put your training logic here, if you wish your policy to have training.
 
 
-class SinglePlayerStrategy(Policy):
+class SinglePlayerPolicy(Policy):
 
     def get_score(self, n: int = 1_000, state_factory: Optional[Callable] = None,
                   max_length: Optional[int] = None) -> int:
         from .culturing import SinglePlayerCulture
 
-        single_player_culture = SinglePlayerCulture(self.State, strategy=self)
+        single_player_culture = SinglePlayerCulture(self.State, policy=self)
         return np.mean([
             single_player_state.reward for single_player_state in single_player_culture.
             iterate_many_games(n=n, max_length=max_length, state_factory=state_factory)
@@ -69,13 +69,13 @@ class SinglePlayerStrategy(Policy):
 
 
 
-class RandomStrategy(Policy):
+class RandomPolicy(Policy):
     def decide_action_for_observation(self, observation: Observation) -> Action:
         return random.choice(observation.legal_actions)
 
 
-class QStrategy(Policy):
-    '''A strategy that calculates q-value for observation-actions.'''
+class QPolicy(Policy):
+    '''A policy that calculates q-value for observation-actions.'''
 
     # @abc.abstractmethod
     # def get_observation_v(self, observation: Observation) -> numbers.Real:

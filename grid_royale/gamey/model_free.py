@@ -15,7 +15,7 @@ import more_itertools
 import numpy as np
 
 from .base import Observation, Action
-from .strategizing import Policy, QStrategy
+from .policing import Policy, QPolicy
 from . import utils
 
 BATCH_SIZE = 64
@@ -25,10 +25,10 @@ def _fit_external(model: keras.Model, *args, **kwargs) -> list:
     return model.get_weights()
 
 class TrainingData:
-    def __init__(self, model_free_learning_strategy: ModelFreeLearningStrategy, *,
+    def __init__(self, model_free_learning_policy: ModelFreeLearningPolicy, *,
                  max_size: int = 5_000) -> None:
 
-        self.model_free_learning_strategy = model_free_learning_strategy
+        self.model_free_learning_policy = model_free_learning_policy
         self.model: Optional[keras.Model] = None
 
         self.max_size = max_size
@@ -43,7 +43,7 @@ class TrainingData:
         self._created_arrays_and_model = False
 
     def _create_arrays_and_model(self, observation: Observation, action: Action,):
-        self.model = self.model_free_learning_strategy.create_model(observation, action)
+        self.model = self.model_free_learning_policy.create_model(observation, action)
         observation_neural = observation.to_neural()
         self.old_observation_neuron_array = np.zeros(
             (self.max_size,), dtype=observation_neural.dtype
@@ -72,7 +72,7 @@ class TrainingData:
 
         if self.is_training_time():
 
-            n_actions = len(self.model_free_learning_strategy.State.Action)
+            n_actions = len(self.model_free_learning_policy.State.Action)
 
             pre_slicer = ((lambda x: x) if self.filled_max_size else
                           (lambda x: x[:self.counter_modulo]))
@@ -102,7 +102,7 @@ class TrainingData:
 
             batch_index = np.arange(n_data_points, dtype=np.int32)
             wip_q_values[batch_index, action_indices] = (
-                rewards + self.model_free_learning_strategy.gamma * are_not_ends *
+                rewards + self.model_free_learning_policy.gamma * are_not_ends *
                 new_other_q_values[np.arange(new_q_values.shape[0]),
                                    np.argmax(new_q_values, axis=1)]
 
@@ -124,13 +124,13 @@ class TrainingData:
 
 
     def is_training_time(self) -> bool:
-        n_batches = self.counter // self.model_free_learning_strategy.training_batch_size
+        n_batches = self.counter // self.model_free_learning_policy.training_batch_size
         return n_batches > self._last_trained_batch
 
 
     def mark_trained(self) -> None:
         self._last_trained_batch = \
-                               self.counter // self.model_free_learning_strategy.training_batch_size
+                               self.counter // self.model_free_learning_policy.training_batch_size
         assert not self.is_training_time()
 
     @property
@@ -148,7 +148,7 @@ class TrainingData:
 
 
 
-class ModelFreeLearningStrategy(QStrategy):
+class ModelFreeLearningPolicy(QPolicy):
     def __init__(self, *, epsilon: numbers.Real = 0.1, gamma: numbers.Real = 0.9,
                  training_batch_size: int = 100, n_models: int = 2) -> None:
         self.epsilon = epsilon
