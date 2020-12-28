@@ -40,8 +40,9 @@ class Policy(abc.ABC):
     State: Type[State]
 
     @abc.abstractmethod
-    def get_next_action_and_policy(self, reward: numbers.Number,
+    def get_next_action_and_policy(self, game: Game, reward: numbers.Number,
                                    observation: Observation) -> Tuple(Action, Policy):
+        # Put your training logic here, if you wish your policy to have training.
         raise NotImplementedError
 
     def __repr__(self) -> str:
@@ -50,36 +51,30 @@ class Policy(abc.ABC):
     def _extra_repr(self) -> str:
         return ('(<...>)' if inspect.signature(self.__init__).parameters else '()')
 
-    def train(self, observation: Observation, action: Action,
-              next_observation: Observation) -> None:
-        pass # Put your training logic here, if you wish your policy to have training.
 
 
-class SinglePlayerPolicy(Policy):
+# class SinglePlayerPolicy(Policy):
 
-    def get_score(self, n: int = 1_000, state_factory: Optional[Callable] = None,
-                  max_length: Optional[int] = None) -> int:
-        from .culturing import SinglePlayerCulture
+    # def get_score(self, n: int = 1_000, state_factory: Optional[Callable] = None,
+                  # max_length: Optional[int] = None) -> int:
+        # from .culturing import SinglePlayerCulture
 
-        single_player_culture = SinglePlayerCulture(self.State, policy=self)
-        return np.mean([
-            single_player_state.reward for single_player_state in single_player_culture.
-            iterate_many_games(n=n, max_length=max_length, state_factory=state_factory)
-        ])
+        # single_player_culture = SinglePlayerCulture(self.State, policy=self)
+        # return np.mean([
+            # single_player_state.reward for single_player_state in single_player_culture.
+            # iterate_many_games(n=n, max_length=max_length, state_factory=state_factory)
+        # ])
 
 
 
 class RandomPolicy(Policy):
-    def decide_action_for_observation(self, observation: Observation) -> Action:
-        return random.choice(observation.legal_actions)
+    def get_next_action_and_policy(self, game: Game, reward: numbers.Number,
+                                   observation: Observation) -> Tuple(Action, Policy):
+        return (random.choice(observation.legal_actions), self)
 
 
 class QPolicy(Policy):
     '''A policy that calculates q-value for observation-actions.'''
-
-    # @abc.abstractmethod
-    # def get_observation_v(self, observation: Observation) -> numbers.Real:
-        # raise NotImplementedError
 
     @abc.abstractmethod
     def get_qs_for_observations(self, observations: Sequence[Observation]) \
@@ -91,3 +86,4 @@ class QPolicy(Policy):
 
 
 
+from .gaming import Game
