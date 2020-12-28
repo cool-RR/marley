@@ -27,6 +27,7 @@ from . import utils
 from . import exceptions
 from .base import Culture, Payoff, State, Activity
 
+
 class Game:
     def __init__(self, culture: Culture, payoff: Payoff, state: State) -> None:
         self.cultures = [culture]
