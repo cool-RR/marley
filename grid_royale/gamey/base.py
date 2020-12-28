@@ -145,8 +145,8 @@ class Payoff(BaseAggregatePlayerValue):
 class Culture(BaseAggregatePlayerValue):
     __value_type = strategizing.Policy
 
-    def get_next_activity_and_culture(self, payoff: Payoff, state: State) -> Tuple[Activity,
-                                                                                   Culture]:
+    def get_next_activity_and_culture(self, game: Game, payoff: Payoff,
+                                      state: State) -> Tuple[Activity, Culture]:
         activity_dict = {}
         culture_dict = {}
         for player_id, (policy, reward, observation) in (self + payoff + state):
@@ -193,4 +193,4 @@ class SoloState(State, Observation, metaclass=_SoloStateType):
 
 
 from . import strategizing
-
+from .gaming import Game

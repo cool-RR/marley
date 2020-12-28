@@ -44,7 +44,7 @@ class Game:
         state: State = self.states[-1]
 
         while not state.is_end:
-            activity, culture = culture.get_next_activity_and_culture(payoff, state)
+            activity, culture = culture.get_next_activity_and_culture(self, payoff, state)
             self.activities.append(activity)
             self.cultures.append(culture)
 
