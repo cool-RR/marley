@@ -152,7 +152,7 @@ class Culture(BaseAggregatePlayerValue):
         for player_id, (policy, reward, observation) in (self + payoff + state):
             policy: policing.Policy
             (activity_dict[player_id], culture_dict[player_id]) = \
-                                              policy.get_next_action_and_policy(reward, observation)
+                                        policy.get_next_action_and_policy(game, reward, observation)
 
         return (Activity(activity_dict), Culture(culture_dict))
 
