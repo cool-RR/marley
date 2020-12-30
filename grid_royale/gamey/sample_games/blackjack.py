@@ -169,7 +169,7 @@ class BlackjackState(gamey.SoloState):
 
 
 
-class BlackjackPolicy(gamey.SoloPolicy):
+class BlackjackPolicy(gamey.SoloEpisodicPolicy):
     pass
 
 

@@ -108,7 +108,7 @@ PlayerId = TypeVar('PlayerId', bound=Hashable)
 
 
 
-class BaseAggregatePlayerValue(collections.abc.Mapping):
+class BaseAggregate(collections.abc.Mapping):
     __value_type: Type
 
     def __init__(self, player_id_to_value: Union[Mapping[PlayerId, Any], Iterable]):
@@ -124,8 +124,8 @@ class BaseAggregatePlayerValue(collections.abc.Mapping):
     def __len__(self) -> int:
         return len(self.__player_id_to_value)
 
-    def __add__(self, other: BaseAggregatePlayerValue):
-        if not isinstance(other, BaseAggregatePlayerValue):
+    def __add__(self, other: BaseAggregate):
+        if not isinstance(other, BaseAggregate):
             raise NotImplementedError
         to_tuple = lambda x: (x if isinstance(x, tuple) else (x,))
         return _CombinedAggregatePlayerValue(
@@ -133,22 +133,27 @@ class BaseAggregatePlayerValue(collections.abc.Mapping):
             player_id, value in self.items()
         )
 
+    @classmethod
+    def make_solo(cls, item: Union[numbers.Number, Action, policing.Policy, Observation], /):
+        return cls({None: item})
+
+
 class _CombinedAggregatePlayerValue(collections.abc.Mapping):
     __value_type : tuple
 
-class Activity(BaseAggregatePlayerValue):
+class Activity(BaseAggregate):
     __value_type = Action
 
-class Payoff(BaseAggregatePlayerValue):
+class Payoff(BaseAggregate):
     __value_type = numbers.Number
 
     @staticmethod
-    def make_zero(aggregate_player_value: BaseAggregatePlayerValue) -> Payoff:
+    def make_zero(aggregate_player_value: BaseAggregate) -> Payoff:
         return Payoff(zip(aggregate_player_value, itertools.repeat(0)))
 
 
 
-class Culture(BaseAggregatePlayerValue):
+class Culture(BaseAggregate):
     __value_type = policing.Policy
 
     def get_next_activity_and_culture(self, game: Game, payoff: Payoff,
@@ -162,9 +167,8 @@ class Culture(BaseAggregatePlayerValue):
 
         return (Activity(activity_dict), Culture(culture_dict))
 
-class State(BaseAggregatePlayerValue):
+class State(BaseAggregate):
     __value_type = Observation
-    Observation: Type[Observation]
     is_end: bool
 
     @staticmethod
@@ -177,15 +181,16 @@ class State(BaseAggregatePlayerValue):
     def get_next_payoff_and_state(self, activity: Activity) -> Tuple[Payoff, State]:
         raise NotImplementedError
 
+    @staticmethod
+    def make_solo(solo_state: SoloState, /):
+        assert isinstance(solo_state, SoloState)
+        return solo_state
 
-class _SoloStateType(abc.ABCMeta):
-    @property
-    def Observation(cls) -> _SoloStateType:
-        return cls
 
-class SoloState(State, Observation, metaclass=_SoloStateType):
+class SoloState(State, Observation):
     def __init__(self):
-        self._BaseAggregatePlayerValue__player_id_to_value = ImmutableDict({None: self})
+        BaseAggregate.__init__(self, {None: self})
+        self.state = self
 
     def get_next_payoff_and_state(self, activity: Activity) -> Tuple[Payoff, State]:
         reward, state = self.get_next_reward_and_state(more_itertools.one(activity.values()))

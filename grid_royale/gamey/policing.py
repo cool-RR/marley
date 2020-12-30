@@ -54,10 +54,16 @@ class Policy(abc.ABC):
 
 
 class SoloPolicy(Policy):
+    ...
 
-    def get_score(self, n: int = 1_000, make_initial_state: Callable[[], State],
-                  max_length: Optional[int] = None) -> int:
-        from .culturing import SinglePlayerCulture
+
+class SoloEpisodicPolicy(SoloPolicy):
+
+    def get_score(self, n: int = 1_000, make_initial_state: Callable[[], State]) -> int:
+
+        for i in range(n):
+            state = make_initial_state()
+            game = Game(culture, state)
 
         single_player_culture = SinglePlayerCulture(self.State, policy=self)
         return np.mean([
