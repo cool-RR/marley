@@ -137,6 +137,10 @@ class BaseAggregate(collections.abc.Mapping):
     def make_solo(cls, item: Union[numbers.Number, Action, policing.Policy, Observation], /):
         return cls({None: item})
 
+    def get_single(self):
+        return more_itertools.one(self.values())
+
+
 
 class _CombinedAggregatePlayerValue(collections.abc.Mapping):
     __value_type : tuple

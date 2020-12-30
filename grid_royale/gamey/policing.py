@@ -54,22 +54,21 @@ class Policy(abc.ABC):
 
 
 class SoloPolicy(Policy):
-    ...
+    @property
+    @functools.cache
+    def culture(self) -> Culture:
+        return Culture.make_solo(self)
 
 
 class SoloEpisodicPolicy(SoloPolicy):
 
     def get_score(self, n: int = 1_000, make_initial_state: Callable[[], State]) -> int:
-
-        for i in range(n):
-            state = make_initial_state()
-            game = Game(culture, state)
-
-        single_player_culture = SinglePlayerCulture(self.State, policy=self)
-        return np.mean([
-            single_player_state.reward for single_player_state in single_player_culture.
-            iterate_many_games(n=n, max_length=max_length, state_factory=state_factory)
-        ])
+        scores = []
+        for _ in range(n):
+            game = Game(self.culture, make_initial_state())
+            game.crunch()
+            scores.append(sum(payoff.get_single() for payoff in game.payoffs))
+        return np.mean(scores)
 
 
 
@@ -93,4 +92,4 @@ class QPolicy(Policy):
 
 
 from .gaming import Game
-from .base import State
+from .base import State, Culture

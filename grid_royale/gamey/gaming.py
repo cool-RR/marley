@@ -54,3 +54,8 @@ class Game:
 
             yield state
 
+    def crunch(self, n: Optional[int] = None) -> None:
+        for _ in more_itertools.islice_extended(self)[:n]:
+            pass
+        assert self.states[-1].is_end or len(self.states) == n
+
