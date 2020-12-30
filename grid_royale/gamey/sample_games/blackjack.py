@@ -169,20 +169,23 @@ class BlackjackState(gamey.SoloState):
 
 
 
+class BlackjackPolicy(gamey.SoloPolicy):
+    pass
 
 
-class AlwaysHitPolicy(gamey.Policy):
+
+class AlwaysHitPolicy(BlackjackPolicy):
     def decide_action_for_observation(self, observation: BlackjackState) -> BlackjackAction:
         return (BlackjackAction.hit if (BlackjackAction.hit in observation.legal_actions)
                 else BlackjackAction.wait)
 
-class AlwaysStickPolicy(gamey.Policy):
+class AlwaysStickPolicy(BlackjackPolicy):
     '''A policy that always sticks, no matter what.'''
     def decide_action_for_observation(self, observation: BlackjackState) -> BlackjackAction:
         return (BlackjackAction.stick if (BlackjackAction.stick in observation.legal_actions)
                 else BlackjackAction.wait)
 
-class ThresholdPolicy(gamey.Policy):
+class ThresholdPolicy(BlackjackPolicy):
     '''
     A policy that sticks if the sum of cards is below the given threshold.
     '''
@@ -202,30 +205,12 @@ class ThresholdPolicy(gamey.Policy):
 
 
 
-class ModelFreeLearningPolicy(gamey.ModelFreeLearningPolicy):
-    @property
-    def culture(self):
-        try:
-            return self._culture
-        except AttributeError:
-            self._culture = ModelFreeLearningCulture(policy=self)
-            return self._culture
-
-    def get_score(self, n: int = 1_000, state_factory: Optional[Callable] = None,
-                  max_length: Optional[int] = None) -> int:
-        state_factory = (self.culture.make_initial_state if state_factory is None
-                         else state_factory)
-        last_states = [None] * n
-        for states in self.culture.iterate_games(state_factory() for _ in range(n)):
-            for i, state in enumerate(states):
-                if state is not None:
-                    last_states[i] = state
-        return np.mean([last_state.reward for last_state in last_states])
+class ModelFreeLearningPolicy(gamey.ModelFreeLearningPolicy, BlackjackPolicy):
+    pass
 
 
-class ModelFreeLearningCulture(gamey.ModelFreeLearningCulture, gamey.SinglePlayerCulture):
-    def __init__(self, *, policy) -> None:
-        gamey.SinglePlayerCulture.__init__(self, state_type=BlackjackState, policy=policy)
+class ModelBasedEpisodicLearningPolicy(gamey.ModelBasedEpisodicLearningPolicy, BlackjackPolicy):
+    pass
 
 
 

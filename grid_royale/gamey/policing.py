@@ -53,17 +53,17 @@ class Policy(abc.ABC):
 
 
 
-# class SinglePlayerPolicy(Policy):
+class SoloPolicy(Policy):
 
-    # def get_score(self, n: int = 1_000, state_factory: Optional[Callable] = None,
-                  # max_length: Optional[int] = None) -> int:
-        # from .culturing import SinglePlayerCulture
+    def get_score(self, n: int = 1_000, make_initial_state: Callable[[], State],
+                  max_length: Optional[int] = None) -> int:
+        from .culturing import SinglePlayerCulture
 
-        # single_player_culture = SinglePlayerCulture(self.State, policy=self)
-        # return np.mean([
-            # single_player_state.reward for single_player_state in single_player_culture.
-            # iterate_many_games(n=n, max_length=max_length, state_factory=state_factory)
-        # ])
+        single_player_culture = SinglePlayerCulture(self.State, policy=self)
+        return np.mean([
+            single_player_state.reward for single_player_state in single_player_culture.
+            iterate_many_games(n=n, max_length=max_length, state_factory=state_factory)
+        ])
 
 
 
@@ -87,3 +87,4 @@ class QPolicy(Policy):
 
 
 from .gaming import Game
+from .base import State
