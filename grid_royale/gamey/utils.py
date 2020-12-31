@@ -6,8 +6,9 @@ from __future__ import generator_stop
 import numpy as np
 import collections
 import dataclasses
-from typing import Optional, Union, Tuple, Iterable, Iterator
+from typing import Optional, Union, Tuple, Iterable, Iterator, Sequence
 import numbers
+import random
 
 import more_itertools
 from immutabledict import immutabledict as ImmutableDict
@@ -63,3 +64,17 @@ class NiceDataclass(collections.abc.Sequence):
 
 def is_structured_array(array: np.ndarray) -> bool:
     return isinstance(array.dtype, np.dtype) and len(array.dtype) >= 1
+
+def shuffled(sequence: Sequence) -> list:
+    '''
+    Return a list with all the items from `sequence` shuffled.
+
+    Example:
+
+        >>> random_tools.shuffled([0, 1, 2, 3, 4, 5])
+        [0, 3, 5, 1, 4, 2]
+
+    '''
+    sequence_copy = list(sequence)
+    random.shuffle(sequence_copy)
+    return sequence_copy

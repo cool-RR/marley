@@ -239,7 +239,7 @@ def demo(n_training_games: int = 1_000, n_evaluation_games: int = 100) -> None:
 
     # model_free_learning_policy.get_score(n=1_000)
     learning_policies = [
-        model_based_episodic_learning_policy := gamey.ModelBasedEpisodicLearningPolicy(),
+        model_based_episodic_learning_policy := ModelBasedEpisodicLearningPolicy(),
         single_model_free_learning_policy := ModelFreeLearningPolicy(gamma=1, n_models=1),
         double_model_free_learning_policy := ModelFreeLearningPolicy(gamma=1, n_models=2),
     ]
