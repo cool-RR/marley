@@ -98,6 +98,7 @@ class BlackjackState(gamey.SoloState):
             assert len(self.dealer_cards) == 1
             if self.player_stuck:
                 self.is_end = False
+                self.reward = 0
                 assert self.player_sum <= 20
             else: # not self.player_stuck
                 if self.player_sum > 21:
@@ -109,10 +110,11 @@ class BlackjackState(gamey.SoloState):
                 else:
                     assert self.player_sum <= 20
                     self.is_end = False
+                    self.reward = 0
         else:
             assert self.is_first_state
-            self.reward = 0
             self.is_end = False
+            self.reward = 0
 
         #                                                                     #
         ### Finished calculating end value, if any. ###########################
@@ -138,7 +140,7 @@ class BlackjackState(gamey.SoloState):
                 (self.deck[-3],),
                 self.deck[:-3]
             )
-        if self.player_stuck or action == BlackjackAction.stick:
+        elif self.player_stuck or action == BlackjackAction.stick:
             state = BlackjackState(
                 self.player_cards,
                 self.dealer_cards + self.deck[-1:],
