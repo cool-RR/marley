@@ -259,7 +259,8 @@ def demo(n_training_games: int = 1_000, n_evaluation_games: int = 100) -> None:
 
     def print_summary():
         policies_and_scores = sorted(
-            ((policy, policy.get_score(n_evaluation_games)) for policy in policies),
+            ((policy, policy.get_score(BlackjackState.make_initial, n_evaluation_games))
+             for policy in policies),
             key=lambda x: x[1], reverse=True
         )
         for policy, score in policies_and_scores:

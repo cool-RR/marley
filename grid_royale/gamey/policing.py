@@ -62,7 +62,7 @@ class SoloPolicy(Policy):
 
 class SoloEpisodicPolicy(SoloPolicy):
 
-    def get_score(self, n: int = 1_000, make_initial_state: Callable[[], State]) -> int:
+    def get_score(self, make_initial_state: Callable[[], State], n: int = 1_000) -> int:
         scores = []
         for _ in range(n):
             game = Game(self.culture, make_initial_state())
