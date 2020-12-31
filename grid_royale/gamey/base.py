@@ -106,7 +106,3 @@ class Observation(abc.ABC):
 
 PlayerId = TypeVar('PlayerId', bound=Hashable)
 
-
-
-from . import policing
-from .gaming import Game

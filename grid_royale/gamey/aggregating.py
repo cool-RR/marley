@@ -55,7 +55,7 @@ class BaseAggregate(collections.abc.Mapping):
         )
 
     @classmethod
-    def make_solo(cls, item: Union[numbers.Number, Action, policing.Policy, Observation], /):
+    def make_solo(cls, item: Union[numbers.Number, Action, Policy, Observation], /):
         return cls({None: item})
 
     def get_single(self):
@@ -79,14 +79,14 @@ class Payoff(BaseAggregate):
 
 
 class Culture(BaseAggregate):
-    __value_type = policing.Policy
+    __value_type = Policy
 
     def get_next_activity_and_culture(self, game: Game, payoff: Payoff,
                                       state: State) -> Tuple[Activity, Culture]:
         activity_dict = {}
         culture_dict = {}
         for player_id, (policy, reward, observation) in (self + payoff + state):
-            policy: policing.Policy
+            policy: Policy
             (activity_dict[player_id], culture_dict[player_id]) = \
                                         policy.get_next_action_and_policy(game, reward, observation)
 

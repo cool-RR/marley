@@ -57,12 +57,14 @@ class SoloPolicy(Policy):
     @property
     @functools.cache
     def culture(self) -> Culture:
+        from .base import Culture
         return Culture.make_solo(self)
 
 
 class SoloEpisodicPolicy(SoloPolicy):
 
     def get_score(self, make_initial_state: Callable[[], State], n: int = 1_000) -> int:
+        from .gaming import Game
         scores = []
         for _ in range(n):
             game = Game(self.culture, make_initial_state())
@@ -91,5 +93,3 @@ class QPolicy(Policy):
 
 
 
-from .gaming import Game
-from .base import State, Culture
