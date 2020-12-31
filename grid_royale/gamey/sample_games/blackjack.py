@@ -57,14 +57,21 @@ _card_distribution = tuple(range(1, 10 + 1)) + (10,) * 3
 def get_random_card() -> int:
     return random.choice(_card_distribution)
 
+def get_shuffled_deck():
+    return gamey.utils.shuffled(_card_distribution * 4)
+
+
 class BlackjackState(gamey.SoloState):
 
-    def __init__(self, player_cards: Tuple[int, ...], dealer_cards: Tuple[int, ...]) -> None:
+    def __init__(self, player_cards: Tuple[int, ...], dealer_cards: Tuple[int, ...],
+                 deck: Tuple[int, ...]) -> None:
         gamey.SoloState.__init__(self)
         self.player_cards = tuple(sorted(player_cards))
         self.dealer_cards = tuple(sorted(dealer_cards))
+        self.deck = deck
 
         self.player_stuck = (len(self.dealer_cards) >= 2)
+        self.is_first_state = (len(self.player_cards) == len(self.dealer_cards) == 0)
         self.player_sum = sum_cards(self.player_cards)
         self.dealer_sum = sum_cards(self.dealer_cards)
 
@@ -87,8 +94,8 @@ class BlackjackState(gamey.SoloState):
             else:
                 assert self.player_sum == self.dealer_sum
                 self.reward = 0
-        else: # len(self.dealer_cards) == 1
-            assert 2 <= self.dealer_sum <= 16
+        elif 2 <= self.dealer_sum <= 16:
+            assert len(self.dealer_cards) == 1
             if self.player_stuck:
                 self.is_end = False
                 assert self.player_sum <= 20
@@ -102,12 +109,18 @@ class BlackjackState(gamey.SoloState):
                 else:
                     assert self.player_sum <= 20
                     self.is_end = False
+        else:
+            assert self.is_first_state
+            self.reward = 0
+
         #                                                                     #
         ### Finished calculating end value, if any. ###########################
 
         if self.is_end:
             self.legal_actions = ()
         elif self.player_stuck:
+            self.legal_actions = (BlackjackAction.wait,)
+        elif self.is_first_state:
             self.legal_actions = (BlackjackAction.wait,)
         else:
             self.legal_actions = (BlackjackAction.hit, BlackjackAction.stick,)
@@ -118,23 +131,29 @@ class BlackjackState(gamey.SoloState):
                                                                           BlackjackState]:
         if action not in self.legal_actions:
             raise gamey.exceptions.IllegalAction(action)
+        if self.is_first_state:
+            state = BlackjackState(
+                self.deck[-2:],
+                (self.deck[-3],),
+                self.deck[:-3]
+            )
         if self.player_stuck or action == BlackjackAction.stick:
-            return BlackjackState(
+            state = BlackjackState(
                 self.player_cards,
-                self.dealer_cards + (get_random_card(),)
+                self.dealer_cards + self.deck[-1:],
+                self.deck[:-1]
             )
         else:
-            return BlackjackState(
-                self.player_cards + (get_random_card(),),
-                self.dealer_cards
+            state = BlackjackState(
+                self.player_cards + self.deck[-1:],
+                self.dealer_cards,
+                self.deck[:-1]
             )
+        return (state.reward, state)
 
     @staticmethod
     def make_initial() -> BlackjackState:
-        return BlackjackState(
-            (get_random_card(), get_random_card()),
-            (get_random_card(),)
-        )
+        return BlackjackState((), (), get_shuffled_deck())
 
     def __repr__(self) -> str:
         return (f'{type(self).__name__}'
