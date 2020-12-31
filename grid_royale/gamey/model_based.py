@@ -43,21 +43,21 @@ class ModelBasedEpisodicLearningPolicy(Policy):
     This policy assumes we're playing full episodes to the end, and there is no reward
     discounting.
     '''
-    def __init__(self, curiosity: numbers.Real = 2, gamma: numbers.Real = 0.9) -> None:
+    def __init__(self, curiosity: numbers.Real = 2) -> None:
         self.reward_map = RewardMap()
         self.curiosity = curiosity
-        self.gamma = gamma
         self.action_observation_chains_lists = collections.defaultdict(list)
 
 
-    def decide_action_for_observation(self, observation: Observation) -> Action:
+    def get_next_action_and_policy(self, game: Game, reward: numbers.Number,
+                                   observation: Observation) -> Tuple(Action, Policy):
         action = max(
             observation.legal_actions,
             key=lambda action: self.reward_map.get_ucb(
                 observation, action, curiosity=self.curiosity
             )
         )
-        return action
+        return (action, self)
 
     def train(self, observation: Observation, action: Action,
               next_observation: Observation) -> None:

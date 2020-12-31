@@ -751,208 +751,208 @@ class State(_BaseGrid, gamey.State):
 
 
 
-class Culture(gamey.ModelFreeLearningCulture):
+# class Culture(gamey.ModelFreeLearningCulture):
 
-    def __init__(self, n_players: int = DEFAULT_N_PLAYERS, *, board_size: int = DEFAULT_BOARD_SIZE,
-                 allow_shooting: bool = True, allow_walling: bool = True,
-                 n_food_tiles: int = DEFAULT_N_FOOD_TILES,
-                 policies: Optional[Sequence[_GridRoyalePolicy]] = None) -> None:
-        if policies is not None:
-            assert n_players == len(policies)
-        self.board_size = board_size
-        self.allow_shooting = allow_shooting
-        self.allow_walling = allow_walling
-        self.default_n_food_tiles = n_food_tiles
-        self.policies = tuple(policies or (Policy(self) for _ in range(n_players)))
-        # self.executor = concurrent.futures.ProcessPoolExecutor(5)
-        gamey.Culture.__init__(self, state_type=State,
-                               player_id_to_policy=dict(zip(LETTERS, self.policies)))
-
-
-    def make_initial_state(self, *, n_food_tiles: Optional[int] = None) -> State:
-        n_food_tiles = (n_food_tiles if n_food_tiles is not None
-                                 else self.default_n_food_tiles)
-        return State.make_initial(
-            self, board_size=self.board_size, allow_shooting=self.allow_shooting,
-            allow_walling=self.allow_walling, n_food_tiles=n_food_tiles
-        )
+    # def __init__(self, n_players: int = DEFAULT_N_PLAYERS, *, board_size: int = DEFAULT_BOARD_SIZE,
+                 # allow_shooting: bool = True, allow_walling: bool = True,
+                 # n_food_tiles: int = DEFAULT_N_FOOD_TILES,
+                 # policies: Optional[Sequence[_GridRoyalePolicy]] = None) -> None:
+        # if policies is not None:
+            # assert n_players == len(policies)
+        # self.board_size = board_size
+        # self.allow_shooting = allow_shooting
+        # self.allow_walling = allow_walling
+        # self.default_n_food_tiles = n_food_tiles
+        # self.policies = tuple(policies or (Policy(self) for _ in range(n_players)))
+        # # self.executor = concurrent.futures.ProcessPoolExecutor(5)
+        # gamey.Culture.__init__(self, state_type=State,
+                               # player_id_to_policy=dict(zip(LETTERS, self.policies)))
 
 
-
-class _GridRoyalePolicy(gamey.Policy):
-    State = State
-
-
-class SimplePolicy(_GridRoyalePolicy):
-
-    def __init__(self, epsilon: int = 0.2) -> None:
-        self.epsilon = epsilon
-
-
-    def decide_action_for_observation(self, observation: Observation) -> Action:
-        if random.random() <= self.epsilon or not observation.state.food_positions:
-            return random.choice(observation.legal_actions)
-        else:
-            closest_food_position = min(
-                (food_position for food_position in observation.state.food_positions),
-                key=lambda food_position: observation.position @ food_position
-            )
-            desired_translation = closest_food_position - observation.position
-            dimension = random.choice(
-                tuple(dimension for dimension, delta in enumerate(desired_translation) if delta)
-            )
-            return (Action(np.sign(desired_translation.x), 0) if dimension == 0
-                    else Action(0, np.sign(desired_translation.y)))
+    # def make_initial_state(self, *, n_food_tiles: Optional[int] = None) -> State:
+        # n_food_tiles = (n_food_tiles if n_food_tiles is not None
+                                 # else self.default_n_food_tiles)
+        # return State.make_initial(
+            # self, board_size=self.board_size, allow_shooting=self.allow_shooting,
+            # allow_walling=self.allow_walling, n_food_tiles=n_food_tiles
+        # )
 
 
 
-class Policy(_GridRoyalePolicy, gamey.ModelFreeLearningPolicy):
+# class _GridRoyalePolicy(gamey.Policy):
+    # State = State
 
-    def __init__(self, culture: Culture, **kwargs) -> None:
-        self.culture = culture
-        gamey.ModelFreeLearningPolicy.__init__(self, training_batch_size=10, **kwargs)
 
-    def create_model(self, observation: Observation, action: Action) -> keras.Model:
-        observation_neural = observation.to_neural()
+# class SimplePolicy(_GridRoyalePolicy):
 
-        grid_input = keras.Input(
-            shape=observation_neural[0]['grid'].shape,
-            name='grid_input'
-        )
-        grid_0 = keras.layers.Conv2D(
-            16, 2, activation='relu',
-            kernel_initializer='orthogonal'
-        )(grid_input)
-        _ = keras.layers.Dropout(rate=0.1)(grid_0)
-        _ = keras.layers.Conv2D(
-            16, 2, activation='relu',
-            kernel_initializer='orthogonal'
-        )(_)
-        _ = keras.layers.Dropout(rate=0.1)(_)
-        _ = keras.layers.Conv2D(
-            16, 2, activation='relu',
-            kernel_initializer='orthogonal'
-        )(_)
-        _ = keras.layers.Flatten()(_)
-        grid_output = keras.layers.Dropout(rate=0.1)(_)
+    # def __init__(self, epsilon: int = 0.2) -> None:
+        # self.epsilon = epsilon
 
-        sequential_input = keras.Input(
-            shape=observation_neural[0]['sequential'].shape,
-            name='sequential_input'
-        )
 
-        concatenate_layer = keras.layers.concatenate([grid_output, sequential_input])
-
-        _ = keras.layers.Dense(
-            128, activation='relu',
-        )(concatenate_layer)
-        _ = keras.layers.Dropout(rate=0.1)(_)
-        _ = keras.layers.Dense(
-            128, activation='relu',
-        )(_)
-        _ = keras.layers.Dropout(rate=0.1)(_)
-        output = keras.layers.Dense(
-            more_itertools.one(action.to_neural().shape),
-        )(_)
-        model = keras.Model([grid_input, sequential_input], output)
-        model.compile(optimizer='rmsprop', loss='mse', metrics=['accuracy'])
-        return model
+    # def decide_action_for_observation(self, observation: Observation) -> Action:
+        # if random.random() <= self.epsilon or not observation.state.food_positions:
+            # return random.choice(observation.legal_actions)
+        # else:
+            # closest_food_position = min(
+                # (food_position for food_position in observation.state.food_positions),
+                # key=lambda food_position: observation.position @ food_position
+            # )
+            # desired_translation = closest_food_position - observation.position
+            # dimension = random.choice(
+                # tuple(dimension for dimension, delta in enumerate(desired_translation) if delta)
+            # )
+            # return (Action(np.sign(desired_translation.x), 0) if dimension == 0
+                    # else Action(0, np.sign(desired_translation.y)))
 
 
 
+# class Policy(_GridRoyalePolicy, gamey.ModelFreeLearningPolicy):
 
+    # def __init__(self, culture: Culture, **kwargs) -> None:
+        # self.culture = culture
+        # gamey.ModelFreeLearningPolicy.__init__(self, training_batch_size=10, **kwargs)
 
-@click.group()
-def grid_royale() -> None:
-    pass
+    # def create_model(self, observation: Observation, action: Action) -> keras.Model:
+        # observation_neural = observation.to_neural()
 
-from . import server
+        # grid_input = keras.Input(
+            # shape=observation_neural[0]['grid'].shape,
+            # name='grid_input'
+        # )
+        # grid_0 = keras.layers.Conv2D(
+            # 16, 2, activation='relu',
+            # kernel_initializer='orthogonal'
+        # )(grid_input)
+        # _ = keras.layers.Dropout(rate=0.1)(grid_0)
+        # _ = keras.layers.Conv2D(
+            # 16, 2, activation='relu',
+            # kernel_initializer='orthogonal'
+        # )(_)
+        # _ = keras.layers.Dropout(rate=0.1)(_)
+        # _ = keras.layers.Conv2D(
+            # 16, 2, activation='relu',
+            # kernel_initializer='orthogonal'
+        # )(_)
+        # _ = keras.layers.Flatten()(_)
+        # grid_output = keras.layers.Dropout(rate=0.1)(_)
 
-@grid_royale.command()
-@click.option('--board-size', type=int, default=DEFAULT_BOARD_SIZE)
-@click.option('--n-players', type=int, default=DEFAULT_N_PLAYERS)
-@click.option('--n-food-tiles', type=int, default=DEFAULT_N_FOOD_TILES)
-@click.option('--allow-shooting/--no-shooting', default=True)
-@click.option('--allow-walling/--no-walling', default=False)
-@click.option('--pre-train/--dont-pre-train', default=False)
-@click.option('--browser/--no-browser', 'open_browser', default=True)
-@click.option('--host', default=server.DEFAULT_HOST)
-@click.option('--port', default=server.DEFAULT_PORT)
-@click.option('--max-length', default=None, type=int)
-def play(*, board_size: int, n_players: int, n_food_tiles: int, allow_shooting: bool,
-         allow_walling: bool, pre_train: bool, open_browser: bool, host: str, port: str,
-         max_length: Optional[int] = None) -> None:
-    with server.ServerThread(host=host, port=port, quiet=True) as server_thread:
-        culture = Culture(n_players=n_players, board_size=board_size, n_food_tiles=n_food_tiles,
-                          allow_shooting=allow_shooting, allow_walling=allow_walling)
-        state = culture.make_initial_state()
+        # sequential_input = keras.Input(
+            # shape=observation_neural[0]['sequential'].shape,
+            # name='sequential_input'
+        # )
 
-        if open_browser:
-            click.echo(f'Opening {server_thread.url} in your browser to view the game.')
-            webbrowser.open_new(server_thread.url)
-        else:
-            click.echo(f'Open {server_thread.url} in your browser to view the game.')
+        # concatenate_layer = keras.layers.concatenate([grid_output, sequential_input])
 
-        if pre_train:
-            pre_train_n_games = 100
-            pre_train_max_length = 100
-            pre_train_n_games_per_phase = 10
-            click.echo(
-                f'Pre-training {pre_train_n_games} games, each with '
-                f'{pre_train_max_length} states, with {pre_train_n_games_per_phase} games per '
-                f'phase...', nl=False
-            )
-            for _ in culture.multi_game_train(n_total_games=pre_train_n_games,
-                                              max_length=pre_train_max_length,
-                                              n_games_per_phase=pre_train_n_games_per_phase):
-                click.echo('.', nl=False)
-            click.echo(' Done pre-training.')
-
-        if max_length is None:
-            click.echo(f'Calculating states in the simulation, press Ctrl-C to stop.')
-        else:
-            click.echo(f'Calculating {max_length} states, press Ctrl-C to stop.')
-
-        for state in state.write_to_game_folder(max_length=max_length):
-            pass
-        click.echo(f'Finished calculating {max_length} states, still serving forever.')
-        while True:
-            time.sleep(0.1)
+        # _ = keras.layers.Dense(
+            # 128, activation='relu',
+        # )(concatenate_layer)
+        # _ = keras.layers.Dropout(rate=0.1)(_)
+        # _ = keras.layers.Dense(
+            # 128, activation='relu',
+        # )(_)
+        # _ = keras.layers.Dropout(rate=0.1)(_)
+        # output = keras.layers.Dense(
+            # more_itertools.one(action.to_neural().shape),
+        # )(_)
+        # model = keras.Model([grid_input, sequential_input], output)
+        # model.compile(optimizer='rmsprop', loss='mse', metrics=['accuracy'])
+        # return model
 
 
 
-@grid_royale.command()
-@click.option('--host', default=server.DEFAULT_HOST)
-@click.option('--port', default=server.DEFAULT_PORT)
-def serve(*, host: str, port: str) -> None:
-    with server.ServerThread(host=host, port=port) as server_thread:
-        click.echo(f'Open {server_thread.url} in your browser to view the game.')
-        while True:
-            time.sleep(0.1)
-
-@grid_royale.command()
-@click.argument('game_name', default='blackjack')
-@click.option('--n-training-games', default=1_000)
-@click.option('--n-evaluation-games', default=100)
-def sample(game_name: str, n_training_games: int, n_evaluation_games: int):
-    assert re.match('^[a-z_][a-z0-9_]{1,100}', game_name)
-    from grid_royale.gamey.sample_games import blackjack, griddler
-    games = {
-        'blackjack': blackjack,
-        'griddler': griddler,
-    }
-    game = games[game_name]
-    game.demo(n_training_games=n_training_games,
-              n_evaluation_games=n_evaluation_games)
-
-@grid_royale.command()
-@click.option('--n-training-games', default=1_000)
-@click.option('--n-evaluation-games', default=100)
-def griddler(n_training_games: int, n_evaluation_games: int):
-    from grid_royale.gamey.sample_games import griddler
-    griddler.demo(n_training_games=n_training_games,
-                  n_evaluation_games=n_evaluation_games)
 
 
-if __name__ == '__main__':
-    grid_royale()
+# @click.group()
+# def grid_royale() -> None:
+    # pass
+
+# from . import server
+
+# @grid_royale.command()
+# @click.option('--board-size', type=int, default=DEFAULT_BOARD_SIZE)
+# @click.option('--n-players', type=int, default=DEFAULT_N_PLAYERS)
+# @click.option('--n-food-tiles', type=int, default=DEFAULT_N_FOOD_TILES)
+# @click.option('--allow-shooting/--no-shooting', default=True)
+# @click.option('--allow-walling/--no-walling', default=False)
+# @click.option('--pre-train/--dont-pre-train', default=False)
+# @click.option('--browser/--no-browser', 'open_browser', default=True)
+# @click.option('--host', default=server.DEFAULT_HOST)
+# @click.option('--port', default=server.DEFAULT_PORT)
+# @click.option('--max-length', default=None, type=int)
+# def play(*, board_size: int, n_players: int, n_food_tiles: int, allow_shooting: bool,
+         # allow_walling: bool, pre_train: bool, open_browser: bool, host: str, port: str,
+         # max_length: Optional[int] = None) -> None:
+    # with server.ServerThread(host=host, port=port, quiet=True) as server_thread:
+        # culture = Culture(n_players=n_players, board_size=board_size, n_food_tiles=n_food_tiles,
+                          # allow_shooting=allow_shooting, allow_walling=allow_walling)
+        # state = culture.make_initial_state()
+
+        # if open_browser:
+            # click.echo(f'Opening {server_thread.url} in your browser to view the game.')
+            # webbrowser.open_new(server_thread.url)
+        # else:
+            # click.echo(f'Open {server_thread.url} in your browser to view the game.')
+
+        # if pre_train:
+            # pre_train_n_games = 100
+            # pre_train_max_length = 100
+            # pre_train_n_games_per_phase = 10
+            # click.echo(
+                # f'Pre-training {pre_train_n_games} games, each with '
+                # f'{pre_train_max_length} states, with {pre_train_n_games_per_phase} games per '
+                # f'phase...', nl=False
+            # )
+            # for _ in culture.multi_game_train(n_total_games=pre_train_n_games,
+                                              # max_length=pre_train_max_length,
+                                              # n_games_per_phase=pre_train_n_games_per_phase):
+                # click.echo('.', nl=False)
+            # click.echo(' Done pre-training.')
+
+        # if max_length is None:
+            # click.echo(f'Calculating states in the simulation, press Ctrl-C to stop.')
+        # else:
+            # click.echo(f'Calculating {max_length} states, press Ctrl-C to stop.')
+
+        # for state in state.write_to_game_folder(max_length=max_length):
+            # pass
+        # click.echo(f'Finished calculating {max_length} states, still serving forever.')
+        # while True:
+            # time.sleep(0.1)
+
+
+
+# @grid_royale.command()
+# @click.option('--host', default=server.DEFAULT_HOST)
+# @click.option('--port', default=server.DEFAULT_PORT)
+# def serve(*, host: str, port: str) -> None:
+    # with server.ServerThread(host=host, port=port) as server_thread:
+        # click.echo(f'Open {server_thread.url} in your browser to view the game.')
+        # while True:
+            # time.sleep(0.1)
+
+# @grid_royale.command()
+# @click.argument('game_name', default='blackjack')
+# @click.option('--n-training-games', default=1_000)
+# @click.option('--n-evaluation-games', default=100)
+# def sample(game_name: str, n_training_games: int, n_evaluation_games: int):
+    # assert re.match('^[a-z_][a-z0-9_]{1,100}', game_name)
+    # from grid_royale.gamey.sample_games import blackjack, griddler
+    # games = {
+        # 'blackjack': blackjack,
+        # 'griddler': griddler,
+    # }
+    # game = games[game_name]
+    # game.demo(n_training_games=n_training_games,
+              # n_evaluation_games=n_evaluation_games)
+
+# @grid_royale.command()
+# @click.option('--n-training-games', default=1_000)
+# @click.option('--n-evaluation-games', default=100)
+# def griddler(n_training_games: int, n_evaluation_games: int):
+    # from grid_royale.gamey.sample_games import griddler
+    # griddler.demo(n_training_games=n_training_games,
+                  # n_evaluation_games=n_evaluation_games)
+
+
+# if __name__ == '__main__':
+    # grid_royale()
