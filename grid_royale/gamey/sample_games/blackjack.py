@@ -195,7 +195,7 @@ class BlackjackPolicy(gamey.SoloEpisodicPolicy):
 
 class AlwaysHitPolicy(BlackjackPolicy):
     def get_next_action_and_policy(self, game: gamey.Game, reward: numbers.Number,
-                                   observation: gamey.Observation) -> Tuple[gamey.Action, Policy]:
+                                   observation: BlackjackState) -> Tuple[gamey.Action, Policy]:
         return (
             (BlackjackAction.hit if (BlackjackAction.hit in observation.legal_actions)
              else BlackjackAction.wait),
@@ -204,9 +204,13 @@ class AlwaysHitPolicy(BlackjackPolicy):
 
 class AlwaysStickPolicy(BlackjackPolicy):
     '''A policy that always sticks, no matter what.'''
-    def decide_action_for_observation(self, observation: BlackjackState) -> BlackjackAction:
-        return (BlackjackAction.stick if (BlackjackAction.stick in observation.legal_actions)
-                else BlackjackAction.wait)
+    def get_next_action_and_policy(self, game: gamey.Game, reward: numbers.Number,
+                                   observation: BlackjackState) -> Tuple[gamey.Action, Policy]:
+        return (
+            (BlackjackAction.stick if (BlackjackAction.stick in observation.legal_actions)
+             else BlackjackAction.wait),
+            self,
+        )
 
 class ThresholdPolicy(BlackjackPolicy):
     '''
@@ -215,13 +219,16 @@ class ThresholdPolicy(BlackjackPolicy):
     def __init__(self, threshold: int = 17) -> None:
         self.threshold = threshold
 
-    def decide_action_for_observation(self, observation: BlackjackState) -> BlackjackAction:
+    def get_next_action_and_policy(self, game: gamey.Game, reward: numbers.Number,
+                                   observation: BlackjackState) -> Tuple[gamey.Action, Policy]:
         if BlackjackAction.wait in observation.legal_actions:
-            return BlackjackAction.wait
+            action = BlackjackAction.wait
         elif observation.player_sum >= self.threshold:
-            return BlackjackAction.stick
+            action = BlackjackAction.stick
         else:
-            return BlackjackAction.hit
+            action = BlackjackAction.hit
+
+        return (action, self)
 
     def _extra_repr(self):
         return f'(threshold={self.threshold})'
