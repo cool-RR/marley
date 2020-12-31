@@ -95,7 +95,6 @@ class BlackjackState(gamey.SoloState):
                 assert self.player_sum == self.dealer_sum
                 self.reward = 0
         elif 2 <= self.dealer_sum <= 16:
-            assert len(self.dealer_cards) == 1
             if self.player_stuck:
                 self.is_end = False
                 self.reward = 0
