@@ -70,8 +70,8 @@ import scipy.special
 import more_itertools
 import keras
 
-from . import gamey
 from . import utils
+from . import gamey
 from .utils import zip
 from .gamey.utils import ImmutableDict
 from .vectoring import Vector, Step, Position, Translation, Vicinity
