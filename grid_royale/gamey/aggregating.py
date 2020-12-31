@@ -30,11 +30,12 @@ from .policing import Policy
 
 
 class BaseAggregate(collections.abc.Mapping):
-    __value_type: Type
+    _aggregate_value_type: Type
 
     def __init__(self, player_id_to_value: Union[Mapping[PlayerId, Any], Iterable]):
         self.__player_id_to_value = ImmutableDict(player_id_to_value)
-        assert all(type(value) == self.__value_type for value in self.__player_id_to_value.values())
+        assert all(isinstance(value, self._aggregate_value_type)
+                   for value in self.__player_id_to_value.values())
 
     def __getitem__(self, player_id: PlayerId) -> Any:
         return self.__player_id_to_value[player_id]
@@ -64,13 +65,13 @@ class BaseAggregate(collections.abc.Mapping):
 
 
 class _CombinedAggregatePlayerValue(collections.abc.Mapping):
-    __value_type : tuple
+    _BaseAggregate_value_type : tuple
 
 class Activity(BaseAggregate):
-    __value_type = Action
+    _aggregate_value_type = Action
 
 class Payoff(BaseAggregate):
-    __value_type = numbers.Number
+    _aggregate_value_type = numbers.Number
 
     @staticmethod
     def make_zero(aggregate_player_value: BaseAggregate) -> Payoff:
@@ -79,7 +80,7 @@ class Payoff(BaseAggregate):
 
 
 class Culture(BaseAggregate):
-    __value_type = Policy
+    _aggregate_value_type = Policy
 
     def get_next_activity_and_culture(self, game: Game, payoff: Payoff,
                                       state: State) -> Tuple[Activity, Culture]:
@@ -93,7 +94,7 @@ class Culture(BaseAggregate):
         return (Activity(activity_dict), Culture(culture_dict))
 
 class State(BaseAggregate):
-    __value_type = Observation
+    _aggregate_value_type = Observation
     is_end: bool
 
     @staticmethod

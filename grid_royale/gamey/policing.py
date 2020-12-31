@@ -57,7 +57,7 @@ class SoloPolicy(Policy):
     @property
     @functools.cache
     def culture(self) -> Culture:
-        from .base import Culture
+        from .aggregating import Culture
         return Culture.make_solo(self)
 
 
