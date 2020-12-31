@@ -194,9 +194,13 @@ class BlackjackPolicy(gamey.SoloEpisodicPolicy):
 
 
 class AlwaysHitPolicy(BlackjackPolicy):
-    def decide_action_for_observation(self, observation: BlackjackState) -> BlackjackAction:
-        return (BlackjackAction.hit if (BlackjackAction.hit in observation.legal_actions)
-                else BlackjackAction.wait)
+    def get_next_action_and_policy(self, game: gamey.Game, reward: numbers.Number,
+                                   observation: gamey.Observation) -> Tuple[gamey.Action, Policy]:
+        return (
+            (BlackjackAction.hit if (BlackjackAction.hit in observation.legal_actions)
+             else BlackjackAction.wait),
+            self,
+        )
 
 class AlwaysStickPolicy(BlackjackPolicy):
     '''A policy that always sticks, no matter what.'''

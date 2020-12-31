@@ -50,7 +50,7 @@ class ModelBasedEpisodicLearningPolicy(Policy):
 
 
     def get_next_action_and_policy(self, game: Game, reward: numbers.Number,
-                                   observation: Observation) -> Tuple(Action, Policy):
+                                   observation: Observation) -> Tuple[Action, Policy]:
         action = max(
             observation.legal_actions,
             key=lambda action: self.reward_map.get_ucb(

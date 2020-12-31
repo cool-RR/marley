@@ -192,9 +192,9 @@ class ModelFreeLearningPolicy(QPolicy):
 
 
 
-    def decide_action_for_observation(self, observation: Observation, *,
-                                       forced_epsilon: Optional[numbers.Real] = None) -> Action:
-        epsilon = self.epsilon if forced_epsilon is None else forced_epsilon
+    def get_next_action_and_policy(self, game: Game, reward: numbers.Number,
+                                   observation: Observation) -> Tuple[Action, Policy]:
+        epsilon = self.epsilon
         if (epsilon > 0) and (epsilon == 1 or epsilon > random.random()):
             # The verbose condition above is an optimized version of `if epsilon > random.random():`
             return random.choice(observation.legal_actions)
@@ -203,7 +203,7 @@ class ModelFreeLearningPolicy(QPolicy):
                 q_map = self.q_map_cache[observation]
             except KeyError:
                 q_map = self.q_map_cache[observation] = self.get_qs_for_observation(observation)
-            return max(q_map, key=q_map.__getitem__)
+            return (max(q_map, key=q_map.__getitem__), self)
 
 
     def get_observation_v(self, observation: Observation,
