@@ -62,10 +62,14 @@ class BaseAggregate(collections.abc.Mapping):
     def get_single(self):
         return more_itertools.one(self.values())
 
+    def __repr__(self):
+        return (f'<{type(self).__name__} with {len(self)} '
+                f'{self._aggregate_value_type.__name__} objects>')
 
 
-class _CombinedAggregatePlayerValue(collections.abc.Mapping):
-    _BaseAggregate_value_type : tuple
+
+class _CombinedAggregatePlayerValue(BaseAggregate):
+    _aggregate_value_type = tuple
 
 class Activity(BaseAggregate):
     _aggregate_value_type = Action
@@ -86,7 +90,7 @@ class Culture(BaseAggregate):
                                       state: State) -> Tuple[Activity, Culture]:
         activity_dict = {}
         culture_dict = {}
-        for player_id, (policy, reward, observation) in (self + payoff + state):
+        for player_id, (policy, reward, observation) in (self + payoff + state).items():
             policy: Policy
             (activity_dict[player_id], culture_dict[player_id]) = \
                                         policy.get_next_action_and_policy(game, reward, observation)

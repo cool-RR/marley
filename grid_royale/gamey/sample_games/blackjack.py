@@ -112,6 +112,7 @@ class BlackjackState(gamey.SoloState):
         else:
             assert self.is_first_state
             self.reward = 0
+            self.is_end = False
 
         #                                                                     #
         ### Finished calculating end value, if any. ###########################
