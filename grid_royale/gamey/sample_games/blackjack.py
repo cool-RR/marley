@@ -57,8 +57,8 @@ _card_distribution = tuple(range(1, 10 + 1)) + (10,) * 3
 # def get_random_card() -> int:
     # return random.choice(_card_distribution)
 
-def get_shuffled_deck():
-    return gamey.utils.shuffled(_card_distribution * 4)
+def get_shuffled_deck() -> tuple:
+    return tuple(gamey.utils.shuffled(_card_distribution * 4))
 
 
 class BlackjackState(gamey.SoloState):
