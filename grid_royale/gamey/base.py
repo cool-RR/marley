@@ -99,8 +99,6 @@ class Observation(abc.ABC):
     state: State
     legal_actions: Tuple[Action, ...]
 
-    is_end: bool = property(lambda self: self.state.is_end)
-
     @abc.abstractmethod
     def to_neural(self) -> np.ndarray:
         '''Represent the observation as a structured array of numbers for a neural network.'''

@@ -67,7 +67,7 @@ class TrainingData:
         self.action_neuron_array[self.counter_modulo] = action.to_neural()
         self.new_observation_neuron_array[self.counter_modulo] = next_observation.to_neural()
         self.reward_array[self.counter_modulo] = next_observation.reward
-        self.are_not_end_array[self.counter_modulo] = int(not next_observation.is_end)
+        self.are_not_end_array[self.counter_modulo] = int(not next_observation.state.is_end)
         self.counter += 1
 
         if self.is_training_time():

@@ -70,7 +70,7 @@ class ModelBasedEpisodicLearningPolicy(Policy):
 
         action_observation_chain.append(ActionObservation(action, next_observation))
 
-        if next_observation.is_end:
+        if next_observation.state.is_end:
             total_reward = 0
             for new_action_observation, old_action_observation in \
                                    utils.iterate_windowed_pairs(reversed(action_observation_chain)):

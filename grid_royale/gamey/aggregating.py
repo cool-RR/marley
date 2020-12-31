@@ -32,7 +32,7 @@ from .policing import Policy
 class BaseAggregate(collections.abc.Mapping):
     _aggregate_value_type: Type
 
-    def __init__(self, player_id_to_value: Union[Mapping[PlayerId, Any], Iterable]):
+    def __init__(self, player_id_to_value: Union[Mapping[PlayerId, Any], Iterable]) -> None:
         self.__player_id_to_value = ImmutableDict(player_id_to_value)
         assert all(isinstance(value, self._aggregate_value_type)
                    for value in self.__player_id_to_value.values())
