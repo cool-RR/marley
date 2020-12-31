@@ -54,8 +54,8 @@ BlackjackAction.all_actions = (BlackjackAction.hit, BlackjackAction.stick,
                                BlackjackAction.wait)
 
 _card_distribution = tuple(range(1, 10 + 1)) + (10,) * 3
-def get_random_card() -> int:
-    return random.choice(_card_distribution)
+# def get_random_card() -> int:
+    # return random.choice(_card_distribution)
 
 def get_shuffled_deck():
     return gamey.utils.shuffled(_card_distribution * 4)
@@ -193,6 +193,11 @@ class BlackjackPolicy(gamey.SoloEpisodicPolicy):
 
 
 
+
+
+class RandomPolicy(BlackjackPolicy, gamey.RandomPolicy):
+    pass
+
 class AlwaysHitPolicy(BlackjackPolicy):
     def get_next_action_and_policy(self, game: gamey.Game, reward: numbers.Number,
                                    observation: BlackjackState) -> Tuple[gamey.Action, Policy]:
@@ -255,7 +260,7 @@ def demo(n_training_games: int = 1_000, n_evaluation_games: int = 100) -> None:
         double_model_free_learning_policy := ModelFreeLearningPolicy(gamma=1, n_models=2),
     ]
     policies = [
-        gamey.RandomPolicy(),
+        RandomPolicy(),
         AlwaysHitPolicy(),
         AlwaysStickPolicy(),
         ThresholdPolicy(15),
