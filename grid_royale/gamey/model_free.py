@@ -42,7 +42,7 @@ class TrainingData:
         self.other_training_data = self
         self._created_arrays_and_model = False
 
-    def _create_arrays_and_model(self, observation: Observation, action: Action,):
+    def _create_arrays_and_model(self, observation: Observation, action: Action):
         self.model = self.model_free_learning_policy.create_model(observation, action)
         observation_neural = observation.to_neural()
         self.old_observation_neuron_array = np.zeros(
@@ -149,11 +149,14 @@ class TrainingData:
 
 
 class ModelFreeLearningPolicy(QPolicy):
-    def __init__(self, *, epsilon: numbers.Real = 0.1, gamma: numbers.Real = 0.9,
+    def __init__(self, *, observation_neural_dtype: np.dtype, action_n_neurons: int,
+                 epsilon: numbers.Real = 0.1, gamma: numbers.Real = 0.9,
                  training_batch_size: int = 100, n_models: int = 2) -> None:
         self.epsilon = epsilon
         self.gamma = gamma
         self._fit_future: Optional[concurrent.futures.Future] = None
+        self.observation_neural_dtype = observation_neural_dtype
+        self.action_n_neurons = action_n_neurons
 
         self.training_batch_size = training_batch_size
         self.training_datas = tuple(TrainingData(self) for _ in range(n_models))
@@ -180,7 +183,7 @@ class ModelFreeLearningPolicy(QPolicy):
         input_array = np.concatenate(observation_neurals)
         training_data = random.choice(self.training_datas)
         if training_data.model is None:
-            prediction_output = np.random.rand(input_array.shape[0], self.State.Action.n_neurons)
+            prediction_output = np.random.rand(input_array.shape[0], self.action_n_neurons)
         else:
             prediction_output = training_data.predict(input_array)
         actions = tuple(self.State.Action)
