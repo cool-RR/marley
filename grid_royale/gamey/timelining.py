@@ -75,4 +75,6 @@ class Timeline(BaseTimeline):
         self.rewards = ListView(self._full_timeline.rewards, 1)
 
 
+    def __add__(self, oar: Tuple[Observation, Action, numbers.Number]) -> Timeline:
+
 
