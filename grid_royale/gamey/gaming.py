@@ -29,24 +29,37 @@ from .aggregating import Culture, Payoff, State, Activity
 
 
 class Game:
-    def __init__(self, culture: Culture, state: State, payoff: Optional[Payoff] = None) -> None:
-        self.cultures = [culture]
-        self.payoffs = [payoff if (payoff is not None) else Payoff.make_zero(culture)]
-        self.states = [state]
-        self.activities = []
+    def __init__(self, *, cultures: Iterable[Culture], states: Iterable[State],
+                 activities: Iterable[Activity], payoffs: Iterable[Payoff]) -> None:
+        self.cultures = list(cultures)
+        self.states = list(states)
+        self.activities = list(activities)
+        self.payoffs = list(payoffs)
+
+
+    @classmethod
+    def from_culture_state(cls, culture: Culture, state: State) -> Game:
+        return cls(cultures=(culture,), states=(states,), activities=(), payoffs=())
+
 
 
     def __iter__(self) -> Iterator[State]:
+
+        assert (len(self.cultures) == len(self.payoffs) == len(self.states) ==
+                len(self.activities) + 1)
+
         yield from self.states
 
         culture: Culture = self.cultures[-1]
         payoff: Payoff = self.payoffs[-1]
         state: State = self.states[-1]
 
-        while not state.is_end:
-            activity, culture = culture.get_next_activity_and_culture(self, payoff, state)
-            self.activities.append(activity)
+        while True:
+            culture = culture.get_next_culture(payoff, state)
             self.cultures.append(culture)
+
+            activity = culture.get_next_activity(payoff, state)
+            self.activities.append(activity)
 
             payoff, state = state.get_next_payoff_and_state(activity)
             self.payoffs.append(payoff)

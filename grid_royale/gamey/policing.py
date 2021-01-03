@@ -39,10 +39,12 @@ class Policy(abc.ABC):
 
     State: Type[State]
 
-    @abc.abstractmethod
-    def get_next_action_and_policy(self, reward: numbers.Number,
-                                   observation: Observation) -> Tuple[Action, Policy]:
+    def get_next_policy(self, reward: numbers.Number, observation: Observation) -> Policy:
         # Put your training logic here, if you wish your policy to have training.
+        return self
+
+    @abc.abstractmethod
+    def get_next_action(self, reward: numbers.Number, observation: Observation) -> Action:
         raise NotImplementedError
 
     def __repr__(self) -> str:
@@ -67,7 +69,7 @@ class SoloEpisodicPolicy(SoloPolicy):
         from .gaming import Game
         scores = []
         for _ in range(n):
-            game = Game(self.culture, make_initial_state())
+            game = Game.from_culture_state(self.culture, make_initial_state())
             game.crunch()
             scores.append(sum(payoff.get_single() for payoff in game.payoffs))
         return np.mean(scores)

@@ -201,23 +201,17 @@ class RandomPolicy(BlackjackPolicy, gamey.RandomPolicy):
     pass
 
 class AlwaysHitPolicy(BlackjackPolicy):
-    def get_next_action_and_policy(self, game: gamey.Game, reward: numbers.Number,
-                                   observation: BlackjackState) -> Tuple[gamey.Action, Policy]:
-        return (
-            (BlackjackAction.hit if (BlackjackAction.hit in observation.legal_actions)
-             else BlackjackAction.wait),
-            self,
-        )
+    def get_next_action(self, reward: numbers.Number,
+                        observation: BlackjackState) -> BlackjackAction:
+        return (BlackjackAction.hit if (BlackjackAction.hit in observation.legal_actions)
+                else BlackjackAction.wait)
 
 class AlwaysStickPolicy(BlackjackPolicy):
     '''A policy that always sticks, no matter what.'''
-    def get_next_action_and_policy(self, game: gamey.Game, reward: numbers.Number,
-                                   observation: BlackjackState) -> Tuple[gamey.Action, Policy]:
-        return (
-            (BlackjackAction.stick if (BlackjackAction.stick in observation.legal_actions)
-             else BlackjackAction.wait),
-            self,
-        )
+    def get_next_action(self, reward: numbers.Number,
+                        observation: BlackjackState) -> BlackjackAction:
+        return (BlackjackAction.stick if (BlackjackAction.stick in observation.legal_actions)
+                else BlackjackAction.wait)
 
 class ThresholdPolicy(BlackjackPolicy):
     '''
@@ -226,16 +220,14 @@ class ThresholdPolicy(BlackjackPolicy):
     def __init__(self, threshold: int = 17) -> None:
         self.threshold = threshold
 
-    def get_next_action_and_policy(self, game: gamey.Game, reward: numbers.Number,
-                                   observation: BlackjackState) -> Tuple[gamey.Action, Policy]:
+    def get_next_action(self, reward: numbers.Number,
+                        observation: BlackjackState) -> BlackjackAction:
         if BlackjackAction.wait in observation.legal_actions:
-            action = BlackjackAction.wait
+            return BlackjackAction.wait
         elif observation.player_sum >= self.threshold:
-            action = BlackjackAction.stick
+            return BlackjackAction.stick
         else:
-            action = BlackjackAction.hit
-
-        return (action, self)
+            return BlackjackAction.hit
 
     def _extra_repr(self):
         return f'(threshold={self.threshold})'
