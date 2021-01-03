@@ -40,7 +40,7 @@ class Policy(abc.ABC):
     State: Type[State]
 
     @abc.abstractmethod
-    def get_next_action_and_policy(self, game: Game, reward: numbers.Number,
+    def get_next_action_and_policy(self, reward: numbers.Number,
                                    observation: Observation) -> Tuple[Action, Policy]:
         # Put your training logic here, if you wish your policy to have training.
         raise NotImplementedError
@@ -75,7 +75,7 @@ class SoloEpisodicPolicy(SoloPolicy):
 
 
 class RandomPolicy(Policy):
-    def get_next_action_and_policy(self, game: Game, reward: numbers.Number,
+    def get_next_action_and_policy(self, reward: numbers.Number,
                                    observation: Observation) -> Tuple[Action, Policy]:
         return (random.choice(observation.legal_actions), self)
 

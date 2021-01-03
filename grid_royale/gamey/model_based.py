@@ -49,7 +49,7 @@ class ModelBasedEpisodicLearningPolicy(Policy):
         self.action_observation_chains_lists = collections.defaultdict(list)
 
 
-    def get_next_action_and_policy(self, game: Game, reward: numbers.Number,
+    def get_next_action_and_policy(self, reward: numbers.Number,
                                    observation: Observation) -> Tuple[Action, Policy]:
         action = max(
             observation.legal_actions,

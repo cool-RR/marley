@@ -195,7 +195,7 @@ class ModelFreeLearningPolicy(QPolicy):
 
 
 
-    def get_next_action_and_policy(self, game: Game, reward: numbers.Number,
+    def get_next_action_and_policy(self, reward: numbers.Number,
                                    observation: Observation) -> Tuple[Action, Policy]:
         epsilon = self.epsilon
         if (epsilon > 0) and (epsilon == 1 or epsilon > random.random()):

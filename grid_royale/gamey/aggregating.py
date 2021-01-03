@@ -86,16 +86,17 @@ class Payoff(BaseAggregate):
 class Culture(BaseAggregate):
     _aggregate_value_type = Policy
 
-    def get_next_activity_and_culture(self, game: Game, payoff: Payoff,
-                                      state: State) -> Tuple[Activity, Culture]:
-        activity_dict = {}
-        culture_dict = {}
-        for player_id, (policy, reward, observation) in (self + payoff + state).items():
-            policy: Policy
-            (activity_dict[player_id], culture_dict[player_id]) = \
-                                        policy.get_next_action_and_policy(game, reward, observation)
+    def get_next_activity(self, payoff: Payoff, state: State) -> Activity:
+        return Activity({
+            player_id: policy.get_next_action(reward, observation) for
+            player_id, (policy, reward, observation) in (self + payoff + state).items()
+        })
 
-        return (Activity(activity_dict), Culture(culture_dict))
+    def get_next_culture(self, payoff: Payoff, state: State) -> Culture:
+        return Culture({
+            player_id: policy.get_next_policy(reward, observation) for
+            player_id, (policy, reward, observation) in (self + payoff + state).items()
+        })
 
 class State(BaseAggregate):
     _aggregate_value_type = Observation
