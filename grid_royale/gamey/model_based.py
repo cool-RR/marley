@@ -48,16 +48,18 @@ class ModelBasedEpisodicLearningPolicy(Policy):
         self.curiosity = curiosity
         self.action_observation_chains_lists = collections.defaultdict(list)
 
+    def get_next_policy(self, action: Action, reward: numbers.Number,
+                        observation: Observation) -> Policy:
+        # Gotta call self.train in an immutable way
+        raise NotImplementedError
 
-    def get_next_action_and_policy(self, reward: numbers.Number,
-                                   observation: Observation) -> Tuple[Action, Policy]:
-        action = max(
+    def get_next_action(self, observation: Observation) -> Action:
+        return max(
             observation.legal_actions,
             key=lambda action: self.reward_map.get_ucb(
                 observation, action, curiosity=self.curiosity
             )
         )
-        return (action, self)
 
     def train(self, observation: Observation, action: Action,
               next_observation: Observation) -> None:

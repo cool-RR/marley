@@ -29,42 +29,44 @@ from .aggregating import Culture, Payoff, State, Activity
 
 
 class Game:
-    def __init__(self, *, cultures: Iterable[Culture], states: Iterable[State],
+    def __init__(self, *, states: Iterable[State], cultures: Iterable[Culture],
                  activities: Iterable[Activity], payoffs: Iterable[Payoff]) -> None:
-        self.cultures = list(cultures)
         self.states = list(states)
+        self.cultures = list(cultures)
         self.activities = list(activities)
         self.payoffs = list(payoffs)
-
+        self._assert_correct_lengths()
 
     @classmethod
-    def from_culture_state(cls, culture: Culture, state: State) -> Game:
-        return cls(cultures=(culture,), states=(states,), activities=(), payoffs=())
+    def from_state_culture(cls, state: State, culture: Culture) -> Game:
+        return cls(states=(state,), cultures=(culture,), activities=(), payoffs=())
 
+    def _assert_correct_lengths(self) -> None:
+        assert (len(self.cultures) == len(self.states) ==
+                len(self.activities) + 1 == len(self.payoffs) + 1)
 
 
     def __iter__(self) -> Iterator[State]:
 
-        assert (len(self.cultures) == len(self.payoffs) == len(self.states) ==
-                len(self.activities) + 1)
+        self._assert_correct_lengths()
 
         yield from self.states
 
-        culture: Culture = self.cultures[-1]
-        payoff: Payoff = self.payoffs[-1]
         state: State = self.states[-1]
+        culture: Culture = self.cultures[-1]
 
-        while True:
-            culture = culture.get_next_culture(payoff, state)
-            self.cultures.append(culture)
-
-            activity = culture.get_next_activity(payoff, state)
+        while not state.is_end:
+            activity = culture.get_next_activity(state)
             self.activities.append(activity)
 
             payoff, state = state.get_next_payoff_and_state(activity)
             self.payoffs.append(payoff)
             self.states.append(state)
 
+            culture = culture.get_next_culture(activity, payoff, state)
+            self.cultures.append(culture)
+
+            self._assert_correct_lengths()
             yield state
 
     def crunch(self, n: Optional[int] = None) -> None:

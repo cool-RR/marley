@@ -195,8 +195,12 @@ class ModelFreeLearningPolicy(QPolicy):
 
 
 
-    def get_next_action_and_policy(self, reward: numbers.Number,
-                                   observation: Observation) -> Tuple[Action, Policy]:
+    def get_next_policy(self, action: Action, reward: numbers.Number,
+                        observation: Observation) -> Policy:
+        # Gotta call self.train in an immutable way
+        raise NotImplementedError
+
+    def get_next_action(self, observation: Observation) -> Action:
         epsilon = self.epsilon
         if (epsilon > 0) and (epsilon == 1 or epsilon > random.random()):
             # The verbose condition above is an optimized version of `if epsilon > random.random():`

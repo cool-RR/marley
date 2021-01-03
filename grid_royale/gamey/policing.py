@@ -39,9 +39,11 @@ class Policy(abc.ABC):
 
     State: Type[State]
 
-    def get_next_policy(self, reward: numbers.Number, observation: Observation) -> Policy:
+    @abc.abstractmethod
+    def get_next_policy(self, action: Action, reward: numbers.Number,
+                        observation: Observation) -> Policy:
         # Put your training logic here, if you wish your policy to have training.
-        return self
+        raise NotImplementedError
 
     @abc.abstractmethod
     def get_next_action(self, reward: numbers.Number, observation: Observation) -> Action:
@@ -53,6 +55,11 @@ class Policy(abc.ABC):
     def _extra_repr(self) -> str:
         return ('(<...>)' if inspect.signature(self.__init__).parameters else '()')
 
+
+class StaticPolicy(Policy):
+    def get_next_policy(self, action: Action, reward: numbers.Number,
+                        observation: Observation) -> Policy:
+        return self
 
 
 class SoloPolicy(Policy):
@@ -69,17 +76,16 @@ class SoloEpisodicPolicy(SoloPolicy):
         from .gaming import Game
         scores = []
         for _ in range(n):
-            game = Game.from_culture_state(self.culture, make_initial_state())
+            game = Game.from_state_culture(self.culture, make_initial_state())
             game.crunch()
             scores.append(sum(payoff.get_single() for payoff in game.payoffs))
         return np.mean(scores)
 
 
 
-class RandomPolicy(Policy):
-    def get_next_action_and_policy(self, reward: numbers.Number,
-                                   observation: Observation) -> Tuple[Action, Policy]:
-        return (random.choice(observation.legal_actions), self)
+class RandomPolicy(StaticPolicy):
+    def get_next_action(self, observation: Observation) -> Action:
+        return random.choice(observation.legal_actions)
 
 
 class QPolicy(Policy):
