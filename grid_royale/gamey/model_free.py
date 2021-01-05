@@ -14,9 +14,10 @@ import keras.models
 import more_itertools
 import numpy as np
 
-from .base import Observation, Action
+from .base import Observation, Action, Story
 from .policing import Policy, QPolicy
 from . import utils
+from .timelining import Timeline
 
 BATCH_SIZE = 64
 
@@ -166,6 +167,7 @@ class ModelFreeLearningPolicy(QPolicy):
             left_training_data.other_training_data = right_training_data
 
         self.q_map_cache = weakref.WeakKeyDictionary()
+        self.timelines: Tuple[Timeline] = ()
 
 
 
@@ -196,7 +198,7 @@ class ModelFreeLearningPolicy(QPolicy):
 
 
 
-    def get_next_policy(self, story: gamey.Story) -> Policy:
+    def get_next_policy(self, story: Story) -> Policy:
         # Gotta call self.train in an immutable way
         raise NotImplementedError
 
