@@ -34,17 +34,23 @@ class BaseTimeline(collections.abc.Sequence):
 
     def __getitem__(self, i: Union[int, slice]) -> Any:
         if isinstance(i, int):
-            return tuple(sequence[i] for sequence in self.sequences)
+            if - (len(self) + 1) < i < len(self):
+                fixed_i = i if i >= 0 else (i + len(self))
+                assert 0 <= fixed_i < len(self)
+                return tuple(sequence[fixed_i] for sequence in self.sequences)
+            else:
+                raise IndexError
         else:
             assert isinstance(i, slice)
             raise NotImplementedError
 
 
 class FullTimeline(BaseTimeline):
-    def __init__(self, observation: Observation, action: Action) -> None:
-        self.observations = [observation]
-        self.actions = [action]
-        self.rewards = []
+    def __init__(self, observations: Iterable[Observation], actions: Iterable[Action],
+                 rewards: Iterable[numbers.Number]) -> None:
+        self.observations = list(observations)
+        self.actions = list(actions)
+        self.rewards = list(rewards)
 
 class ListView(collections.abc.Sequence):
     def __init__(self, _list: list, length: int) -> None:
@@ -58,22 +64,22 @@ class ListView(collections.abc.Sequence):
 
     def __getitem__(self, i: Union[int, slice]) -> Any:
         if isinstance(i, int):
-            if i >= self.length or i <= - (self.length + 1):
-                raise IndexError
-            else:
+            if - (self.length + 1) < i < self.length:
                 return self._list[i]
+            else:
+                raise IndexError
         else:
             assert isinstance(i, slice)
             raise NotImplementedError
 
 
 class Timeline(BaseTimeline):
-    def __init__(self, observation: Observation, action: Action) -> None:
-        self._full_timeline = FullTimeline(observation, action)
-        self.observations = ListView(self._full_timeline.observations, 1)
+    def __init__(self, observation: Observation, action: Action, reward: numbers.Number,
+                 next_observation: Observation) -> None:
+        self._full_timeline = FullTimeline((observation, next_observation), (action,), (reward,))
+        self.observations = ListView(self._full_timeline.observations, 2)
         self.actions = ListView(self._full_timeline.actions, 1)
         self.rewards = ListView(self._full_timeline.rewards, 1)
-
 
     def __add__(self, oar: Tuple[Observation, Action, numbers.Number]) -> Timeline:
 
