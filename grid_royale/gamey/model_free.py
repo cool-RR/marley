@@ -21,6 +21,11 @@ from .timelining import Timeline
 
 BATCH_SIZE = 64
 
+class MustDefineCustomModel(NotImplementedError):
+    pass
+
+
+
 def _fit_external(model: keras.Model, *args, **kwargs) -> list:
     model.fit(*args, **kwargs)
     return model.get_weights()
@@ -152,15 +157,23 @@ class TrainingData:
 
 class ModelFreeLearningPolicy(QPolicy):
     def __init__(self, *, observation_neural_dtype: np.dtype, action_n_neurons: int,
-                 epsilon: numbers.Real = 0.1, gamma: numbers.Real = 0.9,
+                 serialized_models: Optional[Sequence[bytes]], epsilon: numbers.Real = 0.1,
+                 gamma: numbers.Real = 0.9, training_counter: int = 0,
                  training_batch_size: int = 100, n_models: int = 2) -> None:
-        self.epsilon = epsilon
-        self.gamma = gamma
-        self._fit_future: Optional[concurrent.futures.Future] = None
         self.observation_neural_dtype = observation_neural_dtype
         self.action_n_neurons = action_n_neurons
-
+        self.epsilon = epsilon
+        self.gamma = gamma
+        self.training_counter = training_counter
         self.training_batch_size = training_batch_size
+        if serialized_models is None:
+            self.models = tuple(self.create_model() for _ in range(n_models))
+        else:
+            assert len(serialized_models) == n_models
+            self.models = tuple(self.create_model(serialized_model) for serialized_model
+                                in serialized_models)
+
+
         self.training_datas = tuple(TrainingData(self) for _ in range(n_models))
         for left_training_data, right_training_data in utils.iterate_windowed_pairs(
                                                    self.training_datas + (self.training_datas[0],)):
@@ -197,10 +210,30 @@ class ModelFreeLearningPolicy(QPolicy):
         )
 
 
+    def get_clone_kwargs(self):
+        return {
+            'observation_neural_dtype': self.observation_neural_dtype,
+            'action_n_neurons': self.action_n_neurons,
+            'epsilon': self.epsilon,
+            'gamma': self.gamma,
+            'training_counter': self.training_counter,
+            'training_batch_size': self.training_batch_size,
+            'serialized_models': tuple(model.save_weights() for model in self.models),
+            'n_models': len(self.models),
+            'timelines': self.timelines,
+        }
+
+
 
     def get_next_policy(self, story: Story) -> Policy:
         # Gotta call self.train in an immutable way
-        raise NotImplementedError
+        clone_kwargs = self.get_clone_kwargs()
+
+        if self.training_counter + 1 == self.training_batch_size:
+            ...
+        else:
+            clone_kwargs['training_counter'] += 1
+        return type(self)(**clone_kwargs,)
 
     def get_next_action(self, observation: Observation) -> Action:
         epsilon = self.epsilon
@@ -231,11 +264,13 @@ class ModelFreeLearningPolicy(QPolicy):
     def _extra_repr(self) -> str:
         return f'(<...>, n_models={len(self.training_datas)})'
 
-    def create_model(self, observation: Observation, action: Action) -> keras.Model:
+    def create_model(self, serialized_model: Optional[bytes]) -> keras.Model:
+        if tuple(self.observation_neural_dtype.fields) != ('sequential',):
+            raise MustDefineCustomModel
         model = keras.models.Sequential(
             layers=(
                 keras.layers.Input(
-                    shape=observation.to_neural()[0]['sequential'].shape,
+                    shape=self.observation_neural_dtype['sequential'].shape,
                     name='sequential'
                 ),
                 keras.layers.Dense(
@@ -251,11 +286,13 @@ class ModelFreeLearningPolicy(QPolicy):
                 ),
                 keras.layers.Dropout(rate=0.1),
                 keras.layers.Dense(
-                    action.to_neural().shape[0] # activation='relu'
+                    self.action_n_neurons # activation='relu'
                 ),
             ),
         )
         model.compile(optimizer='rmsprop', loss='mse', metrics=['accuracy'])
+        if serialized_model is not None:
+            model.load_weights(serialized_model)
         return model
 
 
