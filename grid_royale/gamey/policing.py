@@ -40,8 +40,8 @@ class Policy(abc.ABC):
     State: Type[State]
 
     @abc.abstractmethod
-    def get_next_policy(self, action: Action, reward: numbers.Number,
-                        observation: Observation) -> Policy:
+    def get_next_policy(self, observation: Observation, action: Action, reward: numbers.Number,
+                        next_observation: Observation) -> Policy:
         # Put your training logic here, if you wish your policy to have training.
         raise NotImplementedError
 
@@ -57,8 +57,8 @@ class Policy(abc.ABC):
 
 
 class StaticPolicy(Policy):
-    def get_next_policy(self, action: Action, reward: numbers.Number,
-                        observation: Observation) -> Policy:
+    def get_next_policy(self, observation: Observation, action: Action, reward: numbers.Number,
+                        next_observation: Observation) -> Policy:
         return self
 
 

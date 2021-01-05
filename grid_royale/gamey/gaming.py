@@ -63,7 +63,7 @@ class Game:
             self.payoffs.append(payoff)
             self.states.append(state)
 
-            culture = culture.get_next_culture(activity, payoff, state)
+            culture = culture.get_next_culture(self.states[-2], activity, payoff, state)
             self.cultures.append(culture)
 
             self._assert_correct_lengths()

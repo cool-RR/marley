@@ -195,8 +195,8 @@ class ModelFreeLearningPolicy(QPolicy):
 
 
 
-    def get_next_policy(self, action: Action, reward: numbers.Number,
-                        observation: Observation) -> Policy:
+    def get_next_policy(self, observation: Observation, action: Action, reward: numbers.Number,
+                        next_observation: Observation) -> Policy:
         # Gotta call self.train in an immutable way
         raise NotImplementedError
 
