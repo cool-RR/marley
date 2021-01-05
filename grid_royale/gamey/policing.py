@@ -24,6 +24,7 @@ import keras.models
 import tensorflow as tf
 import numpy as np
 
+import gamey
 from .base import Observation, Action
 from . import utils
 
@@ -37,7 +38,7 @@ class Policy(abc.ABC):
     Your fancy machine-learning code goes here.
     '''
 
-    State: Type[State]
+    State: Type[gamey.State]
 
     @abc.abstractmethod
     def get_next_policy(self, observation: Observation, action: Action, reward: numbers.Number,
@@ -65,14 +66,14 @@ class StaticPolicy(Policy):
 class SoloPolicy(Policy):
     @property
     @functools.cache
-    def culture(self) -> Culture:
+    def culture(self) -> gamey.Culture:
         from .aggregating import Culture
         return Culture.make_solo(self)
 
 
 class SoloEpisodicPolicy(SoloPolicy):
 
-    def get_score(self, make_initial_state: Callable[[], State], n: int = 1_000) -> int:
+    def get_score(self, make_initial_state: Callable[[], gamey.State], n: int = 1_000) -> int:
         from .gaming import Game
         scores = []
         for _ in range(n):
