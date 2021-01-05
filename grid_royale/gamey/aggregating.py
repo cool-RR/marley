@@ -25,7 +25,7 @@ import numpy as np
 from .utils import ImmutableDict
 from . import utils
 from . import exceptions
-from .base import PlayerId, Action, Observation
+from .base import PlayerId, Action, Observation, Story
 from .policing import Policy
 
 
@@ -95,7 +95,8 @@ class Culture(BaseAggregate):
     def get_next_culture(self, state: State, activity: Activity, payoff: Payoff,
                          next_state: State) -> Culture:
         return Culture({
-            player_id: policy.get_next_policy(observation, action, reward, next_observation) for
+            player_id: policy.get_next_policy(Story(observation, action,
+                                                    reward, next_observation)) for
             player_id, (policy, observation, action, reward, next_observation) in
                                              (self + state + activity + payoff + next_state).items()
         })

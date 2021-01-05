@@ -61,6 +61,7 @@ class TrainingData:
 
     def add_and_maybe_train(self, observation: Observation, action: Action,
                             next_observation: Observation) -> None:
+        raise hell
         if not self._created_arrays_and_model:
             self._create_arrays_and_model(observation, action)
         self.old_observation_neuron_array[self.counter_modulo] = observation.to_neural()
@@ -195,8 +196,7 @@ class ModelFreeLearningPolicy(QPolicy):
 
 
 
-    def get_next_policy(self, observation: Observation, action: Action, reward: numbers.Number,
-                        next_observation: Observation) -> Policy:
+    def get_next_policy(self, story: gamey.Story) -> Policy:
         # Gotta call self.train in an immutable way
         raise NotImplementedError
 

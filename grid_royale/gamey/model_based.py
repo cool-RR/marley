@@ -63,6 +63,7 @@ class ModelBasedEpisodicLearningPolicy(Policy):
 
     def train(self, observation: Observation, action: Action,
               next_observation: Observation) -> None:
+        raise fuck
 
         action_observation_chains = self.action_observation_chains_lists[observation]
         try:

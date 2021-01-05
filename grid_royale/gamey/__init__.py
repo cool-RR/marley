@@ -12,7 +12,7 @@ See the `sample_games/blackjack.py` module for an example of using Gamey on Blac
 '''
 
 
-from .base import Observation, Action, ActionEnum
+from .base import Observation, Action, ActionEnum, Story
 from .policing import Policy, StaticPolicy, RandomPolicy, SoloEpisodicPolicy, QPolicy
 from .aggregating import State, SoloState, Payoff, Activity, Culture
 from .gaming import Game

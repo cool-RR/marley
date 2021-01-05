@@ -15,9 +15,14 @@ import keras.models
 import more_itertools
 import numpy as np
 
-from .base import Observation, Action
+from .base import Observation, Action, Story
 from .policing import Policy, QPolicy
 from . import utils
+
+
+class StoryDoesntFitInTimeline(Exception):
+    pass
+
 
 
 class BaseTimeline(collections.abc.Sequence):
@@ -74,13 +79,35 @@ class ListView(collections.abc.Sequence):
 
 
 class Timeline(BaseTimeline):
-    def __init__(self, observation: Observation, action: Action, reward: numbers.Number,
-                 next_observation: Observation) -> None:
-        self._full_timeline = FullTimeline((observation, next_observation), (action,), (reward,))
-        self.observations = ListView(self._full_timeline.observations, 2)
-        self.actions = ListView(self._full_timeline.actions, 1)
-        self.rewards = ListView(self._full_timeline.rewards, 1)
+    def __init__(self, full_timeline: FullTimeline, *, observations_length: int) -> None:
+        self._full_timeline = full_timeline
+        self.observations = ListView(self._full_timeline.observations, observations_length)
+        self.actions = ListView(self._full_timeline.actions, observations_length - 1)
+        self.rewards = ListView(self._full_timeline.rewards, observations_length - 1)
 
-    def __add__(self, oar: Tuple[Observation, Action, numbers.Number]) -> Timeline:
+
+    @staticmethod
+    def make_initial(story: Story) -> Timeline:
+        return Timeline(
+            FullTimeline((story.observation, story.next_observation), (story.action,),
+                         (story.reward,)),
+            observations_length=2
+        )
+
+    def _is_last_on_full_timeline(self):
+        return all(map(operator.is_, zip(self[-1], self._full_timeline[-1])))
+
+
+    def __add__(self, story: Story) -> Timeline:
+        assert isinstance(story, Story)
+        assert self._is_last_on_full_timeline()
+        if story.observation != self.observations[-1]:
+            raise StoryDoesntFitInTimeline
+        self._full_timeline.observations.append(story.next_observation)
+        self._full_timeline.actions.append(story.action)
+        self._full_timeline.rewards.append(story.reward)
+        assert not self._is_last_on_full_timeline()
+        return Timeline(self._full_timeline,
+                        observations_length=(self.observations.length + 1))
 
 
