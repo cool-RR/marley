@@ -123,7 +123,7 @@ class ModelFreeLearningPolicy(QPolicy):
             serialized_model=self.serialized_models[random_index]
         )
         self._train_model(cloned_model, other_model=models[other_index])
-        self.model_cache[(serialized_model := cloned_model.get_weights(),
+        self.model_cache[(cloned_model.get_weights(),
                           self.observation_neural_dtype,
                           self.action_n_neurons)] = cloned_model
         return tuple(models)
@@ -265,12 +265,10 @@ class ModelFreeLearningPolicy(QPolicy):
             )
 
 
-        # Assumes discrete actions:
-        action_indices = np.dot(action_neurals, range(n_actions)).astype(np.int32)
+        action_indices = np.dot(action_neural_array, range(self.action_n_neurons)).astype(np.int32)
 
-        batch_index = np.arange(n_data_points, dtype=np.int32)
-        wip_q_values[batch_index, action_indices] = (
-            rewards + self.model_free_learning_policy.gamma * are_not_ends *
+        wip_q_values[action_indices] = (
+            reward_array + self.gamma * are_not_end_array *
             new_other_q_values[np.arange(new_q_values.shape[0]),
                                np.argmax(new_q_values, axis=1)]
 
