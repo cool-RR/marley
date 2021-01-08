@@ -171,7 +171,7 @@ class BlackjackState(gamey.SoloState):
         return ((type(self) is type(other)) and
                 (self._as_tuple() == other._as_tuple()))
 
-    n_neurons = 5
+    neural_dtype = (('sequential', np.float64, 5))
 
     @functools.lru_cache(maxsize=None)
     def to_neural(self) -> np.ndarray:
@@ -184,7 +184,7 @@ class BlackjackState(gamey.SoloState):
                 float(self.player_stuck)
             ))
         )
-        array = np.zeros((1,), dtype=[('sequential', np.float64, sequential_array.shape)])
+        array = np.zeros((1,), dtype=self.neural_dtype)
         array['sequential'][0] = sequential_array
         return array
 

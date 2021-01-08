@@ -30,12 +30,13 @@ class MustDefineCustomModel(NotImplementedError):
 
 
 class ModelFreeLearningPolicy(QPolicy):
-    def __init__(self, *, observation_neural_dtype: np.dtype, action_n_neurons: int,
-                 serialized_models: Optional[Sequence[bytes]], epsilon: numbers.Real = 0.1,
+    Observation: Type[Observation]
+    Action: Type[Action]
+    def __init__(self, *, serialized_models: Optional[Sequence[bytes]], epsilon: numbers.Real = 0.1,
                  gamma: numbers.Real = 0.9, training_counter: int = 0,
                  training_batch_size: int = 100, n_models: int = 2) -> None:
-        self.observation_neural_dtype = observation_neural_dtype
-        self.action_n_neurons = action_n_neurons
+        self.Observation.neural_dtype = observation_neural_dtype
+        self.Action.n_neurons
         self.epsilon = epsilon
         self.gamma = gamma
         self.training_counter = training_counter
@@ -59,11 +60,8 @@ class ModelFreeLearningPolicy(QPolicy):
         if observation_neurals:
             assert utils.is_structured_array(observation_neurals[0])
         input_array = np.concatenate(observation_neurals)
-        training_data = random.choice(self.training_datas)
-        if training_data.model is None:
-            prediction_output = np.random.rand(input_array.shape[0], self.action_n_neurons)
-        else:
-            prediction_output = training_data.predict(input_array)
+        model = random.choice(self.models)
+        prediction_output = self.predict(model, input_array)
         actions = tuple(self.State.Action)
         return tuple(
             {action: q for action, q in dict(zip(actions, output_row)).items()
@@ -74,8 +72,6 @@ class ModelFreeLearningPolicy(QPolicy):
 
     def get_clone_kwargs(self):
         return {
-            'observation_neural_dtype': self.observation_neural_dtype,
-            'action_n_neurons': self.action_n_neurons,
             'epsilon': self.epsilon,
             'gamma': self.gamma,
             'training_counter': self.training_counter,
@@ -95,13 +91,13 @@ class ModelFreeLearningPolicy(QPolicy):
 
             serialized_models = list(clone_kwargs['serialized_models'])
             random_index = random.randint(0, len(serialized_models) - 1)
-            cloned_model = self.create_model(observation_neural_dtype=self.observation_neural_dtype,
-                                             action_n_neurons=self.action_n_neurons,
+            cloned_model = self.create_model(observation_neural_dtype=self.Observation.neural_dtype,
+                                             action_n_neurons=self.Action.n_neurons,
                                              serialized_model=serialized_models[random_index])
             self._train_model(cloned_model)
             self.model_cache[(serialized_model := cloned_model.get_weights(),
-                              self.observation_neural_dtype,
-                              self.action_n_neurons)] = cloned_model
+                              self.Observation.neural_dtype,
+                              self.Action.n_neurons)] = cloned_model
             serialized_models[random_index] = serialized_model
 
             clone_kwargs['serialized_models'] = tuple(serialized_models)
@@ -118,14 +114,14 @@ class ModelFreeLearningPolicy(QPolicy):
         other_index = (random_index + 1) % len(models)
         # (It's the index of another model if there's >=2, otherwise it's the same model.)
         models[random_index] = cloned_model = self.create_model(
-            observation_neural_dtype=self.observation_neural_dtype,
-            action_n_neurons=self.action_n_neurons,
+            observation_neural_dtype=self.Observation.neural_dtype,
+            action_n_neurons=self.Action.n_neurons,
             serialized_model=self.serialized_models[random_index]
         )
         self._train_model(cloned_model, other_model=models[other_index])
         self.model_cache[(cloned_model.get_weights(),
-                          self.observation_neural_dtype,
-                          self.action_n_neurons)] = cloned_model
+                          self.Observation.neural_dtype,
+                          self.Action.n_neurons)] = cloned_model
         return tuple(models)
 
 
@@ -162,8 +158,7 @@ class ModelFreeLearningPolicy(QPolicy):
     model_cache = {}
 
     @staticmethod
-    def create_model(observation_neural_dtype: np.dtype,
-                     action_n_neurons: int,
+    def create_model(observation_neural_dtype: np.dtype, action_n_neurons: int,
                      serialized_model: Optional[bytes] = None) -> keras.Model:
         if tuple(observation_neural_dtype.fields) != ('sequential',):
             raise MustDefineCustomModel
@@ -199,15 +194,15 @@ class ModelFreeLearningPolicy(QPolicy):
 
     def get_or_create_model(self, serialized_model: Optional[bytes] = None) -> keras.Model:
         if serialized_model is None:
-            return self.create_model(self.observation_neural_dtype, self.action_n_neurons,
+            return self.create_model(self.Observation.neural_dtype, self.Action.n_neurons,
                                      None)
-        key = (self.create_model, self.observation_neural_dtype, self.action_n_neurons,
+        key = (self.create_model, self.Observation.neural_dtype, self.Action.n_neurons,
                serialized_model)
         try:
             return self.model_cache[key]
         except KeyError:
-            self.model_cache[key] = self.create_model(self.observation_neural_dtype,
-                                                      self.action_n_neurons,
+            self.model_cache[key] = self.create_model(self.Observation.neural_dtype,
+                                                      self.Action.n_neurons,
                                                       serialized_model)
             return self.model_cache[key]
 
@@ -229,14 +224,14 @@ class ModelFreeLearningPolicy(QPolicy):
         ### Initializing arrays: ###################################################################
         #                                                                                          #
         old_observation_neural_array = np.zeros(
-            (BATCH_SIZE,), dtype=self.observation_neural_dtype
+            (BATCH_SIZE,), dtype=self.Observation.neural_dtype
         )
         action_neural_array = np.zeros(
-            (BATCH_SIZE, self.action_n_neurons), dtype=bool
+            (BATCH_SIZE, self.Action.n_neurons), dtype=bool
         )
         reward_array = np.zeros(BATCH_SIZE)
         new_observation_neural_array = np.zeros(
-            (BATCH_SIZE,), dtype=self.observation_neural_dtype
+            (BATCH_SIZE,), dtype=self.Observation.neural_dtype
         )
         are_not_end_array = np.zeros(BATCH_SIZE, dtype=bool)
 
@@ -265,7 +260,7 @@ class ModelFreeLearningPolicy(QPolicy):
             )
 
 
-        action_indices = np.dot(action_neural_array, range(self.action_n_neurons)).astype(np.int32)
+        action_indices = np.dot(action_neural_array, range(self.Action.n_neurons)).astype(np.int32)
 
         wip_q_values[action_indices] = (
             reward_array + self.gamma * are_not_end_array *

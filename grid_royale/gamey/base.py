@@ -99,6 +99,7 @@ class ActionEnum(Action, enum.Enum, metaclass=_ActionEnumType):
 class Observation(abc.ABC):
     state: gamey.State
     legal_actions: Tuple[Action, ...]
+    neural_dtype: np.dtype
 
     @abc.abstractmethod
     def to_neural(self) -> np.ndarray:
