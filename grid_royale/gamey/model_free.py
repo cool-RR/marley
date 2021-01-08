@@ -42,16 +42,12 @@ class ModelFreeLearningPolicy(QPolicy):
         self.training_batch_size = training_batch_size
         if serialized_models is None:
             self.models = tuple(self.create_model() for _ in range(n_models))
+            self.serialized_models = tuple(model.get_weights() for model in self.models)
         else:
             assert len(serialized_models) == n_models
+            self.serialized_models = serialized_models
             self.models = tuple(self.create_model(serialized_model) for serialized_model
                                 in serialized_models)
-
-
-        self.training_datas = tuple(TrainingData(self) for _ in range(n_models))
-        for left_training_data, right_training_data in utils.iterate_windowed_pairs(
-                                                   self.training_datas + (self.training_datas[0],)):
-            left_training_data.other_training_data = right_training_data
 
         self.q_map_cache = weakref.WeakKeyDictionary()
         self.timelines: Tuple[Timeline] = ()
@@ -84,7 +80,7 @@ class ModelFreeLearningPolicy(QPolicy):
             'gamma': self.gamma,
             'training_counter': self.training_counter,
             'training_batch_size': self.training_batch_size,
-            'serialized_models': tuple(model.save_weights() for model in self.models),
+            'serialized_models': self.serialized_models,
             'n_models': len(self.models),
             'timelines': self.timelines,
         }
@@ -114,6 +110,25 @@ class ModelFreeLearningPolicy(QPolicy):
         else:  # It's not training time.
             clone_kwargs['training_counter'] += 1
         return type(self)(**clone_kwargs,)
+
+
+    def clone_model_and_train_one(self) -> Tuple[keras.Model]:
+        models = list(self.models)
+        random_index = random.randint(0, len(models) - 1)
+        other_index = (random_index + 1) % len(models)
+        # (It's the index of another model if there's >=2, otherwise it's the same model.)
+        models[random_index] = cloned_model = self.create_model(
+            observation_neural_dtype=self.observation_neural_dtype,
+            action_n_neurons=self.action_n_neurons,
+            serialized_model=self.serialized_models[random_index]
+        )
+        self._train_model(cloned_model, other_model=models[other_index])
+        self.model_cache[(serialized_model := cloned_model.get_weights(),
+                          self.observation_neural_dtype,
+                          self.action_n_neurons)] = cloned_model
+        return tuple(models)
+
+
 
     def get_next_action(self, observation: Observation) -> Action:
         epsilon = self.epsilon
@@ -201,7 +216,7 @@ class ModelFreeLearningPolicy(QPolicy):
         return model.predict({name: input_array[name] for name in input_array.dtype.names})
 
 
-    def _train_model(self, model: keras.Model, other_model: keras.Model):
+    def _train_model(self, model: keras.Model, *, other_model: keras.Model) -> None:
 
         ### Getting a random selection of stories to train on: #####################################
         #                                                                                          #
