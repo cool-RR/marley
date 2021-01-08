@@ -48,8 +48,8 @@ class ModelBasedEpisodicLearningPolicy(Policy):
         self.curiosity = curiosity
         self.action_observation_chains_lists = collections.defaultdict(list)
 
-    def get_next_policy(self, observation: Observation, action: Action, reward: numbers.Number,
-                        next_observation: Observation) -> Policy:
+    def get_next_policy(self, old_observation: Observation, action: Action, reward: numbers.Number,
+                        new_observation: Observation) -> Policy:
         # Gotta call self.train in an immutable way
         raise NotImplementedError
 

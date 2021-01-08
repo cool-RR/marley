@@ -95,9 +95,9 @@ class Culture(BaseAggregate):
     def get_next_culture(self, state: State, activity: Activity, payoff: Payoff,
                          next_state: State) -> Culture:
         return Culture({
-            player_id: policy.get_next_policy(Story(observation, action,
-                                                    reward, next_observation)) for
-            player_id, (policy, observation, action, reward, next_observation) in
+            player_id: policy.get_next_policy(Story(old_observation, action,
+                                                    reward, new_observation)) for
+            player_id, (policy, old_observation, action, reward, new_observation) in
                                              (self + state + activity + payoff + next_state).items()
         })
 

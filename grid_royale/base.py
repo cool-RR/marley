@@ -99,7 +99,7 @@ logging.getLogger('tensorflow').addFilter(
     lambda record: 'Tracing is expensive and the excessive' not in record.msg
 )
 
-_action_neuron_cache = {}
+_action_neural_cache = {}
 
 @functools.cache
 def read_config() -> dict:
@@ -140,7 +140,7 @@ class Action(gamey.Action):
         return result
 
     def to_neural(self) -> np.ndarray:
-        return _action_neuron_cache[self]
+        return _action_neural_cache[self]
 
     @property
     def name(self) -> str:
@@ -168,7 +168,7 @@ class Action(gamey.Action):
 Action.all_actions = Action.all_move_actions + Action.all_shoot_actions + Action.all_wall_actions
 
 for action in Action:
-    _action_neuron_cache[action] = action._to_neural()
+    _action_neural_cache[action] = action._to_neural()
 
 
 @dataclasses.dataclass(order=True, frozen=True)
@@ -269,10 +269,10 @@ class Observation(_BaseGrid, gamey.Observation):
 
         ### Calculating sequential subarray: #######################################################
         #                                                                                          #
-        last_action_neurons = (self.last_action.to_neural() if self.last_action is not None
+        last_action_neurals = (self.last_action.to_neural() if self.last_action is not None
                                else np.zeros(len(Action)))
         sequential_array = np.concatenate((
-            last_action_neurons,
+            last_action_neurals,
         ))
         #                                                                                          #
         ### Finished calculating sequential subarray. ##############################################

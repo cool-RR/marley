@@ -59,7 +59,7 @@ class ModelFreeLearningPolicy(QPolicy):
 
 
     def train(self, observation: Observation, action: Action,
-              next_observation: Observation) -> None:
+              nxxxxxext_observation: Observation) -> None:
 
         training_data = random.choice(self.training_datas)
         training_data.add_and_maybe_train(observation, action, next_observation)
@@ -206,6 +206,65 @@ class ModelFreeLearningPolicy(QPolicy):
         indices = utils.random_ints_in_range(0, MAX_PAST_MEMORY_SIZE, BATCH_SIZE)
         stories = tuple(past_memory[index] for index in indices)
 
+        old_observation_neural_array = np.zeros(
+            (BATCH_SIZE,), dtype=self.observation_neural_dtype
+        )
+        action_neural_array = np.zeros(
+            (BATCH_SIZE, self.action_n_neurons), dtype=bool
+        )
+        reward_array = np.zeros(BATCH_SIZE)
+        new_observation_neural_array = np.zeros(
+            (BATCH_SIZE,), dtype=self.observation_neural_dtype
+        )
+        are_not_end_array = np.zeros(BATCH_SIZE)
+
+        for i, story in enumerate(stories):
+            story: Story
+            old_observation_neural_array[i] = story.old_observation.to_neural()
+            action_neural_array
+            new_observation_neural_array[i] = story.new_observation.to_neural()
+
+
+
+        n_actions = len(self.model_free_learning_policy.State.Action)
+
+        old_observation_neurals = slicer(self.old_observation_neural_array)
+        new_observation_neurals = slicer(self.new_observation_neural_array)
+        action_neurals = slicer(self.action_neural_array)
+        are_not_ends = slicer(self.are_not_end_array)
+        rewards = slicer(self.reward_array)
+        n_data_points = old_observation_neurals.shape[0]
+
+        prediction = self.predict(
+            np.concatenate((old_observation_neurals, new_observation_neurals))
+        )
+        wip_q_values, new_q_values = np.split(prediction, 2)
+        new_other_q_values = self.other_training_data.predict(
+            new_observation_neurals
+        )
+
+        # Assumes discrete actions:
+        action_indices = np.dot(action_neurals, range(n_actions)).astype(np.int32)
+
+        batch_index = np.arange(n_data_points, dtype=np.int32)
+        wip_q_values[batch_index, action_indices] = (
+            rewards + self.model_free_learning_policy.gamma * are_not_ends *
+            new_other_q_values[np.arange(new_q_values.shape[0]),
+                               np.argmax(new_q_values, axis=1)]
+
+        )
+
+
+        fit_arguments = {
+            'x': {name: old_observation_neurals[name] for name
+                  in old_observation_neurals.dtype.names},
+            'y': wip_q_values,
+            'verbose': 0,
+        }
+
+        self.model.fit(**fit_arguments)
+
+
 
 
 class TrainingData:
@@ -218,9 +277,9 @@ class TrainingData:
         self.max_size = max_size
         self.counter = 0
         self._last_trained_batch = 0
-        self.old_observation_neuron_array = None
-        self.new_observation_neuron_array = None
-        self.action_neuron_array = None
+        self.old_observation_neural_array = None
+        self.new_observation_neural_array = None
+        self.action_neural_array = None
         self.reward_array = np.zeros(max_size)
         self.are_not_end_array = np.zeros(max_size)
         self.other_training_data = self
@@ -229,14 +288,14 @@ class TrainingData:
     def _create_arrays_and_model(self, observation: Observation, action: Action):
         self.model = self.model_free_learning_policy.create_model(observation, action)
         observation_neural = observation.to_neural()
-        self.old_observation_neuron_array = np.zeros(
+        self.old_observation_neural_array = np.zeros(
             (self.max_size,), dtype=observation_neural.dtype
         )
-        self.new_observation_neuron_array = np.zeros(
-            self.old_observation_neuron_array.shape,
+        self.new_observation_neural_array = np.zeros(
+            self.old_observation_neural_array.shape,
             dtype=observation_neural.dtype
         )
-        self.action_neuron_array = np.zeros(
+        self.action_neural_array = np.zeros(
             (self.max_size, type(action).n_neurons)
         )
         self._created_arrays_and_model = True
@@ -248,9 +307,9 @@ class TrainingData:
         raise hell
         if not self._created_arrays_and_model:
             self._create_arrays_and_model(observation, action)
-        self.old_observation_neuron_array[self.counter_modulo] = observation.to_neural()
-        self.action_neuron_array[self.counter_modulo] = action.to_neural()
-        self.new_observation_neuron_array[self.counter_modulo] = next_observation.to_neural()
+        self.old_observation_neural_array[self.counter_modulo] = observation.to_neural()
+        self.action_neural_array[self.counter_modulo] = action.to_neural()
+        self.new_observation_neural_array[self.counter_modulo] = next_observation.to_neural()
         self.reward_array[self.counter_modulo] = next_observation.reward
         self.are_not_end_array[self.counter_modulo] = int(not next_observation.state.is_end)
         self.counter += 1
@@ -267,9 +326,9 @@ class TrainingData:
             )
             slicer = lambda x: pre_slicer(x)[random_indices]
 
-            old_observation_neurals = slicer(self.old_observation_neuron_array)
-            new_observation_neurals = slicer(self.new_observation_neuron_array)
-            action_neurals = slicer(self.action_neuron_array)
+            old_observation_neurals = slicer(self.old_observation_neural_array)
+            new_observation_neurals = slicer(self.new_observation_neural_array)
+            action_neurals = slicer(self.action_neural_array)
             are_not_ends = slicer(self.are_not_end_array)
             rewards = slicer(self.reward_array)
             n_data_points = old_observation_neurals.shape[0]

@@ -110,7 +110,7 @@ PlayerId = TypeVar('PlayerId', bound=Hashable)
 
 @dataclasses.dataclass(order=True, frozen=True)
 class Story:
-    observation: Observation
+    old_observation: Observation
     action: Action
     reward: numbers.Number
-    next_observation: Observation
+    new_observation: Observation
