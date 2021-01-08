@@ -35,8 +35,6 @@ class ModelFreeLearningPolicy(QPolicy):
     def __init__(self, *, serialized_models: Optional[Sequence[bytes]], epsilon: numbers.Real = 0.1,
                  gamma: numbers.Real = 0.9, training_counter: int = 0,
                  training_batch_size: int = 100, n_models: int = 2) -> None:
-        self.Observation.neural_dtype = observation_neural_dtype
-        self.Action.n_neurons
         self.epsilon = epsilon
         self.gamma = gamma
         self.training_counter = training_counter
@@ -62,7 +60,7 @@ class ModelFreeLearningPolicy(QPolicy):
         input_array = np.concatenate(observation_neurals)
         model = random.choice(self.models)
         prediction_output = self.predict(model, input_array)
-        actions = tuple(self.State.Action)
+        actions = tuple(self.Action)
         return tuple(
             {action: q for action, q in dict(zip(actions, output_row)).items()
              if (action in observation.legal_actions)}
