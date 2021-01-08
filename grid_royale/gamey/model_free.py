@@ -14,6 +14,7 @@ import weakref
 import keras.models
 import more_itertools
 import numpy as np
+from python_toolbox.combi import ChainSpace # Must remove this dependency
 
 from .base import Observation, Action, Story
 from .policing import Policy, QPolicy
@@ -21,6 +22,7 @@ from . import utils
 from .timelining import Timeline
 
 BATCH_SIZE = 64
+MAX_PAST_MEMORY_SIZE = 1_000
 
 class MustDefineCustomModel(NotImplementedError):
     pass
@@ -200,6 +202,10 @@ class ModelFreeLearningPolicy(QPolicy):
 
 
     def _train_model(self, model: keras.Model):
+        past_memory = ChainSpace(map(reversed, reversed(self.timelines)))
+        indices = utils.random_ints_in_range(0, MAX_PAST_MEMORY_SIZE, BATCH_SIZE)
+        stories = tuple(past_memory[index] for index in indices)
+
 
 
 class TrainingData:
