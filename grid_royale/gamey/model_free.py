@@ -230,6 +230,11 @@ class ModelFreeLearningPolicy(QPolicy):
         clone_kwargs = self.get_clone_kwargs()
 
         if self.training_counter + 1 == self.training_batch_size:
+            clone_kwargs['training_counter'] == 0
+            self.models
+            models = [self.create_model(serialized_model)]
+            m = keras.Model()
+            m.
             ...
         else:
             clone_kwargs['training_counter'] += 1
@@ -264,7 +269,8 @@ class ModelFreeLearningPolicy(QPolicy):
     def _extra_repr(self) -> str:
         return f'(<...>, n_models={len(self.training_datas)})'
 
-    def create_model(self, serialized_model: Optional[bytes]) -> keras.Model:
+    @staticmethod
+    def get_or_create_model(serialized_model: Optional[bytes]) -> keras.Model:
         if tuple(self.observation_neural_dtype.fields) != ('sequential',):
             raise MustDefineCustomModel
         model = keras.models.Sequential(
