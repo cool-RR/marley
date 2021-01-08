@@ -200,12 +200,22 @@ class ModelFreeLearningPolicy(QPolicy):
             return self.model_cache[key]
 
 
+    def predict(self, model: keras.Model, input_array: np.ndarray) -> np.ndarray:
+        return model.predict({name: input_array[name] for name in input_array.dtype.names})
+
 
     def _train_model(self, model: keras.Model):
+
+        ### Getting a random selection of stories to train on: ################
+        #                                                                     #
         past_memory = ChainSpace(map(reversed, reversed(self.timelines)))
         indices = utils.random_ints_in_range(0, MAX_PAST_MEMORY_SIZE, BATCH_SIZE)
         stories = tuple(past_memory[index] for index in indices)
+        #                                                                     #
+        ### Finished getting a random selection of stories to train on. #######
 
+        ### Initializing arrays: ##############################################
+        #                                                                     #
         old_observation_neural_array = np.zeros(
             (BATCH_SIZE,), dtype=self.observation_neural_dtype
         )
@@ -216,31 +226,27 @@ class ModelFreeLearningPolicy(QPolicy):
         new_observation_neural_array = np.zeros(
             (BATCH_SIZE,), dtype=self.observation_neural_dtype
         )
-        are_not_end_array = np.zeros(BATCH_SIZE)
+        are_not_end_array = np.zeros(BATCH_SIZE, dtype=bool)
 
         for i, story in enumerate(stories):
             story: Story
             old_observation_neural_array[i] = story.old_observation.to_neural()
-            action_neural_array
+            action_neural_array[i] = story.action.to_neural()
+            reward_array[i] = story.reward
             new_observation_neural_array[i] = story.new_observation.to_neural()
+            are_not_end_array[i] = not story.new_observation.state.is_end
 
-
+        #                                                                     #
+        ### Finished initializing arrays. #####################################
 
         n_actions = len(self.model_free_learning_policy.State.Action)
 
-        old_observation_neurals = slicer(self.old_observation_neural_array)
-        new_observation_neurals = slicer(self.new_observation_neural_array)
-        action_neurals = slicer(self.action_neural_array)
-        are_not_ends = slicer(self.are_not_end_array)
-        rewards = slicer(self.reward_array)
-        n_data_points = old_observation_neurals.shape[0]
-
         prediction = self.predict(
-            np.concatenate((old_observation_neurals, new_observation_neurals))
+            np.concatenate((old_observation_neural_array, new_observation_neural_array))
         )
         wip_q_values, new_q_values = np.split(prediction, 2)
         new_other_q_values = self.other_training_data.predict(
-            new_observation_neurals
+            new_observation_neural_array
         )
 
         # Assumes discrete actions:
@@ -256,139 +262,10 @@ class ModelFreeLearningPolicy(QPolicy):
 
 
         fit_arguments = {
-            'x': {name: old_observation_neurals[name] for name
-                  in old_observation_neurals.dtype.names},
+            'x': {name: old_observation_neural_array[name] for name
+                  in old_observation_neural_array.dtype.names},
             'y': wip_q_values,
             'verbose': 0,
         }
 
-        self.model.fit(**fit_arguments)
-
-
-
-
-class TrainingData:
-    def __init__(self, model_free_learning_policy: ModelFreeLearningPolicy, *,
-                 max_size: int = 5_000) -> None:
-
-        self.model_free_learning_policy = model_free_learning_policy
-        self.model: Optional[keras.Model] = None
-
-        self.max_size = max_size
-        self.counter = 0
-        self._last_trained_batch = 0
-        self.old_observation_neural_array = None
-        self.new_observation_neural_array = None
-        self.action_neural_array = None
-        self.reward_array = np.zeros(max_size)
-        self.are_not_end_array = np.zeros(max_size)
-        self.other_training_data = self
-        self._created_arrays_and_model = False
-
-    def _create_arrays_and_model(self, observation: Observation, action: Action):
-        self.model = self.model_free_learning_policy.create_model(observation, action)
-        observation_neural = observation.to_neural()
-        self.old_observation_neural_array = np.zeros(
-            (self.max_size,), dtype=observation_neural.dtype
-        )
-        self.new_observation_neural_array = np.zeros(
-            self.old_observation_neural_array.shape,
-            dtype=observation_neural.dtype
-        )
-        self.action_neural_array = np.zeros(
-            (self.max_size, type(action).n_neurons)
-        )
-        self._created_arrays_and_model = True
-
-
-
-    def add_and_maybe_train(self, observation: Observation, action: Action,
-                            next_observation: Observation) -> None:
-        raise hell
-        if not self._created_arrays_and_model:
-            self._create_arrays_and_model(observation, action)
-        self.old_observation_neural_array[self.counter_modulo] = observation.to_neural()
-        self.action_neural_array[self.counter_modulo] = action.to_neural()
-        self.new_observation_neural_array[self.counter_modulo] = next_observation.to_neural()
-        self.reward_array[self.counter_modulo] = next_observation.reward
-        self.are_not_end_array[self.counter_modulo] = int(not next_observation.state.is_end)
-        self.counter += 1
-
-        if self.is_training_time():
-
-            n_actions = len(self.model_free_learning_policy.State.Action)
-
-            pre_slicer = ((lambda x: x) if self.filled_max_size else
-                          (lambda x: x[:self.counter_modulo]))
-            random_indices = np.random.choice(
-                self.max_size if self.filled_max_size else self.counter_modulo,
-                BATCH_SIZE
-            )
-            slicer = lambda x: pre_slicer(x)[random_indices]
-
-            old_observation_neurals = slicer(self.old_observation_neural_array)
-            new_observation_neurals = slicer(self.new_observation_neural_array)
-            action_neurals = slicer(self.action_neural_array)
-            are_not_ends = slicer(self.are_not_end_array)
-            rewards = slicer(self.reward_array)
-            n_data_points = old_observation_neurals.shape[0]
-
-            prediction = self.predict(
-                np.concatenate((old_observation_neurals, new_observation_neurals))
-            )
-            wip_q_values, new_q_values = np.split(prediction, 2)
-            new_other_q_values = self.other_training_data.predict(
-                new_observation_neurals
-            )
-
-            # Assumes discrete actions:
-            action_indices = np.dot(action_neurals, range(n_actions)).astype(np.int32)
-
-            batch_index = np.arange(n_data_points, dtype=np.int32)
-            wip_q_values[batch_index, action_indices] = (
-                rewards + self.model_free_learning_policy.gamma * are_not_ends *
-                new_other_q_values[np.arange(new_q_values.shape[0]),
-                                   np.argmax(new_q_values, axis=1)]
-
-            )
-
-
-            fit_arguments = {
-                'x': {name: old_observation_neurals[name] for name
-                      in old_observation_neurals.dtype.names},
-                'y': wip_q_values,
-                'verbose': 0,
-            }
-
-            self.model.fit(**fit_arguments)
-
-            self.mark_trained()
-
-
-
-
-    def is_training_time(self) -> bool:
-        n_batches = self.counter // self.model_free_learning_policy.training_batch_size
-        return n_batches > self._last_trained_batch
-
-
-    def mark_trained(self) -> None:
-        self._last_trained_batch = \
-                               self.counter // self.model_free_learning_policy.training_batch_size
-        assert not self.is_training_time()
-
-    @property
-    def counter_modulo(self) -> int:
-        return self.counter % self.max_size
-
-    @property
-    def filled_max_size(self) -> bool:
-        return self.counter >= self.max_size
-
-    def predict(self, input_array):
-        return self.model.predict({name: input_array[name] for name in input_array.dtype.names})
-
-
-
-
-
+        model.fit(**fit_arguments)
