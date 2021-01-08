@@ -6,6 +6,7 @@ from __future__ import annotations
 import random
 import concurrent.futures
 import numbers
+import functools
 from typing import (Iterable, Union, Optional, Tuple, Any, Iterator, Type,
                     Sequence, Callable)
 import weakref
@@ -226,17 +227,23 @@ class ModelFreeLearningPolicy(QPolicy):
 
 
     def get_next_policy(self, story: Story) -> Policy:
-        # Gotta call self.train in an immutable way
         clone_kwargs = self.get_clone_kwargs()
 
-        if self.training_counter + 1 == self.training_batch_size:
+        if self.training_counter + 1 == self.training_batch_size: # It's training time!
             clone_kwargs['training_counter'] == 0
+            keras.models.clone_model(model)
             self.models
-            models = [self.create_model(serialized_model)]
-            m = keras.Model()
-            m.
-            ...
-        else:
+            models = [self._train_model(models.clone_model(model)) for model in self.models]
+
+            serialized_models = []
+            for model in models:
+                self.model_cache[(weights := model.get_weights(), self.observation_neural_dtype,
+                                  self.action_n_neurons)] = model
+                serialized_models.append(weights)
+
+            clone_kwargs['serialized_models'] = tuple(serialized_models)
+            clone_kwargs['training_counter'] == 0
+        else:  # It's not training time.
             clone_kwargs['training_counter'] += 1
         return type(self)(**clone_kwargs,)
 
@@ -269,14 +276,18 @@ class ModelFreeLearningPolicy(QPolicy):
     def _extra_repr(self) -> str:
         return f'(<...>, n_models={len(self.training_datas)})'
 
+    model_cache = {}
+
     @staticmethod
-    def get_or_create_model(serialized_model: Optional[bytes]) -> keras.Model:
-        if tuple(self.observation_neural_dtype.fields) != ('sequential',):
+    def create_model(observation_neural_dtype: np.dtype,
+                     action_n_neurons: int,
+                     serialized_model: Optional[bytes] = None) -> keras.Model:
+        if tuple(observation_neural_dtype.fields) != ('sequential',):
             raise MustDefineCustomModel
         model = keras.models.Sequential(
             layers=(
                 keras.layers.Input(
-                    shape=self.observation_neural_dtype['sequential'].shape,
+                    shape=observation_neural_dtype['sequential'].shape,
                     name='sequential'
                 ),
                 keras.layers.Dense(
@@ -292,14 +303,30 @@ class ModelFreeLearningPolicy(QPolicy):
                 ),
                 keras.layers.Dropout(rate=0.1),
                 keras.layers.Dense(
-                    self.action_n_neurons # activation='relu'
+                    action_n_neurons # activation='relu'
                 ),
             ),
         )
         model.compile(optimizer='rmsprop', loss='mse', metrics=['accuracy'])
         if serialized_model is not None:
             model.load_weights(serialized_model)
+
         return model
+
+
+    def get_or_create_model(self, serialized_model: Optional[bytes] = None) -> keras.Model:
+        if serialized_model is None:
+            return self.create_model(self.observation_neural_dtype, self.action_n_neurons,
+                                     None)
+        key = (self.create_model, self.observation_neural_dtype, self.action_n_neurons,
+               serialized_model)
+        try:
+            return self.model_cache[key]
+        except KeyError:
+            self.model_cache[key] = self.create_model(self.observation_neural_dtype,
+                                                      self.action_n_neurons,
+                                                      serialized_model)
+            return self.model_cache[key]
 
 
 
