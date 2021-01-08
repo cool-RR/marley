@@ -57,14 +57,6 @@ class ModelFreeLearningPolicy(QPolicy):
         self.timelines: Tuple[Timeline] = ()
 
 
-
-    def train(self, observation: Observation, action: Action,
-              nxxxxxext_observation: Observation) -> None:
-
-        training_data = random.choice(self.training_datas)
-        training_data.add_and_maybe_train(observation, action, next_observation)
-
-
     def get_qs_for_observations(self, observations: Sequence[Observation] = None) \
                                                             -> Tuple[Mapping[Action, numbers.Real]]:
         observation_neurals = [observation.to_neural() for observation in observations]
@@ -104,16 +96,21 @@ class ModelFreeLearningPolicy(QPolicy):
 
         if self.training_counter + 1 == self.training_batch_size: # It's training time!
             clone_kwargs['training_counter'] == 0
-            serialized_models = []
-            for model in self.models:
-                cloned_model = keras.models.clone_model(model)
-                self._train_model(cloned_model)
-                self.model_cache[(weights := model.get_weights(), self.observation_neural_dtype,
-                                  self.action_n_neurons)] = cloned_model
-                serialized_models.append(weights)
+
+            serialized_models = list(clone_kwargs['serialized_models'])
+            random_index = random.randint(0, len(serialized_models) - 1)
+            cloned_model = self.create_model(observation_neural_dtype=self.observation_neural_dtype,
+                                             action_n_neurons=self.action_n_neurons,
+                                             serialized_model=serialized_models[random_index])
+            self._train_model(cloned_model)
+            self.model_cache[(serialized_model := cloned_model.get_weights(),
+                              self.observation_neural_dtype,
+                              self.action_n_neurons)] = cloned_model
+            serialized_models[random_index] = serialized_model
 
             clone_kwargs['serialized_models'] = tuple(serialized_models)
             clone_kwargs['training_counter'] == 0
+
         else:  # It's not training time.
             clone_kwargs['training_counter'] += 1
         return type(self)(**clone_kwargs,)
@@ -204,18 +201,18 @@ class ModelFreeLearningPolicy(QPolicy):
         return model.predict({name: input_array[name] for name in input_array.dtype.names})
 
 
-    def _train_model(self, model: keras.Model):
+    def _train_model(self, model: keras.Model, other_model: keras.Model):
 
-        ### Getting a random selection of stories to train on: ################
-        #                                                                     #
+        ### Getting a random selection of stories to train on: #####################################
+        #                                                                                          #
         past_memory = ChainSpace(map(reversed, reversed(self.timelines)))
         indices = utils.random_ints_in_range(0, MAX_PAST_MEMORY_SIZE, BATCH_SIZE)
         stories = tuple(past_memory[index] for index in indices)
-        #                                                                     #
-        ### Finished getting a random selection of stories to train on. #######
+        #                                                                                          #
+        ### Finished getting a random selection of stories to train on. ############################
 
-        ### Initializing arrays: ##############################################
-        #                                                                     #
+        ### Initializing arrays: ###################################################################
+        #                                                                                          #
         old_observation_neural_array = np.zeros(
             (BATCH_SIZE,), dtype=self.observation_neural_dtype
         )
@@ -236,10 +233,8 @@ class ModelFreeLearningPolicy(QPolicy):
             new_observation_neural_array[i] = story.new_observation.to_neural()
             are_not_end_array[i] = not story.new_observation.state.is_end
 
-        #                                                                     #
-        ### Finished initializing arrays. #####################################
-
-        n_actions = len(self.model_free_learning_policy.State.Action)
+        #                                                                                          #
+        ### Finished initializing arrays. ##########################################################
 
         prediction = self.predict(
             np.concatenate((old_observation_neural_array, new_observation_neural_array))
