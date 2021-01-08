@@ -255,9 +255,15 @@ class ModelFreeLearningPolicy(QPolicy):
             np.concatenate((old_observation_neural_array, new_observation_neural_array))
         )
         wip_q_values, new_q_values = np.split(prediction, 2)
-        new_other_q_values = self.other_training_data.predict(
-            new_observation_neural_array
-        )
+
+        if other_model is model:
+            new_other_q_values = new_q_values
+        else:
+            new_other_q_values = self.predict(
+                other_model,
+                new_observation_neural_array
+            )
+
 
         # Assumes discrete actions:
         action_indices = np.dot(action_neurals, range(n_actions)).astype(np.int32)
