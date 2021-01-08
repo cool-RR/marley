@@ -19,7 +19,7 @@ from python_toolbox.combi import ChainSpace # Must remove this dependency
 from .base import Observation, Action, Story
 from .policing import Policy, QPolicy
 from . import utils
-from .timelining import Timeline
+from .timelining import Timeline, StoryDoesntFitInTimeline
 
 BATCH_SIZE = 64
 MAX_PAST_MEMORY_SIZE = 1_000
@@ -83,6 +83,12 @@ class ModelFreeLearningPolicy(QPolicy):
 
     def get_next_policy(self, story: Story) -> Policy:
         clone_kwargs = self.get_clone_kwargs()
+        timelines = list(self.timelines)
+        try:
+            timelines[-1] += story
+        except StoryDoesntFitInTimeline:
+            timelines.append(Timeline.make_initial(story))
+        clone_kwargs['timelines'] = tuple(timelines)
 
         if self.training_counter + 1 == self.training_batch_size: # It's training time!
             clone_kwargs['training_counter'] == 0
