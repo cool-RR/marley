@@ -4,11 +4,14 @@
 from __future__ import generator_stop
 
 import numpy as np
+import pathlib
+import keras
 import collections
 import dataclasses
 from typing import Optional, Union, Tuple, Iterable, Iterator, Sequence
 import numbers
 import random
+import tempfile
 
 import more_itertools
 from immutabledict import immutabledict as ImmutableDict
@@ -86,3 +89,17 @@ def random_ints_in_range(start: int, stop: int, n: int) -> Tuple[int]:
     while len(result) < n:
         result.add(random.randint(start, stop - 1))
     return tuple(result)
+
+
+def keras_model_weights_to_bytes(model: keras.Model) -> bytes:
+    with tempfile.TemporaryDirectory() as temp_folder:
+        path = pathlib.Path(temp_folder) / 'model.tf'
+        model.save_weights(path, save_format='tf')
+        return path.read_bytes()
+
+def load_keras_model_weights_from_bytes(model: keras.Model,
+                                        weights: collections.abc.ByteString) -> None:
+    with tempfile.TemporaryDirectory() as temp_folder:
+        path = pathlib.Path(temp_folder) / 'model.tf'
+        path.write_bytes(weights)
+        model.load_weights(path, save_format='tf')
