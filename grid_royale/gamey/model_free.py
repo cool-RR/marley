@@ -143,7 +143,7 @@ class ModelFreeLearningPolicy(QPolicy):
                 q_map = self.q_map_cache[observation]
             except KeyError:
                 q_map = self.q_map_cache[observation] = self.get_qs_for_observation(observation)
-            return (max(q_map, key=q_map.__getitem__), self)
+            return max(q_map, key=q_map.__getitem__)
 
 
     def get_observation_v(self, observation: Observation,
