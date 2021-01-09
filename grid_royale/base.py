@@ -254,9 +254,8 @@ class Observation(_BaseGrid, gamey.Observation):
                 grid_array[tuple(relative_position) + (6,)] = True
             elif absolute_position in self.state.destroyed_wall_positions:
                 grid_array[tuple(relative_position) + (7,)] = True
-            elif (observation := self.state.position_to_observation.get(absolute_position, None)):
-                observation: Observation
-                if observation.letter == self.letter:
+            elif (letter := self.state.position_to_letter.get(absolute_position, None)):
+                if letter == self.letter:
                     grid_array[tuple(relative_position) + (8,)] = True
                 else:
                     grid_array[tuple(relative_position) + (9,)] = True
@@ -302,7 +301,7 @@ class Observation(_BaseGrid, gamey.Observation):
 
         for i, positions in enumerate(field_of_view, start=1):
             if any((player_position in positions) for player_position in
-                   self.state.position_to_observation):
+                   self.state.position_to_letter):
                 distances_to_other_players.append(i)
                 break
         else:
@@ -312,9 +311,9 @@ class Observation(_BaseGrid, gamey.Observation):
         for policy in self.culture.policies:
             for i, positions in enumerate(field_of_view, start=1):
                 player_ids = (
-                    self.culture.player_id_to_policy[observation.letter]
-                    for position in positions if (observation :=
-                                 self.state.position_to_observation.get(position, None)) is not None
+                    self.culture.player_id_to_policy[letter]
+                    for position in positions if (letter :=
+                                 self.state.position_to_letter.get(position, None)) is not None
                 )
                 if policy in policies:
                     distances_to_other_players.append(i)
@@ -369,13 +368,13 @@ class State(_BaseGrid, gamey.State):
     is_end = False
 
     def __init__(self, culture: Culture, *, board_size: int,
-                 player_id_to_observation: Mapping[str, Observation],
+                 letter_to_observation: Mapping[str, Observation],
                  food_positions: FrozenSet[Position], allow_shooting: bool = True,
                  allow_walling: bool = True,
                  bullets: ImmutableDict[Position, FrozenSet[Bullet]] = ImmutableDict(),
                  living_wall_positions: FrozenSet[Position],
                  destroyed_wall_positions: FrozenSet[Position]) -> None:
-        gamey.State.__init__(player_id_to_observation)
+        gamey.State.__init__(letter_to_observation)
         self.culture = culture
         self.bullets = bullets
         self.allow_shooting = allow_shooting
@@ -384,8 +383,8 @@ class State(_BaseGrid, gamey.State):
         self.all_bullets = frozenset(itertools.chain.from_iterable(bullets.values()))
         self.food_positions = food_positions
         self.board_size = board_size
-        self.position_to_observation = ImmutableDict(
-            {observation.position: observation for observation in self.values()}
+        self.position_to_letter = ImmutableDict(
+            {observation.position: letter for letter, observation in self.items()}
         )
         self.living_wall_positions = living_wall_positions
         self.destroyed_wall_positions = destroyed_wall_positions
@@ -426,16 +425,16 @@ class State(_BaseGrid, gamey.State):
         food_positions = frozenset(random_positions[n_players:])
         assert len(food_positions) == n_food_tiles
 
-        player_id_to_observation = {}
+        letter_to_observation = {}
         for letter, player_position in zip(LETTERS, player_positions):
-            player_id_to_observation[letter] = Observation(state=None, position=player_position,
+            letter_to_observation[letter] = Observation(state=None, position=player_position,
                                                         score=starting_score, letter=letter,
                                                         last_action=None)
 
         state = State(
             culture=culture,
             board_size=board_size,
-            player_id_to_observation=player_id_to_observation,
+            letter_to_observation=letter_to_observation,
             food_positions=food_positions,
             allow_shooting=allow_shooting,
             allow_walling=allow_walling,
@@ -443,7 +442,7 @@ class State(_BaseGrid, gamey.State):
             destroyed_wall_positions=frozenset(),
         )
 
-        for observation in player_id_to_observation.values():
+        for observation in letter_to_observation.values():
             observation.state = state
 
         return state
@@ -608,7 +607,7 @@ class State(_BaseGrid, gamey.State):
         wip_food_positions = set(self.food_positions)
         random_positions_firehose = utils.iterate_deduplicated(
             State.iterate_random_positions(board_size=self.board_size),
-            seen=(set(itertools.chain(new_player_position_to_old, self.position_to_observation)) |
+            seen=(set(itertools.chain(new_player_position_to_old, self.position_to_letter)) |
                   self.food_positions)
         )
         for new_player_position in new_player_position_to_old:
@@ -623,10 +622,10 @@ class State(_BaseGrid, gamey.State):
         ### Finished figuring out food. ############################################################
         ############################################################################################
 
-        player_id_to_observation = {}
+        letter_to_observation = {}
 
         for new_player_position, old_player_position in new_player_position_to_old.items():
-            letter = self.position_to_observation[old_player_position].letter
+            letter = self.position_to_letter[old_player_position]
             old_observation: Observation = self[letter]
 
             reward = (
@@ -636,7 +635,7 @@ class State(_BaseGrid, gamey.State):
                 NOTHING_REWARD
             )
 
-            player_id_to_observation[letter] = Observation(
+            letter_to_observation[letter] = Observation(
                 state=None,
                 position=new_player_position,
                 score=old_observation.score + reward,
@@ -648,14 +647,14 @@ class State(_BaseGrid, gamey.State):
 
         state = State(
             culture=self.culture, board_size=self.board_size,
-            player_id_to_observation=player_id_to_observation,
+            letter_to_observation=letter_to_observation,
             food_positions=frozenset(wip_food_positions), bullets=bullets,
             allow_shooting=self.allow_shooting, allow_walling=self.allow_walling,
             living_wall_positions=frozenset(wip_living_wall_positions),
             destroyed_wall_positions=frozenset(wip_destroyed_wall_positions),
         )
 
-        for observation in player_id_to_observation.values():
+        for observation in letter_to_observation.values():
             observation.state = state
 
         return state
@@ -667,11 +666,11 @@ class State(_BaseGrid, gamey.State):
         for position in Position.iterate_all(self):
             if position.x == 0 and position.y != 0:
                 string_io.write('|\n')
-            if position in self.position_to_observation:
-                observation = self.position_to_observation[position]
-                letter = (observation.letter.lower() if observation.reward < NOTHING_REWARD
-                          else observation.letter)
-                string_io.write(letter)
+            if position in self.position_to_letter:
+                letter = self.position_to_letter[position]
+                observation = self[letter]
+                string_io.write(letter.lower() if observation.reward < NOTHING_REWARD
+                                else observation.letter)
             elif (bullets := self.bullets.get(position, None)):
                 if len(bullets) >= 2:
                     string_io.write('Ӿ')
