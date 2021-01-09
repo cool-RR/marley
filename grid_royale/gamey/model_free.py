@@ -126,8 +126,8 @@ class ModelFreeLearningPolicy(QPolicy):
             serialized_model=self.serialized_models[random_index]
         )
         self._train_model(cloned_model, other_model=models[other_index])
-        self.model_cache[(cloned_model.get_weights(),
-                          *self._model_kwargs.values())] = cloned_model
+        self.model_cache[(self.create_model, *self._model_kwargs.values(),
+                          utils.keras_model_weights_to_bytes(cloned_model))] = cloned_model
         return tuple(models)
 
 
