@@ -95,6 +95,11 @@ class ModelFreeLearningPolicy(QPolicy):
             timelines[-1] += story
         except StoryDoesntFitInTimeline:
             timelines.append(Timeline.make_initial(story))
+        except IndexError:
+            if timelines:
+                raise
+            timelines.append(Timeline.make_initial(story))
+
         clone_kwargs['timelines'] = tuple(timelines)
 
         if self.training_counter + 1 == self.training_batch_size: # It's training time!
@@ -159,8 +164,8 @@ class ModelFreeLearningPolicy(QPolicy):
             weights=(1 - epsilon, epsilon)
         )
 
-    def _extra_repr(self) -> str:
-        return f'(<...>, fingerprint={repr(self.fingerprint)})'
+    def __repr__(self) -> str:
+        return f'<{type(self).__name__}: {self.fingerprint}>'
 
     model_cache = {}
 
