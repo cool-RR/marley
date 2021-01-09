@@ -106,17 +106,10 @@ class ModelFreeLearningPolicy(QPolicy):
         if self.training_counter + 1 == self.training_batch_size: # It's training time!
             clone_kwargs['training_counter'] == 0
 
-            serialized_models = list(clone_kwargs['serialized_models'])
-            random_index = random.randint(0, len(serialized_models) - 1)
-            cloned_model = self.create_model(**self._model_kwargs,
-                                             serialized_model=serialized_models[random_index])
-            self._train_model(cloned_model)
-            self.model_cache[(serialized_model := cloned_model.get_weights(),
-                              *self._model_kwargs.values())] = cloned_model
-            serialized_models[random_index] = serialized_model
-
-            clone_kwargs['serialized_models'] = tuple(serialized_models)
-            clone_kwargs['training_counter'] == 0
+            models = self.clone_model_and_train_one()
+            clone_kwargs['serialized_models'] = tuple(
+                utils.keras_model_weights_to_bytes(model) for model in models
+            )
 
         else:  # It's not training time.
             clone_kwargs['training_counter'] += 1

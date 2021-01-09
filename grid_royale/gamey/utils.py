@@ -92,10 +92,14 @@ def random_ints_in_range(start: int, stop: int, n: int) -> Tuple[int]:
 
 
 def keras_model_weights_to_bytes(model: keras.Model) -> bytes:
-    with tempfile.TemporaryDirectory() as temp_folder:
-        path = pathlib.Path(temp_folder) / 'model.h5'
-        model.save_weights(path, save_format='h5')
-        return path.read_bytes()
+    try:
+        return model._cached_serialized_model
+    except AttributeError:
+        with tempfile.TemporaryDirectory() as temp_folder:
+            path = pathlib.Path(temp_folder) / 'model.h5'
+            model.save_weights(path, save_format='h5')
+            model._cached_serialized_model = path.read_bytes()
+            return model._cached_serialized_model
 
 def load_keras_model_weights_from_bytes(model: keras.Model,
                                         weights: collections.abc.ByteString) -> None:
@@ -103,3 +107,4 @@ def load_keras_model_weights_from_bytes(model: keras.Model,
         path = pathlib.Path(temp_folder) / 'model.h5'
         path.write_bytes(weights)
         model.load_weights(path)
+        model._cached_serialized_model = weights
