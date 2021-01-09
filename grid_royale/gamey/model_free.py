@@ -251,6 +251,7 @@ class ModelFreeLearningPolicy(QPolicy):
         ### Finished initializing arrays. ##########################################################
 
         prediction = self.predict(
+            model,
             np.concatenate((old_observation_neural_array, new_observation_neural_array))
         )
         wip_q_values, new_q_values = np.split(prediction, 2)
