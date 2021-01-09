@@ -192,7 +192,9 @@ class ModelFreeLearningPolicy(QPolicy):
             ),
         )
         model.compile(optimizer='rmsprop', loss='mse', metrics=['accuracy'])
-        if serialized_model is not None:
+        if serialized_model is None:
+            utils.keras_model_weights_to_bytes(model) # Save to cache
+        else:
             utils.load_keras_model_weights_from_bytes(model, serialized_model,
                                                       save_to_cache=False)
 
@@ -201,14 +203,19 @@ class ModelFreeLearningPolicy(QPolicy):
 
     def get_or_create_model(self, serialized_model: Optional[bytes] = None) -> keras.Model:
         if serialized_model is None:
-            return self.create_model(**self._model_kwargs)
-        key = (self.create_model, *self._model_kwargs.values(), serialized_model)
-        try:
-            return self.model_cache[key]
-        except KeyError:
-            self.model_cache[key] = self.create_model(**self._model_kwargs,
-                                                      serialized_model=serialized_model)
-            return self.model_cache[key]
+            model = self.create_model(**self._model_kwargs)
+            key = (self.create_model, *self._model_kwargs.values(),
+                   utils.keras_model_weights_to_bytes(model))
+            self.model_cache[key] = model
+            return model
+        else:
+            key = (self.create_model, *self._model_kwargs.values(), serialized_model)
+            try:
+                return self.model_cache[key]
+            except KeyError:
+                self.model_cache[key] = self.create_model(**self._model_kwargs,
+                                                          serialized_model=serialized_model)
+                return self.model_cache[key]
 
 
     def predict(self, model: keras.Model, input_array: np.ndarray) -> np.ndarray:
