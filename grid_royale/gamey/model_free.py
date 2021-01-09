@@ -22,7 +22,7 @@ from .policing import Policy, QPolicy
 from . import utils
 from .timelining import Timeline, StoryDoesntFitInTimeline
 
-BATCH_SIZE = 64
+MAX_BATCH_SIZE = 64
 MAX_PAST_MEMORY_SIZE = 1_000
 
 class MustDefineCustomModel(NotImplementedError):
@@ -220,7 +220,8 @@ class ModelFreeLearningPolicy(QPolicy):
         #                                                                                          #
         past_memory = ChainSpace(map(reversed, reversed(self.timelines)))
         foo = min(MAX_PAST_MEMORY_SIZE, len(past_memory))
-        indices = utils.random_ints_in_range(0, foo, min(BATCH_SIZE, foo))
+        batch_size = min(MAX_BATCH_SIZE, foo)
+        indices = utils.random_ints_in_range(0, foo, batch_size)
         stories = tuple(past_memory[index] for index in indices)
         #                                                                                          #
         ### Finished getting a random selection of stories to train on. ############################
@@ -228,16 +229,16 @@ class ModelFreeLearningPolicy(QPolicy):
         ### Initializing arrays: ###################################################################
         #                                                                                          #
         old_observation_neural_array = np.zeros(
-            (BATCH_SIZE,), dtype=self.Observation.neural_dtype
+            (batch_size,), dtype=self.Observation.neural_dtype
         )
         action_neural_array = np.zeros(
-            (BATCH_SIZE, self.Action.n_neurons), dtype=bool
+            (batch_size, self.Action.n_neurons), dtype=bool
         )
-        reward_array = np.zeros(BATCH_SIZE)
+        reward_array = np.zeros(batch_size)
         new_observation_neural_array = np.zeros(
-            (BATCH_SIZE,), dtype=self.Observation.neural_dtype
+            (batch_size,), dtype=self.Observation.neural_dtype
         )
-        are_not_end_array = np.zeros(BATCH_SIZE, dtype=bool)
+        are_not_end_array = np.zeros(batch_size, dtype=bool)
 
         for i, story in enumerate(stories):
             story: Story
@@ -266,8 +267,8 @@ class ModelFreeLearningPolicy(QPolicy):
 
 
         action_indices = np.dot(action_neural_array, range(self.Action.n_neurons)).astype(np.int32)
-
-        wip_q_values[action_indices] = (
+        batch_index = np.arange(batch_size, dtype=np.int32)
+        wip_q_values[batch_index, action_indices] = (
             reward_array + self.gamma * are_not_end_array *
             new_other_q_values[np.arange(new_q_values.shape[0]),
                                np.argmax(new_q_values, axis=1)]
