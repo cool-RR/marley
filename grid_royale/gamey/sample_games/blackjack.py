@@ -232,11 +232,12 @@ class ThresholdPolicy(BlackjackPolicy, gamey.StaticPolicy):
 
 
 class ModelFreeLearningPolicy(gamey.ModelFreeLearningPolicy, BlackjackPolicy):
-    pass
+    Observation: BlackjackState
+    Action: BlackjackAction
 
 
-class ModelBasedEpisodicLearningPolicy(gamey.ModelBasedEpisodicLearningPolicy, BlackjackPolicy):
-    pass
+# class ModelBasedEpisodicLearningPolicy(gamey.ModelBasedEpisodicLearningPolicy, BlackjackPolicy):
+    # pass
 
 
 
@@ -246,7 +247,7 @@ def demo(n_training_games: int = 1_000, n_evaluation_games: int = 100) -> None:
 
     # model_free_learning_policy.get_score(n=1_000)
     learning_policies = [
-        model_based_episodic_learning_policy := ModelBasedEpisodicLearningPolicy(),
+        # model_based_episodic_learning_policy := ModelBasedEpisodicLearningPolicy(),
         single_model_free_learning_policy := ModelFreeLearningPolicy(gamma=1, n_models=1),
         double_model_free_learning_policy := ModelFreeLearningPolicy(gamma=1, n_models=2),
     ]
@@ -279,11 +280,11 @@ def demo(n_training_games: int = 1_000, n_evaluation_games: int = 100) -> None:
     print(f"\nThat's nice. Now we want to see that the learning policies can be better than "
           f"the dumb ones, if we give them time to learn.")
 
-    print(f'Training {model_based_episodic_learning_policy} on {n_training_games:,} games... ',
-          end='')
-    sys.stdout.flush()
-    model_based_episodic_learning_policy.get_score(n=n_training_games)
-    print('Done.')
+    # print(f'Training {model_based_episodic_learning_policy} on {n_training_games:,} games... ',
+          # end='')
+    # sys.stdout.flush()
+    # model_based_episodic_learning_policy.get_score(n=n_training_games)
+    # print('Done.')
 
     for model_free_learning_policy in (single_model_free_learning_policy,
                                          double_model_free_learning_policy):

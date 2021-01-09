@@ -83,6 +83,7 @@ class ModelFreeLearningPolicy(QPolicy):
 
     def get_next_policy(self, story: Story) -> Policy:
         clone_kwargs = self.get_clone_kwargs()
+
         timelines = list(self.timelines)
         try:
             timelines[-1] += story
