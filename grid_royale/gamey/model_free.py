@@ -219,7 +219,8 @@ class ModelFreeLearningPolicy(QPolicy):
         ### Getting a random selection of stories to train on: #####################################
         #                                                                                          #
         past_memory = ChainSpace(map(reversed, reversed(self.timelines)))
-        indices = utils.random_ints_in_range(0, MAX_PAST_MEMORY_SIZE, BATCH_SIZE)
+        foo = min(MAX_PAST_MEMORY_SIZE, len(past_memory))
+        indices = utils.random_ints_in_range(0, foo, min(BATCH_SIZE, foo))
         stories = tuple(past_memory[index] for index in indices)
         #                                                                                          #
         ### Finished getting a random selection of stories to train on. ############################
