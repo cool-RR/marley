@@ -271,7 +271,6 @@ class ModelFreeLearningPolicy(QPolicy):
             reward_array + self.gamma * are_not_end_array *
             new_other_q_values[np.arange(new_q_values.shape[0]),
                                np.argmax(new_q_values, axis=1)]
-
         )
 
 
