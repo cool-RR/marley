@@ -193,7 +193,8 @@ class ModelFreeLearningPolicy(QPolicy):
         )
         model.compile(optimizer='rmsprop', loss='mse', metrics=['accuracy'])
         if serialized_model is not None:
-            utils.load_keras_model_weights_from_bytes(model, serialized_model)
+            utils.load_keras_model_weights_from_bytes(model, serialized_model,
+                                                      save_to_cache=False)
 
         return model
 

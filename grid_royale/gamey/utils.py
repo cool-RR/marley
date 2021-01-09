@@ -102,9 +102,11 @@ def keras_model_weights_to_bytes(model: keras.Model) -> bytes:
             return model._cached_serialized_model
 
 def load_keras_model_weights_from_bytes(model: keras.Model,
-                                        weights: collections.abc.ByteString) -> None:
+                                        weights: collections.abc.ByteString, *,
+                                        save_to_cache: bool = True) -> None:
     with tempfile.TemporaryDirectory() as temp_folder:
         path = pathlib.Path(temp_folder) / 'model.h5'
         path.write_bytes(weights)
         model.load_weights(path)
-        model._cached_serialized_model = weights
+        if save_to_cache:
+            model._cached_serialized_model = weights

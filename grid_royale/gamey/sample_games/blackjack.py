@@ -294,7 +294,7 @@ def demo(n_training_games: int = 1_000, n_evaluation_games: int = 100) -> None:
 
         new_model_free_learning_policy = model_free_learning_policy.train(
                                                BlackjackState.make_initial, n_training_games)
-        policies.index[model_free_learning_policy] = new_model_free_learning_policy
+        policies[policies.index(model_free_learning_policy)] = new_model_free_learning_policy
         print(' Done.')
 
     print("\nNow let's run the old comparison again, and see what's the new score for the "
