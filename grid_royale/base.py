@@ -308,20 +308,19 @@ class Observation(_BaseGrid, gamey.Observation):
             distances_to_other_players.append(float('inf'))
 
 
-        for policy in self.culture.policies:
+        for letter in self:
             for i, positions in enumerate(field_of_view, start=1):
-                player_ids = (
-                    self.culture.player_id_to_policy[letter]
-                    for position in positions if (letter :=
+                letters = tuple(
+                    letter for position in positions if (letter :=
                                  self.state.position_to_letter.get(position, None)) is not None
                 )
-                if policy in policies:
+                if letter in letters:
                     distances_to_other_players.append(i)
                     break
             else:
                 distances_to_other_players.append(float('inf'))
 
-        assert len(distances_to_other_players) == len(self.culture.policies) + 1
+        assert len(distances_to_other_players) == len(self) + 1
 
         distances_to_bullets = []
         for direction in Step.all_steps:
@@ -367,15 +366,13 @@ class State(_BaseGrid, gamey.State):
     Action = Action
     is_end = False
 
-    def __init__(self, culture: Culture, *, board_size: int,
-                 letter_to_observation: Mapping[str, Observation],
+    def __init__(self, *, board_size: int, letter_to_observation: Mapping[str, Observation],
                  food_positions: FrozenSet[Position], allow_shooting: bool = True,
                  allow_walling: bool = True,
                  bullets: ImmutableDict[Position, FrozenSet[Bullet]] = ImmutableDict(),
                  living_wall_positions: FrozenSet[Position],
                  destroyed_wall_positions: FrozenSet[Position]) -> None:
         gamey.State.__init__(letter_to_observation)
-        self.culture = culture
         self.bullets = bullets
         self.allow_shooting = allow_shooting
         self.allow_walling = allow_walling
@@ -409,11 +406,10 @@ class State(_BaseGrid, gamey.State):
 
 
     @staticmethod
-    def make_initial(culture: Culture, *, board_size: int, starting_score: int = 0,
+    def make_initial(*, n_players: int, board_size: int, starting_score: int = 0, 
                      allow_shooting: bool = True, allow_walling: bool = True,
                      n_food_tiles: int = DEFAULT_N_FOOD_TILES) -> State:
 
-        n_players = len(culture.policies)
         random_positions_firehose = utils.iterate_deduplicated(
                                      State.iterate_random_positions(board_size=board_size))
         random_positions = tuple(
@@ -432,7 +428,6 @@ class State(_BaseGrid, gamey.State):
                                                         last_action=None)
 
         state = State(
-            culture=culture,
             board_size=board_size,
             letter_to_observation=letter_to_observation,
             food_positions=food_positions,
@@ -646,7 +641,7 @@ class State(_BaseGrid, gamey.State):
 
 
         state = State(
-            culture=self.culture, board_size=self.board_size,
+            board_size=self.board_size,
             letter_to_observation=letter_to_observation,
             food_positions=frozenset(wip_food_positions), bullets=bullets,
             allow_shooting=self.allow_shooting, allow_walling=self.allow_walling,
