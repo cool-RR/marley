@@ -35,7 +35,8 @@ class ModelFreeLearningPolicy(QPolicy):
     Action: Type[Action]
     def __init__(self, *, serialized_models: Optional[Sequence[bytes]] = None,
                  epsilon: numbers.Real = 0.1, gamma: numbers.Real = 0.9, training_counter: int = 0,
-                 training_batch_size: int = 100, n_models: int = 2) -> None:
+                 training_batch_size: int = 100, n_models: int = 2,
+                 timelines: Iterable[Timeline] = ()) -> None:
         self.epsilon = epsilon
         self.gamma = gamma
         self.training_counter = training_counter
@@ -47,11 +48,11 @@ class ModelFreeLearningPolicy(QPolicy):
         else:
             assert len(serialized_models) == n_models
             self.serialized_models = serialized_models
-            self.models = tuple(self.create_model(serialized_model) for serialized_model
+            self.models = tuple(self.get_or_create_model(serialized_model) for serialized_model
                                 in serialized_models)
 
         self.q_map_cache = weakref.WeakKeyDictionary()
-        self.timelines: Tuple[Timeline] = ()
+        self.timelines = tuple(timelines)
         self.fingerprint = hashlib.sha512(b''.join(self.serialized_models)).hexdigest()[:6]
 
     @property
@@ -119,7 +120,7 @@ class ModelFreeLearningPolicy(QPolicy):
 
         else:  # It's not training time.
             clone_kwargs['training_counter'] += 1
-        return type(self)(**clone_kwargs,)
+        return type(self)(**clone_kwargs)
 
 
     def clone_model_and_train_one(self) -> Tuple[keras.Model]:

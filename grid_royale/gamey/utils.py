@@ -102,4 +102,4 @@ def load_keras_model_weights_from_bytes(model: keras.Model,
     with tempfile.TemporaryDirectory() as temp_folder:
         path = pathlib.Path(temp_folder) / 'model.h5'
         path.write_bytes(weights)
-        model.load_weights(path, save_format='h5')
+        model.load_weights(path)

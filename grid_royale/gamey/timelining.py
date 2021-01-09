@@ -51,9 +51,10 @@ class Timeline(collections.abc.Sequence):
     def __init__(self, full_timeline: List[Story], *, length: int) -> None:
         self._full_timeline = full_timeline
         self.stories = ListView(self._full_timeline, length)
+        self.length = length
 
     def __len__(self):
-        return len(self.stories)
+        return self.length
 
     def __getitem__(self, i: Union[int, slice]) -> Story:
         return self.stories[i]
@@ -71,7 +72,7 @@ class Timeline(collections.abc.Sequence):
     def __add__(self, story: Story) -> Timeline:
         assert isinstance(story, Story)
         assert self._is_last_on_full_timeline()
-        if self[-1].next_observation != story.observation:
+        if self[-1].new_observation != story.old_observation:
             raise StoryDoesntFitInTimeline
         self._full_timeline.append(story)
         return Timeline(self._full_timeline,
