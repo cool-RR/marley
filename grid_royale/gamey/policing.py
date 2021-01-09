@@ -73,7 +73,7 @@ class SoloEpisodicPolicy(SoloPolicy):
         from .gaming import Game
         scores = []
         for _ in range(n):
-            game = Game.from_state_culture(self.culture, make_initial_state())
+            game = Game.from_state_culture(make_initial_state(), self.culture)
             game.crunch()
             scores.append(sum(payoff.get_single() for payoff in game.payoffs))
         return np.mean(scores)

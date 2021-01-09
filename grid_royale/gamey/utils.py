@@ -93,13 +93,13 @@ def random_ints_in_range(start: int, stop: int, n: int) -> Tuple[int]:
 
 def keras_model_weights_to_bytes(model: keras.Model) -> bytes:
     with tempfile.TemporaryDirectory() as temp_folder:
-        path = pathlib.Path(temp_folder) / 'model.tf'
-        model.save_weights(path, save_format='tf')
+        path = pathlib.Path(temp_folder) / 'model.h5'
+        model.save_weights(path, save_format='h5')
         return path.read_bytes()
 
 def load_keras_model_weights_from_bytes(model: keras.Model,
                                         weights: collections.abc.ByteString) -> None:
     with tempfile.TemporaryDirectory() as temp_folder:
-        path = pathlib.Path(temp_folder) / 'model.tf'
+        path = pathlib.Path(temp_folder) / 'model.h5'
         path.write_bytes(weights)
-        model.load_weights(path, save_format='tf')
+        model.load_weights(path, save_format='h5')

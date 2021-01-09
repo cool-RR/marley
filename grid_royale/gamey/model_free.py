@@ -42,7 +42,8 @@ class ModelFreeLearningPolicy(QPolicy):
         self.training_batch_size = training_batch_size
         if serialized_models is None:
             self.models = tuple(self.get_or_create_model() for _ in range(n_models))
-            self.serialized_models = tuple(model.get_weights() for model in self.models)
+            self.serialized_models = tuple(utils.keras_model_weights_to_bytes(model)
+                                           for model in self.models)
         else:
             assert len(serialized_models) == n_models
             self.serialized_models = serialized_models
@@ -193,7 +194,7 @@ class ModelFreeLearningPolicy(QPolicy):
         )
         model.compile(optimizer='rmsprop', loss='mse', metrics=['accuracy'])
         if serialized_model is not None:
-            model.load_weights(serialized_model)
+            utils.load_keras_model_weights_from_bytes(model, serialized_model)
 
         return model
 
