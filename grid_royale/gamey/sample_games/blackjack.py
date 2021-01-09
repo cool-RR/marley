@@ -288,13 +288,13 @@ def demo(n_training_games: int = 1_000, n_evaluation_games: int = 100) -> None:
 
     for model_free_learning_policy in (single_model_free_learning_policy,
                                        double_model_free_learning_policy):
-        print(f'Training {model_free_learning_policy} on {n_training_games:,} games',
+        print(f'Training {model_free_learning_policy} on {n_training_games:,} games...',
               end='')
         sys.stdout.flush()
-        trainer = model_free_learning_policy.culture.multi_game_train(
-                                               n_total_games=n_training_games, n_games_per_phase=10)
-        for _ in more_itertools.chunked(trainer, 10):
-            print('.', end='')
+
+        new_model_free_learning_policy = model_free_learning_policy.train(
+                                               BlackjackState.make_initial, n_training_games)
+        policies.index[model_free_learning_policy] = new_model_free_learning_policy
         print(' Done.')
 
     print("\nNow let's run the old comparison again, and see what's the new score for the "

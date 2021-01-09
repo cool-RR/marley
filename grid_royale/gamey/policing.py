@@ -70,14 +70,23 @@ class SoloPolicy(Policy):
 class SoloEpisodicPolicy(SoloPolicy):
 
     def get_score(self, make_initial_state: Callable[[], aggregating.State], n: int = 1_000) -> int:
-        from .gaming import Game
         scores = []
         for _ in range(n):
-            game = Game.from_state_culture(make_initial_state(), self.culture)
+            game = gaming.Game.from_state_culture(make_initial_state(), self.culture)
             game.crunch()
             scores.append(sum(payoff.get_single() for payoff in game.payoffs))
         return np.mean(scores)
 
+
+    def train(self, make_initial_state: Callable[[], aggregating.State], n: int = 1_000) -> Policy:
+        culture = self.culture
+        remaining_n = n
+        while remaining_n:
+            game = gaming.Game.from_state_culture(make_initial_state(), culture)
+            game.crunch(remaining_n)
+            remaining_n -= len(game.states)
+            culture = game.cultures[-1]
+        return culture.get_single()
 
 
 class RandomPolicy(StaticPolicy):
@@ -98,3 +107,4 @@ class QPolicy(Policy):
 
 
 from . import aggregating
+from . import gaming
