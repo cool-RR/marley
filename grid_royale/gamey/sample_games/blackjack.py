@@ -232,8 +232,8 @@ class ThresholdPolicy(BlackjackPolicy, gamey.StaticPolicy):
 
 
 class ModelFreeLearningPolicy(gamey.ModelFreeLearningPolicy, BlackjackPolicy):
-    Observation: BlackjackState
-    Action: BlackjackAction
+    Observation = BlackjackState
+    Action = BlackjackAction
 
 
 # class ModelBasedEpisodicLearningPolicy(gamey.ModelBasedEpisodicLearningPolicy, BlackjackPolicy):

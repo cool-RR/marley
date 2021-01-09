@@ -9,6 +9,7 @@ import numbers
 import functools
 from typing import (Iterable, Union, Optional, Tuple, Any, Iterator, Type,
                     Sequence, Callable)
+import hashlib
 import weakref
 
 import keras.models
@@ -50,6 +51,7 @@ class ModelFreeLearningPolicy(QPolicy):
 
         self.q_map_cache = weakref.WeakKeyDictionary()
         self.timelines: Tuple[Timeline] = ()
+        self.fingerprint = hashlib.sha512(b''.join(self.serialized_models)).hexdigest()[:6]
 
     @property
     def _model_kwargs(self):
@@ -157,7 +159,7 @@ class ModelFreeLearningPolicy(QPolicy):
         )
 
     def _extra_repr(self) -> str:
-        return f'(<...>, n_models={len(self.training_datas)})'
+        return f'(<...>, fingerprint={repr(self.fingerprint)})'
 
     model_cache = {}
 
