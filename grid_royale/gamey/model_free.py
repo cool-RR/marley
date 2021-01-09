@@ -32,15 +32,15 @@ class MustDefineCustomModel(NotImplementedError):
 class ModelFreeLearningPolicy(QPolicy):
     Observation: Type[Observation]
     Action: Type[Action]
-    def __init__(self, *, serialized_models: Optional[Sequence[bytes]], epsilon: numbers.Real = 0.1,
-                 gamma: numbers.Real = 0.9, training_counter: int = 0,
+    def __init__(self, *, serialized_models: Optional[Sequence[bytes]] = None,
+                 epsilon: numbers.Real = 0.1, gamma: numbers.Real = 0.9, training_counter: int = 0,
                  training_batch_size: int = 100, n_models: int = 2) -> None:
         self.epsilon = epsilon
         self.gamma = gamma
         self.training_counter = training_counter
         self.training_batch_size = training_batch_size
         if serialized_models is None:
-            self.models = tuple(self.create_model() for _ in range(n_models))
+            self.models = tuple(self.get_or_create_model() for _ in range(n_models))
             self.serialized_models = tuple(model.get_weights() for model in self.models)
         else:
             assert len(serialized_models) == n_models
@@ -51,6 +51,22 @@ class ModelFreeLearningPolicy(QPolicy):
         self.q_map_cache = weakref.WeakKeyDictionary()
         self.timelines: Tuple[Timeline] = ()
 
+    @property
+    def _model_kwargs(self):
+        return dict(observation_neural_dtype=self.Observation.neural_dtype,
+                    action_n_neurons=self.Action.n_neurons)
+
+    @property
+    def _clone_kwargs(self):
+        return {
+            'epsilon': self.epsilon,
+            'gamma': self.gamma,
+            'training_counter': self.training_counter,
+            'training_batch_size': self.training_batch_size,
+            'serialized_models': self.serialized_models,
+            'n_models': len(self.models),
+            'timelines': self.timelines,
+        }
 
     def get_qs_for_observations(self, observations: Sequence[Observation] = None) \
                                                             -> Tuple[Mapping[Action, numbers.Real]]:
@@ -68,21 +84,8 @@ class ModelFreeLearningPolicy(QPolicy):
         )
 
 
-    def get_clone_kwargs(self):
-        return {
-            'epsilon': self.epsilon,
-            'gamma': self.gamma,
-            'training_counter': self.training_counter,
-            'training_batch_size': self.training_batch_size,
-            'serialized_models': self.serialized_models,
-            'n_models': len(self.models),
-            'timelines': self.timelines,
-        }
-
-
-
     def get_next_policy(self, story: Story) -> Policy:
-        clone_kwargs = self.get_clone_kwargs()
+        clone_kwargs = self._clone_kwargs
 
         timelines = list(self.timelines)
         try:
@@ -96,13 +99,11 @@ class ModelFreeLearningPolicy(QPolicy):
 
             serialized_models = list(clone_kwargs['serialized_models'])
             random_index = random.randint(0, len(serialized_models) - 1)
-            cloned_model = self.create_model(observation_neural_dtype=self.Observation.neural_dtype,
-                                             action_n_neurons=self.Action.n_neurons,
+            cloned_model = self.create_model(**self._model_kwargs,
                                              serialized_model=serialized_models[random_index])
             self._train_model(cloned_model)
             self.model_cache[(serialized_model := cloned_model.get_weights(),
-                              self.Observation.neural_dtype,
-                              self.Action.n_neurons)] = cloned_model
+                              *self._model_kwargs.values())] = cloned_model
             serialized_models[random_index] = serialized_model
 
             clone_kwargs['serialized_models'] = tuple(serialized_models)
@@ -119,14 +120,12 @@ class ModelFreeLearningPolicy(QPolicy):
         other_index = (random_index + 1) % len(models)
         # (It's the index of another model if there's >=2, otherwise it's the same model.)
         models[random_index] = cloned_model = self.create_model(
-            observation_neural_dtype=self.Observation.neural_dtype,
-            action_n_neurons=self.Action.n_neurons,
+            **self._model_kwargs,
             serialized_model=self.serialized_models[random_index]
         )
         self._train_model(cloned_model, other_model=models[other_index])
         self.model_cache[(cloned_model.get_weights(),
-                          self.Observation.neural_dtype,
-                          self.Action.n_neurons)] = cloned_model
+                          *self._model_kwargs.values())] = cloned_model
         return tuple(models)
 
 
@@ -199,16 +198,13 @@ class ModelFreeLearningPolicy(QPolicy):
 
     def get_or_create_model(self, serialized_model: Optional[bytes] = None) -> keras.Model:
         if serialized_model is None:
-            return self.create_model(self.Observation.neural_dtype, self.Action.n_neurons,
-                                     None)
-        key = (self.create_model, self.Observation.neural_dtype, self.Action.n_neurons,
-               serialized_model)
+            return self.create_model(**self._model_kwargs)
+        key = (self.create_model, *self._model_kwargs.values(), serialized_model)
         try:
             return self.model_cache[key]
         except KeyError:
-            self.model_cache[key] = self.create_model(self.Observation.neural_dtype,
-                                                      self.Action.n_neurons,
-                                                      serialized_model)
+            self.model_cache[key] = self.create_model(**self._model_kwargs,
+                                                      serialized_model=serialized_model)
             return self.model_cache[key]
 
 
