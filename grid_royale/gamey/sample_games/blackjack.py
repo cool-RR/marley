@@ -242,7 +242,7 @@ class ModelFreeLearningPolicy(gamey.ModelFreeLearningPolicy, BlackjackPolicy):
 
 
 
-def demo(n_training_games: int = 1_000, n_evaluation_games: int = 100) -> None:
+def demo(n_training_states: int = 1_000, n_evaluation_games: int = 100) -> None:
     print('Starting Blackjack demo.')
 
     # model_free_learning_policy.get_score(n=1_000)
@@ -288,12 +288,12 @@ def demo(n_training_games: int = 1_000, n_evaluation_games: int = 100) -> None:
 
     for model_free_learning_policy in (single_model_free_learning_policy,
                                        double_model_free_learning_policy):
-        print(f'Training {model_free_learning_policy} on {n_training_games:,} games...',
+        print(f'Training {model_free_learning_policy} on {n_training_states:,} states...',
               end='')
         sys.stdout.flush()
 
         new_model_free_learning_policy = model_free_learning_policy.train(
-                                               BlackjackState.make_initial, n_training_games)
+                                               BlackjackState.make_initial, n_training_states)
         policies[policies.index(model_free_learning_policy)] = new_model_free_learning_policy
         print(' Done.')
 
@@ -305,5 +305,12 @@ def demo(n_training_games: int = 1_000, n_evaluation_games: int = 100) -> None:
 
 
 if __name__ == '__main__':
-    demo()
+    try:
+        n_training_states = int(sys.argv[1])
+    except IndexError:
+        demo()
+    else:
+        demo(n_training_states=n_training_states)
+
+
 
