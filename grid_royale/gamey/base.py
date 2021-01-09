@@ -22,7 +22,6 @@ import dataclasses
 import more_itertools
 import numpy as np
 
-import gamey
 from .utils import ImmutableDict
 from . import utils
 from . import exceptions
@@ -97,7 +96,7 @@ class ActionEnum(Action, enum.Enum, metaclass=_ActionEnumType):
 
 
 class Observation(abc.ABC):
-    state: gamey.State
+    state: State
     legal_actions: Tuple[Action, ...]
     neural_dtype: np.dtype
 
@@ -115,3 +114,6 @@ class Story:
     action: Action
     reward: numbers.Number
     new_observation: Observation
+
+
+from .aggregating import State

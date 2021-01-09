@@ -135,5 +135,3 @@ class SoloState(State, Observation):
     def get_next_reward_and_state(self, action: Action) -> Tuple[numbers.Number, SoloState]:
         raise NotImplementedError
 
-
-from .gaming import Game

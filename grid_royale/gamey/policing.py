@@ -24,7 +24,6 @@ import keras.models
 import tensorflow as tf
 import numpy as np
 
-import gamey
 from .base import Observation, Action
 from . import utils
 
@@ -38,10 +37,10 @@ class Policy(abc.ABC):
     Your fancy machine-learning code goes here.
     '''
 
-    State: Type[gamey.State]
+    State: Type[aggregating.State]
 
     @abc.abstractmethod
-    def get_next_policy(self, story: gamey.Story) -> Policy:
+    def get_next_policy(self, story: aggregating.Story) -> Policy:
         # Put your training logic here, if you wish your policy to have training.
         raise NotImplementedError
 
@@ -57,21 +56,20 @@ class Policy(abc.ABC):
 
 
 class StaticPolicy(Policy):
-    def get_next_policy(self, story: gamey.Story) -> Policy:
+    def get_next_policy(self, story: aggregating.Story) -> Policy:
         return self
 
 
 class SoloPolicy(Policy):
     @property
     @functools.cache
-    def culture(self) -> gamey.Culture:
-        from .aggregating import Culture
-        return Culture.make_solo(self)
+    def culture(self) -> aggregating.Culture:
+        return aggregating.Culture.make_solo(self)
 
 
 class SoloEpisodicPolicy(SoloPolicy):
 
-    def get_score(self, make_initial_state: Callable[[], gamey.State], n: int = 1_000) -> int:
+    def get_score(self, make_initial_state: Callable[[], aggregating.State], n: int = 1_000) -> int:
         from .gaming import Game
         scores = []
         for _ in range(n):
@@ -99,4 +97,4 @@ class QPolicy(Policy):
         return more_itertools.one(self.get_qs_for_observations((observation,)))
 
 
-
+from . import aggregating
