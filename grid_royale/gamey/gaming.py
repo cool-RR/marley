@@ -25,12 +25,14 @@ import numpy as np
 from .utils import ImmutableDict
 from . import utils
 from . import exceptions
-from .aggregating import Culture, Payoff, State, Activity
+from . import aggregating
 
 
 class Game:
-    def __init__(self, *, states: Iterable[State], cultures: Iterable[Culture],
-                 activities: Iterable[Activity], payoffs: Iterable[Payoff]) -> None:
+    def __init__(self, *, states: Iterable[aggregating.State],
+                 cultures: Iterable[aggregating.Culture],
+                 activities: Iterable[aggregating.Activity],
+                 payoffs: Iterable[aggregating.Payoff]) -> None:
         self.states = list(states)
         self.cultures = list(cultures)
         self.activities = list(activities)
@@ -38,7 +40,7 @@ class Game:
         self._assert_correct_lengths()
 
     @classmethod
-    def from_state_culture(cls, state: State, culture: Culture) -> Game:
+    def from_state_culture(cls, state: aggregating.State, culture: aggregating.Culture) -> Game:
         return cls(states=(state,), cultures=(culture,), activities=(), payoffs=())
 
     def _assert_correct_lengths(self) -> None:
@@ -46,14 +48,14 @@ class Game:
                 len(self.activities) + 1 == len(self.payoffs) + 1)
 
 
-    def __iter__(self) -> Iterator[State]:
+    def __iter__(self) -> Iterator[aggregating.State]:
 
         self._assert_correct_lengths()
 
         yield from self.states
 
-        state: State = self.states[-1]
-        culture: Culture = self.cultures[-1]
+        state: aggregating.State = self.states[-1]
+        culture: aggregating.Culture = self.cultures[-1]
 
         while not state.is_end:
             activity = culture.get_next_activity(state)
