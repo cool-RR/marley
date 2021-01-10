@@ -186,7 +186,7 @@ class Bullet:
 
 
 
-class _BaseGrid:
+class Grid:
     '''Base class that represents a 2-dimensional square grid.'''
     board_size: int
     def __contains__(self, position: Position) -> bool:
@@ -202,7 +202,10 @@ class _BaseGrid:
 
 
 
-class Observation(_BaseGrid, gamey.Observation):
+
+
+
+class Observation(Grid, gamey.Observation):
 
     is_end = False
     legal_move_actions = Action.all_move_actions
@@ -231,14 +234,26 @@ class Observation(_BaseGrid, gamey.Observation):
             *(Action.all_wall_actions if self.state.allow_walling else ()),
         )
 
-    neural_dtype = np.dtype([('sequential', np.float64, 5)])
+    @staticmethod
+    def get_neural_dtype_for_board_size(board_size: int) -> np.dtype:
+        return np.dtype(
+            [('grid', bool, (board_size, board_size, 10)),
+             ('sequential', bool, (len(Action),))]
+        )
+
+    @property
+    def neural_dtype(self):
+        return self.get_neural_dtype_for_board_size(self.board_size)
 
     @functools.cache
     def to_neural(self) -> np.ndarray:
 
+        array = np.zeros((1,), dtype=self.neural_dtype)
+        grid_array = array[0]['grid']
+        sequential_array = array[0]['sequential']
+
         ### Calculating grid subarray: #############################################################
         #                                                                                          #
-        grid_array = np.zeros((self.board_size, self.board_size, 10), dtype=bool)
         relative_player_position = Position(self.board_size // 2, self.board_size // 2)
         translation = relative_player_position - self.position
 
@@ -267,17 +282,12 @@ class Observation(_BaseGrid, gamey.Observation):
         #                                                                                          #
         last_action_neurals = (self.last_action.to_neural() if self.last_action is not None
                                else np.zeros(len(Action)))
-        sequential_array = np.concatenate((
+        sequential_array[:] = np.concatenate((
             last_action_neurals,
         ))
         #                                                                                          #
         ### Finished calculating sequential subarray. ##############################################
 
-        array = np.zeros((1,), dtype=[('grid', grid_array.dtype, grid_array.shape),
-                                      ('sequential', sequential_array.dtype,
-                                       sequential_array.shape)])
-        array[0]['grid'] = grid_array
-        array[0]['sequential'] = sequential_array
         return array
 
 
@@ -361,7 +371,7 @@ class Observation(_BaseGrid, gamey.Observation):
         print(self.state.ascii)
 
 
-class State(_BaseGrid, gamey.State):
+class State(Grid, gamey.State):
 
     Observation = Observation
     Action = Action

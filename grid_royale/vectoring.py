@@ -60,7 +60,7 @@ class Vector:
 
 class Position(Vector):
     @staticmethod
-    def iterate_all(state_or_board_size: Union[base._BaseGrid, int], /):
+    def iterate_all(state_or_board_size: Union[base.Grid, int], /):
         '''Iterate over all positions in a board of the given size.'''
 
         board_size: int = (state_or_board_size if isinstance(state_or_board_size, int)
