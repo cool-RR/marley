@@ -735,15 +735,15 @@ class SimplePolicy(_GridRoyalePolicy):
 
 class Policy(_GridRoyalePolicy, gamey.ModelFreeLearningPolicy):
 
-    def __init__(self, culture: Culture, **kwargs) -> None:
-        self.culture = culture
+    def __init__(self, **kwargs) -> None:
         gamey.ModelFreeLearningPolicy.__init__(self, training_period=10, **kwargs)
 
-    def create_model(self, observation: Observation, action: Action) -> keras.Model:
-        observation_neural = observation.to_neural()
+    @staticmethod
+    def create_model(observation_neural_dtype: np.dtype, action_n_neurons: int,
+                     serialized_model: Optional[bytes] = None) -> keras.Model:
 
         grid_input = keras.Input(
-            shape=observation_neural[0]['grid'].shape,
+            shape=observation_neural_dtype['grid'].shape,
             name='grid_input'
         )
         grid_0 = keras.layers.Conv2D(
@@ -764,7 +764,7 @@ class Policy(_GridRoyalePolicy, gamey.ModelFreeLearningPolicy):
         grid_output = keras.layers.Dropout(rate=0.1)(_)
 
         sequential_input = keras.Input(
-            shape=observation_neural[0]['sequential'].shape,
+            shape=observation_neural_dtype['sequential'].shape,
             name='sequential_input'
         )
 
