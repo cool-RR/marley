@@ -37,8 +37,6 @@ class Policy(abc.ABC):
     Your fancy machine-learning code goes here.
     '''
 
-    State: Type[aggregating.State]
-
     @abc.abstractmethod
     def get_next_policy(self, story: aggregating.Story) -> Policy:
         # Put your training logic here, if you wish your policy to have training.
