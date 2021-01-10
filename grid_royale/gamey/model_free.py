@@ -36,7 +36,7 @@ class ModelFreeLearningPolicy(QPolicy):
                  observation_neural_dtype: Optional[np.dtype] = None,
                  serialized_models: Optional[Sequence[bytes]] = None,
                  epsilon: numbers.Real = 0.1, gamma: numbers.Real = 0.9, training_counter: int = 0,
-                 training_batch_size: int = 100, n_models: int = 2,
+                 training_period: int = 100, n_models: int = 2,
                  timelines: Iterable[Timeline] = (),
                  ) -> None:
         if action_type is None:
@@ -57,7 +57,7 @@ class ModelFreeLearningPolicy(QPolicy):
         self.epsilon = epsilon
         self.gamma = gamma
         self.training_counter = training_counter
-        self.training_batch_size = training_batch_size
+        self.training_period = training_period
         if serialized_models is None:
             self.models = tuple(self.get_or_create_model() for _ in range(n_models))
             self.serialized_models = tuple(utils.keras_model_weights_to_bytes(model)
@@ -83,7 +83,7 @@ class ModelFreeLearningPolicy(QPolicy):
             'epsilon': self.epsilon,
             'gamma': self.gamma,
             'training_counter': self.training_counter,
-            'training_batch_size': self.training_batch_size,
+            'training_period': self.training_period,
             'serialized_models': self.serialized_models,
             'n_models': len(self.models),
             'timelines': self.timelines,
@@ -122,7 +122,7 @@ class ModelFreeLearningPolicy(QPolicy):
 
         clone_kwargs['timelines'] = tuple(timelines)
 
-        if self.training_counter + 1 == self.training_batch_size: # It's training time!
+        if self.training_counter + 1 == self.training_period: # It's training time!
             clone_kwargs['training_counter'] == 0
 
             models = self.clone_model_and_train_one()

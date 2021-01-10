@@ -737,7 +737,7 @@ class Policy(_GridRoyalePolicy, gamey.ModelFreeLearningPolicy):
 
     def __init__(self, culture: Culture, **kwargs) -> None:
         self.culture = culture
-        gamey.ModelFreeLearningPolicy.__init__(self, training_batch_size=10, **kwargs)
+        gamey.ModelFreeLearningPolicy.__init__(self, training_period=10, **kwargs)
 
     def create_model(self, observation: Observation, action: Action) -> keras.Model:
         observation_neural = observation.to_neural()
