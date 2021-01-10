@@ -31,12 +31,22 @@ class MustDefineCustomModel(NotImplementedError):
 
 
 class ModelFreeLearningPolicy(QPolicy):
-    Observation: Type[Observation]
-    Action: Type[Action]
-    def __init__(self, *, serialized_models: Optional[Sequence[bytes]] = None,
+    def __init__(self, *, action_type: Type[Action],
+                 observation: Optional[Union[Observation, Type[Observation]]] = None,
+                 observation_neural_dtype: Optional[np.dtype] = None,
+                 serialized_models: Optional[Sequence[bytes]] = None,
                  epsilon: numbers.Real = 0.1, gamma: numbers.Real = 0.9, training_counter: int = 0,
                  training_batch_size: int = 100, n_models: int = 2,
-                 timelines: Iterable[Timeline] = ()) -> None:
+                 timelines: Iterable[Timeline] = (),
+                 ) -> None:
+        self.Action = action_type
+        if observation_neural_dtype is not None:
+            assert observation is None
+            self.observation_neural_dtype = observation_neural_dtype
+        else:
+            assert observation is not None
+            self.observation_neural_dtype = observation.neural_dtype
+
         self.epsilon = epsilon
         self.gamma = gamma
         self.training_counter = training_counter
@@ -57,7 +67,7 @@ class ModelFreeLearningPolicy(QPolicy):
 
     @property
     def _model_kwargs(self):
-        return dict(observation_neural_dtype=self.Observation.neural_dtype,
+        return dict(observation_neural_dtype=self.observation_neural_dtype,
                     action_n_neurons=self.Action.n_neurons)
 
     @property
@@ -70,6 +80,8 @@ class ModelFreeLearningPolicy(QPolicy):
             'serialized_models': self.serialized_models,
             'n_models': len(self.models),
             'timelines': self.timelines,
+            'action_type': self.Action,
+            'observation_neural_dtype': self.observation_neural_dtype,
         }
 
     def get_qs_for_observations(self, observations: Sequence[Observation] = None) \
@@ -237,14 +249,14 @@ class ModelFreeLearningPolicy(QPolicy):
         ### Initializing arrays: ###################################################################
         #                                                                                          #
         old_observation_neural_array = np.zeros(
-            (batch_size,), dtype=self.Observation.neural_dtype
+            (batch_size,), dtype=self.observation_neural_dtype
         )
         action_neural_array = np.zeros(
             (batch_size, self.Action.n_neurons), dtype=bool
         )
         reward_array = np.zeros(batch_size)
         new_observation_neural_array = np.zeros(
-            (batch_size,), dtype=self.Observation.neural_dtype
+            (batch_size,), dtype=self.observation_neural_dtype
         )
         are_not_end_array = np.zeros(batch_size, dtype=bool)
 

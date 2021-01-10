@@ -231,6 +231,7 @@ class Observation(_BaseGrid, gamey.Observation):
             *(Action.all_wall_actions if self.state.allow_walling else ()),
         )
 
+    neural_dtype = np.dtype([('sequential', np.float64, 5)])
 
     @functools.cache
     def to_neural(self) -> np.ndarray:
@@ -406,7 +407,7 @@ class State(_BaseGrid, gamey.State):
 
 
     @staticmethod
-    def make_initial(*, n_players: int, board_size: int, starting_score: int = 0, 
+    def make_initial(*, n_players: int, board_size: int, starting_score: int = 0,
                      allow_shooting: bool = True, allow_walling: bool = True,
                      n_food_tiles: int = DEFAULT_N_FOOD_TILES) -> State:
 
