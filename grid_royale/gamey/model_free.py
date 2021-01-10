@@ -50,7 +50,7 @@ class ModelFreeLearningPolicy(QPolicy):
         elif observation is not None:
             self.observation_neural_dtype = observation.neural_dtype
         elif hasattr(self, 'Observation'):
-                self.observation_neural_dtype = self.Observation.neural_dtype
+            self.observation_neural_dtype = self.Observation.neural_dtype
         else:
             assert self.observation_neural_dtype is not None # Defined as class attribute
 
