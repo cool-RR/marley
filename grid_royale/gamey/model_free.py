@@ -31,7 +31,7 @@ class MustDefineCustomModel(NotImplementedError):
 
 
 class ModelFreeLearningPolicy(QPolicy):
-    def __init__(self, *, action_type: Type[Action],
+    def __init__(self, *, action_type: Optional[Type[Action]] = None,
                  observation: Optional[Union[Observation, Type[Observation]]] = None,
                  observation_neural_dtype: Optional[np.dtype] = None,
                  serialized_models: Optional[Sequence[bytes]] = None,
@@ -39,13 +39,20 @@ class ModelFreeLearningPolicy(QPolicy):
                  training_batch_size: int = 100, n_models: int = 2,
                  timelines: Iterable[Timeline] = (),
                  ) -> None:
-        self.Action = action_type
+        if action_type is None:
+            assert self.Action is not None
+        else:
+            self.Action = action_type
+
         if observation_neural_dtype is not None:
             assert observation is None
             self.observation_neural_dtype = observation_neural_dtype
-        else:
-            assert observation is not None
+        elif observation is not None:
             self.observation_neural_dtype = observation.neural_dtype
+        elif hasattr(self, 'Observation'):
+                self.observation_neural_dtype = self.Observation.neural_dtype
+        else:
+            assert self.observation_neural_dtype is not None # Defined as class attribute
 
         self.epsilon = epsilon
         self.gamma = gamma

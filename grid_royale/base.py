@@ -690,7 +690,6 @@ class Culture(gamey.ModelFreeLearningCulture):
         self.allow_walling = allow_walling
         self.default_n_food_tiles = n_food_tiles
         self.policies = tuple(policies or (Policy(self) for _ in range(n_players)))
-        # self.executor = concurrent.futures.ProcessPoolExecutor(5)
         gamey.Culture.__init__(self, state_type=State,
                                player_id_to_policy=dict(zip(LETTERS, self.policies)))
 
@@ -714,8 +713,10 @@ class SimplePolicy(_GridRoyalePolicy):
     def __init__(self, epsilon: int = 0.2) -> None:
         self.epsilon = epsilon
 
+    def get_next_policy(self, story: gamey.Story) -> SimplePolicy:
+        return self
 
-    def decide_action_for_observation(self, observation: Observation) -> Action:
+    def get_next_action(self, reward: numbers.Number, observation: Observation) -> Action:
         if random.random() <= self.epsilon or not observation.state.food_positions:
             return random.choice(observation.legal_actions)
         else:
