@@ -379,12 +379,12 @@ class State(Grid, gamey.State):
         return state
 
 
-    def get_next_state_from_actions(self, player_id_to_action: Mapping[Position, Action]) -> State:
+    def get_next_payoff_and_state(self, activity: gamey.Activity) -> Tuple[gamey.Payoff, State]:
         new_player_position_to_olds = collections.defaultdict(set)
         wip_living_wall_positions = set(self.living_wall_positions)
         wip_destroyed_wall_positions = set() # Ignoring old destroyed walls, they're gone.
 
-        for letter, action in player_id_to_action.items():
+        for letter, action in activity.items():
             action: Action
             old_observation = self[letter]
             assert action in old_observation.legal_actions
@@ -486,7 +486,7 @@ class State(Grid, gamey.State):
             wip_bullets[new_bullet.position].add(new_bullet)
 
         # Processing new bullets that were just fired:
-        for letter, action in player_id_to_action.items():
+        for letter, action in activity.items():
             if action.shoot is not None:
                 player_position = self[letter].position
                 new_bullet = Bullet(player_position + action.shoot, action.shoot)
@@ -572,7 +572,7 @@ class State(Grid, gamey.State):
                 score=old_observation.score + reward,
                 reward=reward,
                 letter=letter,
-                last_action=player_id_to_action[letter]
+                last_action=activity[letter]
             )
 
 
@@ -588,7 +588,9 @@ class State(Grid, gamey.State):
         for observation in letter_to_observation.values():
             observation.state = state
 
-        return state
+        payoff = gamey.Payoff({letter: observation.reward for letter, observation in
+                               letter_to_observation.items()})
+        return (payoff, state)
 
     @property
     def ascii(self) -> None:
