@@ -77,7 +77,7 @@ from . import policing
         # for state in states:
             # if state is None or state.is_end:
                 # continue
-            # for player_id, observation in state.player_id_to_observation.items():
+            # for player_id, observation in state.items():
                 # policy_to_observations[self.player_id_to_policy[player_id]].append(observation)
 
         # for policy, observations in policy_to_observations.items():
@@ -95,7 +95,7 @@ from . import policing
             # player_id_to_action = {
                 # player_id: self.player_id_to_policy[player_id
                                                       # ].get_next_action_and_policy(observation)
-                # for player_id, observation in state.player_id_to_observation.items()
+                # for player_id, observation in state.items()
                 # if not observation.is_end
             # }
             # next_state = state.get_next_state_from_actions(player_id_to_action)
@@ -103,9 +103,9 @@ from . import policing
             # if be_training:
                 # for player_id, action in player_id_to_action.items():
                     # policy = self.player_id_to_policy[player_id]
-                    # observation = state.player_id_to_observation[player_id]
+                    # observation = state[player_id]
                     # policy.train(observation, action,
-                                   # next_state.player_id_to_observation[player_id])
+                                   # next_state[player_id])
 
         # return tuple(next_states)
 

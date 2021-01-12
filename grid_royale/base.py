@@ -642,8 +642,8 @@ class Culture(gamey.Culture):
     def make_initial(cls, n_players: int = DEFAULT_N_PLAYERS,
                      board_size: int = DEFAULT_BOARD_SIZE) -> Culture:
         observation_neural_dtype = Observation.get_neural_dtype_for_board_size(board_size)
-        cls({letter: Policy(observation_neural_dtype=observation_neural_dtype)
-             for letter in LETTERS[:n_players]})
+        return cls({letter: Policy(observation_neural_dtype=observation_neural_dtype)
+                    for letter in LETTERS[:n_players]})
 
 
     # def __init__(self, n_players: int = DEFAULT_N_PLAYERS, *, board_size: int = DEFAULT_BOARD_SIZE,
