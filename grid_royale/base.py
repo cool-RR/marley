@@ -638,11 +638,12 @@ class State(Grid, gamey.State):
 
 
 class Culture(gamey.Culture):
-
     @classmethod
-    def make_initial(cls, n_players: int = DEFAULT_N_PLAYERS) -> Culture:
-        assert 1 <= n_players <= len(LETTERS)
-        cls({letter: Policy() for letter in LETTERS[:n_players]})
+    def make_initial(cls, n_players: int = DEFAULT_N_PLAYERS,
+                     board_size: int = DEFAULT_BOARD_SIZE) -> Culture:
+        observation_neural_dtype = Observation.get_neural_dtype_for_board_size(board_size)
+        cls({letter: Policy(observation_neural_dtype=observation_neural_dtype)
+             for letter in LETTERS[:n_players]})
 
 
     # def __init__(self, n_players: int = DEFAULT_N_PLAYERS, *, board_size: int = DEFAULT_BOARD_SIZE,
@@ -714,7 +715,7 @@ class Game(gamey.Game):
 
 
 class _GridRoyalePolicy(gamey.Policy):
-    State = State
+    Action = Action
 
 
 class SimplePolicy(_GridRoyalePolicy):
@@ -819,7 +820,7 @@ def play(*, board_size: int, n_players: int, n_food_tiles: int, allow_shooting: 
          allow_walling: bool, pre_train: bool, open_browser: bool, host: str, port: str,
          max_length: Optional[int] = None) -> None:
     with server.ServerThread(host=host, port=port, quiet=True) as server_thread:
-        culture = Culture(n_players=n_players)
+        culture = Culture.make_initial(n_players=n_players)
         state = State.make_initial(
             n_players=n_players, board_size=board_size, allow_shooting=allow_shooting,
             allow_walling=allow_walling, n_food_tiles=n_food_tiles

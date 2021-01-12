@@ -78,7 +78,7 @@ class Payoff(BaseAggregate):
     _aggregate_value_type = numbers.Number
 
     def __init__(self, player_id_to_reward: Mapping[PlayerId, numbers.Number]) -> None:
-        BaseAggregate.__init__(player_id_to_reward)
+        BaseAggregate.__init__(self, player_id_to_reward)
 
     @staticmethod
     def make_zero(aggregate_player_value: BaseAggregate) -> Payoff:
@@ -90,7 +90,7 @@ class Culture(BaseAggregate):
     _aggregate_value_type = Policy
 
     def __init__(self, player_id_to_policy: Mapping[PlayerId, Policy]) -> None:
-        BaseAggregate.__init__(player_id_to_policy)
+        BaseAggregate.__init__(self, player_id_to_policy)
 
     def get_next_activity(self, state: State) -> Activity:
         return Activity({
@@ -112,7 +112,7 @@ class State(BaseAggregate):
     is_end: bool
 
     def __init__(self, player_id_to_observation: Mapping[PlayerId, Observation]) -> None:
-        BaseAggregate.__init__(player_id_to_observation)
+        BaseAggregate.__init__(self, player_id_to_observation)
 
 
     @staticmethod
