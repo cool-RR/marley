@@ -308,7 +308,7 @@ class State(Grid, gamey.State):
                  bullets: ImmutableDict[Position, FrozenSet[Bullet]] = ImmutableDict(),
                  living_wall_positions: FrozenSet[Position],
                  destroyed_wall_positions: FrozenSet[Position]) -> None:
-        gamey.State.__init__(letter_to_observation)
+        gamey.State.__init__(self, letter_to_observation)
         self.bullets = bullets
         self.allow_shooting = allow_shooting
         self.allow_walling = allow_walling
@@ -825,7 +825,7 @@ def play(*, board_size: int, n_players: int, n_food_tiles: int, allow_shooting: 
             n_players=n_players, board_size=board_size, allow_shooting=allow_shooting,
             allow_walling=allow_walling, n_food_tiles=n_food_tiles
         )
-        game = gamey.Game.from_state_culture(state, culture)
+        game = Game.from_state_culture(state, culture)
 
         if open_browser:
             click.echo(f'Opening {server_thread.url} in your browser to view the game.')
@@ -854,7 +854,7 @@ def play(*, board_size: int, n_players: int, n_food_tiles: int, allow_shooting: 
         else:
             click.echo(f'Calculating {max_length} states, press Ctrl-C to stop.')
 
-        for state in state.write_to_game_folder(max_length=max_length):
+        for state in game.write_to_game_folder(max_length=max_length):
             pass
         click.echo(f'Finished calculating {max_length} states, still serving forever.')
         while True:
