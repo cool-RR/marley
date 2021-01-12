@@ -345,6 +345,7 @@ class State(Grid, gamey.State):
     def make_initial(*, n_players: int = DEFAULT_N_PLAYERS, board_size: int = DEFAULT_BOARD_SIZE,
                      starting_score: int = 0, allow_shooting: bool = True,
                      allow_walling: bool = True, n_food_tiles: int = DEFAULT_N_FOOD_TILES) -> State:
+        assert 1 <= n_players <= len(LETTERS)
 
         random_positions_firehose = utils.iterate_deduplicated(
                                      State.iterate_random_positions(board_size=board_size))
@@ -626,47 +627,6 @@ class State(Grid, gamey.State):
         print(self.ascii)
 
 
-    def write_to_folder(self, folder: pathlib.Path, *, chunk: int = 10,
-                        max_length: Optional[int] = None) -> Iterator[State]:
-        from .animating import animate
-
-        ### Preparing folder: #################################################
-        #                                                                     #
-        if not folder.exists():
-            folder.mkdir(parents=True)
-        assert folder.is_dir()
-        assert not any(folder.iterdir())
-        #                                                                     #
-        ### Finished preparing folder. ########################################
-
-        paths = ((folder / f'{i:06d}.json') for i in range(10 ** 6))
-        state_iterator, state_iterator_copy = itertools.tee(
-                                             self.culture.iterate_game(self, max_length=max_length))
-        transition_iterator = animate(state_iterator_copy)
-        for path in paths:
-            chunked_iterator = more_itertools.islice_extended(
-                                      zip(state_iterator, transition_iterator, strict=True))[:chunk]
-            transition_chunk = []
-            for state, transition in chunked_iterator:
-                transition_chunk.append(transition)
-                yield state
-            if not transition_chunk:
-                # Game ended, either naturally or reached `max_length`.
-                return
-            assert len(transition_chunk) <= chunk
-            with path.open('w') as file:
-                json.dump(transition_chunk, file)
-
-    def write_to_game_folder(self, *, chunk: int = 10,
-                             max_length: Optional[int] = None) -> Iterator[State]:
-        now = datetime_module.datetime.now()
-        game_folder_name = now.isoformat(sep='-', timespec='microseconds'
-                                                               ).replace(':', '-').replace('.', '-')
-        game_folder = get_games_folder() / game_folder_name
-        # print(f'Writing to {game_folder.name} ...')
-        for state in self.write_to_folder(game_folder, chunk=chunk, max_length=max_length):
-            yield state
-        # print(f'Finished writing to {game_folder.name} .')
 
 
     @property
@@ -708,6 +668,49 @@ class Culture(gamey.Culture):
             # allow_walling=self.allow_walling, n_food_tiles=n_food_tiles
         # )
 
+
+class Game(gamey.Game):
+    def write_to_folder(self, folder: pathlib.Path, *, chunk: int = 10,
+                        max_length: Optional[int] = None) -> Iterator[State]:
+        from .animating import animate
+
+        ### Preparing folder: #################################################
+        #                                                                     #
+        if not folder.exists():
+            folder.mkdir(parents=True)
+        assert folder.is_dir()
+        assert not any(folder.iterdir())
+        #                                                                     #
+        ### Finished preparing folder. ########################################
+
+        paths = ((folder / f'{i:06d}.json') for i in range(10 ** 6))
+        state_iterator, state_iterator_copy = itertools.tee(
+                                                  more_itertools.islice_extended(self)[:max_length])
+        transition_iterator = animate(state_iterator_copy)
+        for path in paths:
+            chunked_iterator = more_itertools.islice_extended(
+                                      zip(state_iterator, transition_iterator, strict=True))[:chunk]
+            transition_chunk = []
+            for state, transition in chunked_iterator:
+                transition_chunk.append(transition)
+                yield state
+            if not transition_chunk:
+                # Game ended, either naturally or reached `max_length`.
+                return
+            assert len(transition_chunk) <= chunk
+            with path.open('w') as file:
+                json.dump(transition_chunk, file)
+
+    def write_to_game_folder(self, *, chunk: int = 10,
+                             max_length: Optional[int] = None) -> Iterator[State]:
+        now = datetime_module.datetime.now()
+        game_folder_name = now.isoformat(sep='-', timespec='microseconds'
+                                                               ).replace(':', '-').replace('.', '-')
+        game_folder = get_games_folder() / game_folder_name
+        # print(f'Writing to {game_folder.name} ...')
+        for state in self.write_to_folder(game_folder, chunk=chunk, max_length=max_length):
+            yield state
+        # print(f'Finished writing to {game_folder.name} .')
 
 
 class _GridRoyalePolicy(gamey.Policy):
@@ -816,12 +819,12 @@ def play(*, board_size: int, n_players: int, n_food_tiles: int, allow_shooting: 
          allow_walling: bool, pre_train: bool, open_browser: bool, host: str, port: str,
          max_length: Optional[int] = None) -> None:
     with server.ServerThread(host=host, port=port, quiet=True) as server_thread:
-        culture = Culture()
-        state = State.make_initial(n_players=<required>, board_size=<required>)
-        gamey.Game.from_state_culture(state, culture)
-        culture = Culture(n_players=n_players, board_size=board_size, n_food_tiles=n_food_tiles,
-                          allow_shooting=allow_shooting, allow_walling=allow_walling)
-        state = culture.make_initial_state()
+        culture = Culture(n_players=n_players)
+        state = State.make_initial(
+            n_players=n_players, board_size=board_size, allow_shooting=allow_shooting,
+            allow_walling=allow_walling, n_food_tiles=n_food_tiles
+        )
+        game = gamey.Game.from_state_culture(state, culture)
 
         if open_browser:
             click.echo(f'Opening {server_thread.url} in your browser to view the game.')
@@ -830,19 +833,20 @@ def play(*, board_size: int, n_players: int, n_food_tiles: int, allow_shooting: 
             click.echo(f'Open {server_thread.url} in your browser to view the game.')
 
         if pre_train:
-            pre_train_n_games = 100
-            pre_train_max_length = 100
-            pre_train_n_games_per_phase = 10
-            click.echo(
-                f'Pre-training {pre_train_n_games} games, each with '
-                f'{pre_train_max_length} states, with {pre_train_n_games_per_phase} games per '
-                f'phase...', nl=False
-            )
-            for _ in culture.multi_game_train(n_total_games=pre_train_n_games,
-                                              max_length=pre_train_max_length,
-                                              n_games_per_phase=pre_train_n_games_per_phase):
-                click.echo('.', nl=False)
-            click.echo(' Done pre-training.')
+            raise NotImplementedError
+            # pre_train_n_games = 100
+            # pre_train_max_length = 100
+            # pre_train_n_games_per_phase = 10
+            # click.echo(
+                # f'Pre-training {pre_train_n_games} games, each with '
+                # f'{pre_train_max_length} states, with {pre_train_n_games_per_phase} games per '
+                # f'phase...', nl=False
+            # )
+            # for _ in culture.multi_game_train(n_total_games=pre_train_n_games,
+                                              # max_length=pre_train_max_length,
+                                              # n_games_per_phase=pre_train_n_games_per_phase):
+                # click.echo('.', nl=False)
+            # click.echo(' Done pre-training.')
 
         if max_length is None:
             click.echo(f'Calculating states in the simulation, press Ctrl-C to stop.')
