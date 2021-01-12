@@ -342,9 +342,9 @@ class State(Grid, gamey.State):
 
 
     @staticmethod
-    def make_initial(*, n_players: int, board_size: int, starting_score: int = 0,
-                     allow_shooting: bool = True, allow_walling: bool = True,
-                     n_food_tiles: int = DEFAULT_N_FOOD_TILES) -> State:
+    def make_initial(*, n_players: int = DEFAULT_N_PLAYERS, board_size: int = DEFAULT_BOARD_SIZE,
+                     starting_score: int = 0, allow_shooting: bool = True,
+                     allow_walling: bool = True, n_food_tiles: int = DEFAULT_N_FOOD_TILES) -> State:
 
         random_positions_firehose = utils.iterate_deduplicated(
                                      State.iterate_random_positions(board_size=board_size))
@@ -677,30 +677,36 @@ class State(Grid, gamey.State):
 
 
 
-class Culture(gamey.ModelFreeLearningCulture):
+class Culture(gamey.Culture):
 
-    def __init__(self, n_players: int = DEFAULT_N_PLAYERS, *, board_size: int = DEFAULT_BOARD_SIZE,
-                 allow_shooting: bool = True, allow_walling: bool = True,
-                 n_food_tiles: int = DEFAULT_N_FOOD_TILES,
-                 policies: Optional[Sequence[_GridRoyalePolicy]] = None) -> None:
-        if policies is not None:
-            assert n_players == len(policies)
-        self.board_size = board_size
-        self.allow_shooting = allow_shooting
-        self.allow_walling = allow_walling
-        self.default_n_food_tiles = n_food_tiles
-        self.policies = tuple(policies or (Policy(self) for _ in range(n_players)))
-        gamey.Culture.__init__(self, state_type=State,
-                               player_id_to_policy=dict(zip(LETTERS, self.policies)))
+    @classmethod
+    def make_initial(cls, n_players: int = DEFAULT_N_PLAYERS) -> Culture:
+        assert 1 <= n_players <= len(LETTERS)
+        cls({letter: Policy() for letter in LETTERS[:n_players]})
 
 
-    def make_initial_state(self, *, n_food_tiles: Optional[int] = None) -> State:
-        n_food_tiles = (n_food_tiles if n_food_tiles is not None
-                                 else self.default_n_food_tiles)
-        return State.make_initial(
-            self, board_size=self.board_size, allow_shooting=self.allow_shooting,
-            allow_walling=self.allow_walling, n_food_tiles=n_food_tiles
-        )
+    # def __init__(self, n_players: int = DEFAULT_N_PLAYERS, *, board_size: int = DEFAULT_BOARD_SIZE,
+                 # allow_shooting: bool = True, allow_walling: bool = True,
+                 # n_food_tiles: int = DEFAULT_N_FOOD_TILES,
+                 # policies: Optional[Sequence[_GridRoyalePolicy]] = None) -> None:
+        # if policies is not None:
+            # assert n_players == len(policies)
+        # self.board_size = board_size
+        # self.allow_shooting = allow_shooting
+        # self.allow_walling = allow_walling
+        # self.default_n_food_tiles = n_food_tiles
+        # self.policies = tuple(policies or (Policy(self) for _ in range(n_players)))
+        # gamey.Culture.__init__(self, state_type=State,
+                               # player_id_to_policy=dict(zip(LETTERS, self.policies)))
+
+
+    # def make_initial_state(self, *, n_food_tiles: Optional[int] = None) -> State:
+        # n_food_tiles = (n_food_tiles if n_food_tiles is not None
+                                 # else self.default_n_food_tiles)
+        # return State.make_initial(
+            # self, board_size=self.board_size, allow_shooting=self.allow_shooting,
+            # allow_walling=self.allow_walling, n_food_tiles=n_food_tiles
+        # )
 
 
 
@@ -810,6 +816,9 @@ def play(*, board_size: int, n_players: int, n_food_tiles: int, allow_shooting: 
          allow_walling: bool, pre_train: bool, open_browser: bool, host: str, port: str,
          max_length: Optional[int] = None) -> None:
     with server.ServerThread(host=host, port=port, quiet=True) as server_thread:
+        culture = Culture()
+        state = State.make_initial(n_players=<required>, board_size=<required>)
+        gamey.Game.from_state_culture(state, culture)
         culture = Culture(n_players=n_players, board_size=board_size, n_food_tiles=n_food_tiles,
                           allow_shooting=allow_shooting, allow_walling=allow_walling)
         state = culture.make_initial_state()
