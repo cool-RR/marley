@@ -745,8 +745,8 @@ class SimplePolicy(_GridRoyalePolicy):
 
 class Policy(_GridRoyalePolicy, gamey.ModelFreeLearningPolicy):
 
-    def __init__(self, **kwargs) -> None:
-        gamey.ModelFreeLearningPolicy.__init__(self, training_period=10, **kwargs)
+    def __init__(self, training_period=10, **kwargs) -> None:
+        gamey.ModelFreeLearningPolicy.__init__(self, training_period=training_period, **kwargs)
 
     @staticmethod
     def create_model(observation_neural_dtype: np.dtype, action_n_neurons: int,
