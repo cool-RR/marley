@@ -829,7 +829,7 @@ def play(*, board_size: int, n_players: int, n_food_tiles: int, allow_shooting: 
          allow_walling: bool, pre_train: bool, open_browser: bool, host: str, port: str,
          max_length: Optional[int] = None) -> None:
     with server.ServerThread(host=host, port=port, quiet=True) as server_thread:
-        culture = Culture.make_initial(n_players=n_players)
+        culture = Culture.make_initial(n_players=n_players, board_size=board_size)
         state = State.make_initial(
             n_players=n_players, board_size=board_size, allow_shooting=allow_shooting,
             allow_walling=allow_walling, n_food_tiles=n_food_tiles
