@@ -211,6 +211,8 @@ class ModelFreeLearningPolicy(QPolicy):
             ),
         )
         model.compile(optimizer='rmsprop', loss='mse', metrics=['accuracy'])
+        # todo: I believe the logic below should not be in the `create_model` method, which is meant
+        # to be overridden.
         if serialized_model is None:
             utils.keras_model_weights_to_bytes(model) # Save to cache
         else:
