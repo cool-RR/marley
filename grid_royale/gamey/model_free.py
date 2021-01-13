@@ -8,7 +8,7 @@ import concurrent.futures
 import numbers
 import functools
 from typing import (Iterable, Union, Optional, Tuple, Any, Iterator, Type,
-                    Sequence, Callable)
+                    Sequence, Callable, Mapping, MutableMapping)
 import hashlib
 import weakref
 
@@ -16,6 +16,7 @@ import keras.models
 import more_itertools
 import numpy as np
 from python_toolbox.combi import ChainSpace # Must remove this dependency
+import lru # todo: probably replace
 
 from .base import Observation, Action, Story
 from .policing import Policy, QPolicy
@@ -180,7 +181,7 @@ class ModelFreeLearningPolicy(QPolicy):
     def __repr__(self) -> str:
         return f'<{type(self).__name__}: {self.fingerprint}>'
 
-    model_cache = {}
+    model_cache = lru.LRU(30)
 
     @staticmethod
     def create_model(observation_neural_dtype: np.dtype, action_n_neurons: int,
