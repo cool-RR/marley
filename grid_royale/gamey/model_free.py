@@ -7,6 +7,7 @@ import random
 import concurrent.futures
 import numbers
 import functools
+import collections.abc
 from typing import (Iterable, Union, Optional, Tuple, Any, Iterator, Type,
                     Sequence, Callable, Mapping, MutableMapping)
 import hashlib
@@ -28,6 +29,21 @@ MAX_PAST_MEMORY_SIZE = 1_000
 
 class MustDefineCustomModel(NotImplementedError):
     pass
+
+class ModelManager(collections.abc.Sequence):
+    def __init__(self, model_free_learning_policy: ModelFreeLearningPolicy) -> None:
+        self.model_free_learning_policy = model_free_learning_policy
+
+    def __len__(self):
+        return len(self.model_free_learning_policy.serialized_models)
+
+    def __getitem__(self, i: Union[int, slice]) -> keras.Model:
+        if isinstance(i, slice):
+            raise NotImplementedError
+        assert isinstance(i, int)
+        return self.model_free_learning_policy.get_or_create_model(
+            self.model_free_learning_policy.serialized_models[i]
+        )
 
 
 
@@ -60,18 +76,18 @@ class ModelFreeLearningPolicy(QPolicy):
         self.training_counter = training_counter
         self.training_period = training_period
         if serialized_models is None:
-            self.models = tuple(self.get_or_create_model() for _ in range(n_models))
-            self.serialized_models = tuple(utils.keras_model_weights_to_bytes(model)
-                                           for model in self.models)
+            self.serialized_models = tuple(
+                utils.keras_model_weights_to_bytes(self.get_or_create_model())
+                for _ in range(n_models)
+            )
         else:
             assert len(serialized_models) == n_models
             self.serialized_models = serialized_models
-            self.models = tuple(self.get_or_create_model(serialized_model) for serialized_model
-                                in serialized_models)
 
         self.q_map_cache = weakref.WeakKeyDictionary()
         self.timelines = tuple(timelines)
         self.fingerprint = hashlib.sha512(b''.join(self.serialized_models)).hexdigest()[:6]
+        self.models = ModelManager(self)
 
     @property
     def _model_kwargs(self):
