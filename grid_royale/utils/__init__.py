@@ -17,7 +17,7 @@ import copyreg
 import contextlib
 from typing import Iterable, Iterator, Hashable
 
-import tensorflow.python._tf_stack
+import tensorflow.compat.v1
 
 from . import pycompat
 from . import make_keras_picklable
@@ -47,10 +47,11 @@ copyreg.pickle(type(threading.RLock()), pickle_r_lock)
 
 
 def pickle_stack_summary(stack_summary):
-    return (tensorflow.python._tf_stack.StackSummary, ())
+    return (tensorflow.compat.v1.flags.tf_decorator.tf_stack.StackSummary, ())
 
 
-copyreg.pickle(tensorflow.python._tf_stack.StackSummary, pickle_stack_summary)
+copyreg.pickle(tensorflow.compat.v1.flags.tf_decorator.tf_stack.StackSummary,
+               pickle_stack_summary)
 
 
 
