@@ -69,6 +69,7 @@ import numpy as np
 import scipy.special
 import more_itertools
 import keras
+import ipdb
 
 from . import utils
 from . import gamey
@@ -865,6 +866,9 @@ def play(*, board_size: int, n_players: int, n_food_tiles: int, allow_shooting: 
 
         for state in game.write_to_game_folder(max_length=max_length):
             pass
+
+        ipdb.set_trace()
+
         click.echo(f'Finished calculating {max_length} states, still serving forever.')
         while True:
             time.sleep(0.1)
