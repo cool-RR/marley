@@ -28,7 +28,7 @@ from . import exceptions
 from . import aggregating
 
 
-class Game(collections.abc):
+class Game(collections.abc.Sequence):
     def __init__(self, *, states: Iterable[aggregating.State],
                  cultures: Iterable[aggregating.Culture],
                  activities: Iterable[aggregating.Activity],
@@ -71,8 +71,17 @@ class Game(collections.abc):
             self._assert_correct_lengths()
             yield state
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.states)
+
+    def __getitem__(self, i: Union[int, slice]) -> aggregating.State:
+        if isinstance(i, slice):
+            raise NotImplementedError
+        else:
+            assert isinstance(i, int)
+            return self.states[i]
+
+
 
     def crunch(self, n: Optional[int] = None) -> None:
         for _ in more_itertools.islice_extended(self)[:n]:
