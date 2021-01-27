@@ -45,6 +45,21 @@ class ModelSpec:
         return self.create_model(self.observation_neural_dtype, self.action_n_neurons)
 
 
+def _serialize_model(model: keras.Model) -> bytes:
+    with tempfile.TemporaryDirectory() as temp_folder:
+        path = pathlib.Path(temp_folder) / 'model.h5'
+        model.save_weights(path, save_format='h5')
+        return path.read_bytes()
+
+def _deserialize_to_model(model: keras.Model,
+                          serialized_model: collections.abc.ByteString) -> None:
+    with tempfile.TemporaryDirectory() as temp_folder:
+        path = pathlib.Path(temp_folder) / 'model.h5'
+        path.write_bytes(serialized_model)
+        model.load_weights(path)
+
+
+
 
 class ModelJockey(collections.abc.Mapping):
     def __init__(self, model_spec: ModelSpec, max_size: int = 30) -> None:
@@ -57,20 +72,21 @@ class ModelJockey(collections.abc.Mapping):
     def max_size(self) -> int:
         return self.serialized_model_to_model.get_size()
 
-    def __getitem__(self, serialized_model: bytes) -> keras.Model:
+    def __getitem__(self, serialized_model: Optional[bytes]) -> keras.Model:
         try:
             return self.serialized_model_to_model[serialized_model]
         except KeyError:
             model = self.model_spec()
-            with tempfile.TemporaryDirectory() as temp_folder:
-                path = pathlib.Path(temp_folder) / 'model.h5'
-                path.write_bytes(serialized_model)
-                model.load_weights(path)
+            if serialized_model is not None:
+                _deserialize_to_model(model, serialized_model)
 
             self.weak_model_tracker[id(model)] = model
             self.model_to_serialized_model[model] = serialized_model
             self.serialized_model_to_model[serialized_model] = model
             return model
+
+    def get_random(self) -> keras.Model:
+        return self[None]
 
     def __iter__(self) -> Iterator[bytes]:
         return iter(self.serialized_model_to_model)
@@ -83,35 +99,24 @@ class ModelJockey(collections.abc.Mapping):
         try:
             return self.model_to_serialized_model[model]
         except AttributeError:
-            with tempfile.TemporaryDirectory() as temp_folder:
-                path = pathlib.Path(temp_folder) / 'model.h5'
-                model.save_weights(path, save_format='h5')
-                self.model_to_serialized_model[model] = serialized_model = path.read_bytes()
-                return serialized_model
+            self.model_to_serialized_model[model] = serialized_model = _serialize_model(model)
+            return serialized_model
+
 
     def clone_model_and_train(self, serialized_model: bytes,
                               train: Callable[[keras.Model], None]) -> bytes:
         model = self.model_spec()
-        self._train_model(cloned_model, other_model=models[other_index])
+        _deserialize_to_model(model, serialized_model)
+        train(model)
+        new_serialized_model = _serialize_model(model)
 
-        self.model_cache[(self.create_model, *self._model_kwargs.values(),
-                          utils.keras_model_weights_to_bytes(cloned_model))] = cloned_model
-        return tuple(models)
+        self.weak_model_tracker[id(model)] = model
+        self.model_to_serialized_model[model] = new_serialized_model
+        self.serialized_model_to_model[new_serialized_model] = model
+
+        return new_serialized_model
 
 
-    def get_random_serialized_model(self, model_spec: ModelSpec) -> keras.Model:
-        1 / 0
-
-
-    # def load_keras_model_weights_from_bytes(model: keras.Model,
-                                            # weights: collections.abc.ByteString, *,
-                                            # save_to_cache: bool = True) -> None:
-        # with tempfile.TemporaryDirectory() as temp_folder:
-            # path = pathlib.Path(temp_folder) / 'model.h5'
-            # path.write_bytes(weights)
-            # model.load_weights(path)
-            # if save_to_cache:
-                # model._cached_serialized_model = weights
 
 class ModelMegaJockey(collections.abc.Mapping):
 
