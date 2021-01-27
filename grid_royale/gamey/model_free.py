@@ -36,30 +36,47 @@ class MustDefineCustomModel(NotImplementedError):
 
 
 @dataclasses.dataclass(frozen=True)
-class ModelKey:
+class ModelSpec:
     create_model: Callable
     observation_neural_dtype: np.dtype
     action_n_neurons: int
-    serialized_model: bytes
+
+    def __call__(self) -> keras.Model:
+        return self.create_model(self.observation_neural_dtype, self.action_n_neurons)
+
 
 
 class ModelJockey(collections.abc.Mapping):
-    def __init__(self, max_size: int = 30) -> None:
-        self.max_size = max_size
+    def __init__(self, model_spec: ModelSpec, max_size: int = 30) -> None:
+        self.model_spec = model_spec
         self.weak_model_tracker = weakref.WeakValueDictionary()
         self.model_to_serialized_model = utils.WeakKeyIdentityDict()
+        self.serialized_model_to_model = lru.LRU(max_size)
 
+    @property
+    def max_size(self) -> int:
+        return self.serialized_model_to_model.get_size()
 
-    def __getitem__(self, model_key: ModelKey) -> keras.Model:
-        self.weak_model_tracker[id(cloned_model)] = cloned_model
+    def __getitem__(self, serialized_model: bytes) -> keras.Model:
+        try:
+            return self.serialized_model_to_model[serialized_model]
+        except KeyError:
+            model = self.model_spec()
+            with tempfile.TemporaryDirectory() as temp_folder:
+                path = pathlib.Path(temp_folder) / 'model.h5'
+                path.write_bytes(serialized_model)
+                model.load_weights(path)
 
-        ...
+            self.weak_model_tracker[id(model)] = model
+            self.model_to_serialized_model[model] = serialized_model
+            self.serialized_model_to_model[serialized_model] = model
+            return model
 
     def __iter__(self) -> Iterator[bytes]:
-        ...
+        return iter(self.serialized_model_to_model)
 
     def __len__(self) -> int:
-        ...
+        return len(self.serialized_model_to_model)
 
 
     def serialize_model(self, model: keras.Model) -> bytes:
@@ -72,6 +89,20 @@ class ModelJockey(collections.abc.Mapping):
                 self.model_to_serialized_model[model] = serialized_model = path.read_bytes()
                 return serialized_model
 
+    def clone_model_and_train(self, serialized_model: bytes,
+                              train: Callable[[keras.Model], None]) -> bytes:
+        model = self.model_spec()
+        self._train_model(cloned_model, other_model=models[other_index])
+
+        self.model_cache[(self.create_model, *self._model_kwargs.values(),
+                          utils.keras_model_weights_to_bytes(cloned_model))] = cloned_model
+        return tuple(models)
+
+
+    def get_random_serialized_model(self, model_spec: ModelSpec) -> keras.Model:
+        1 / 0
+
+
     # def load_keras_model_weights_from_bytes(model: keras.Model,
                                             # weights: collections.abc.ByteString, *,
                                             # save_to_cache: bool = True) -> None:
@@ -82,7 +113,26 @@ class ModelJockey(collections.abc.Mapping):
             # if save_to_cache:
                 # model._cached_serialized_model = weights
 
+class ModelMegaJockey(collections.abc.Mapping):
 
+    def __init__(self):
+        self._dict = {}
+
+    def __len__(self) -> int:
+        return len(self._dict)
+
+    def __iter__(self) -> Iterator[ModelSpec]:
+        return iter(self._dict)
+
+    def __getitem__(self, model_spec: ModelSpec) -> ModelJockey:
+        try:
+            return self._dict[model_spec]
+        except KeyError:
+            self._dict[model_spec] = model_jockey = ModelJockey(model_spec)
+            return model_jockey
+
+
+model_mega_jockey = ModelMegaJockey()
 
 class ModelManager(collections.abc.Sequence):
     def __init__(self, model_free_learning_policy: ModelFreeLearningPolicy) -> None:
@@ -132,6 +182,7 @@ class ModelFreeLearningPolicy(QPolicy):
         self.training_period = training_period
         if serialized_models is None:
             self.serialized_models = tuple(
+                self.model_jockey.get_random_serialized_model()
                 utils.keras_model_weights_to_bytes(self.get_or_create_model())
                 for _ in range(n_models)
             )
@@ -148,6 +199,10 @@ class ModelFreeLearningPolicy(QPolicy):
     def _model_kwargs(self):
         return dict(observation_neural_dtype=self.observation_neural_dtype,
                     action_n_neurons=self.Action.n_neurons)
+
+    @property
+    def _model_spec(self):
+        return ModelSpec(self.create_model, **self._model_kwargs)
 
     @property
     def _clone_kwargs(self):
@@ -236,16 +291,6 @@ class ModelFreeLearningPolicy(QPolicy):
                 q_map = self.q_map_cache[observation] = self.get_qs_for_observation(observation)
             return max(q_map, key=q_map.__getitem__)
 
-    def _get_model_key(self, model_or_serialized_model: Union[keras.Model, bytes]) -> ModelKey:
-        if isinstance(model_or_serialized_model, keras.Model):
-            serialized_model = utils.keras_model_weights_to_bytes(model)
-        else:
-            assert isinstance(model_or_serialized_model, bytes)
-            serialized_model = model_or_serialized_model
-
-        return ModelKey(self.create_model, *self._model_kwargs.values(), serialized_model)
-
-
 
 
 
@@ -265,7 +310,10 @@ class ModelFreeLearningPolicy(QPolicy):
     def __repr__(self) -> str:
         return f'<{type(self).__name__}: {self.fingerprint}>'
 
-    model_jockey = ModelJockey(30)
+    @property
+    def model_jockey(self) -> ModelJockey:
+        return model_mega_jockey[self._model_spec]
+
 
     @staticmethod
     def create_model(observation_neural_dtype: np.dtype, action_n_neurons: int) -> keras.Model:
