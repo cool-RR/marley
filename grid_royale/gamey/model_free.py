@@ -85,8 +85,11 @@ class ModelJockey(collections.abc.Mapping):
             self.serialized_model_to_model[serialized_model] = model
             return model
 
-    def get_random(self) -> keras.Model:
+    def get_random_model(self) -> keras.Model:
         return self[None]
+
+    def get_random_serialized_model(self) -> keras.Model:
+        return self.model_to_serialized_model[self[None]]
 
     def __iter__(self) -> Iterator[bytes]:
         return iter(self.serialized_model_to_model)
@@ -186,7 +189,8 @@ class ModelFreeLearningPolicy(QPolicy):
         self.training_counter = training_counter
         self.training_period = training_period
         if serialized_models is None:
-            self.serialized_models = tuple(self.model_jockey.get_random() for _ in range(n_models))
+            self.serialized_models = tuple(self.model_jockey.get_random_serialized_model()
+                                           for _ in range(n_models))
         else:
             assert len(serialized_models) == n_models
             self.serialized_models = serialized_models
