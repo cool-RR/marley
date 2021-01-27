@@ -793,14 +793,6 @@ class Policy(_GridRoyalePolicy, gamey.ModelFreeLearningPolicy):
         model = keras.Model([grid_input, sequential_input], output)
         model.compile(optimizer='rmsprop', loss='mse', metrics=['accuracy'])
 
-        # # todo: I believe the logic below should not be in the `create_model` method, which is meant
-        # # to be overridden.
-        # if serialized_model is None:
-            # gamey.utils.keras_model_weights_to_bytes(model) # Save to cache
-        # else:
-            # gamey.utils.load_keras_model_weights_from_bytes(model, serialized_model,
-                                                            # save_to_cache=False)
-
         return model
 
 
