@@ -118,6 +118,7 @@ class ModelJockey(collections.abc.Mapping):
         if len(self) < self.max_size:
             model = self.model_spec()
         else:
+            # Todo: Two race condition: Peek and get, and someone using this model elsewhere
             oldest_serialized_model, model = self.serialized_model_to_model.peek_last_item()
             del self.serialized_model_to_model[oldest_serialized_model]
             del self.model_to_serialized_model[model]
