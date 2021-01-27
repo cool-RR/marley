@@ -115,7 +115,13 @@ class ModelJockey(collections.abc.Mapping):
 
     def clone_model_and_train(self, serialized_model: bytes,
                               train: Callable[[keras.Model], None]) -> bytes:
-        model = self.model_spec()
+        if len(self) < self.max_size:
+            model = self.model_spec()
+        else:
+            oldest_serialized_model, model = self.serialized_model_to_model.peek_last_item()
+            del self.serialized_model_to_model[oldest_serialized_model]
+            del self.model_to_serialized_model[model]
+
         _deserialize_to_model(model, serialized_model)
         train(model)
         new_serialized_model = _serialize_model(model)
