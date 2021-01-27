@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import random
+import weakref
 import concurrent.futures
 import numbers
 import functools
@@ -45,6 +46,7 @@ class ModelManager(collections.abc.Sequence):
             self.model_free_learning_policy.serialized_models[i]
         )
 
+weak_model_tracker = weakref.WeakValueDictionary()
 
 
 class ModelFreeLearningPolicy(QPolicy):
@@ -161,6 +163,7 @@ class ModelFreeLearningPolicy(QPolicy):
             **self._model_kwargs,
             serialized_model=self.serialized_models[random_index]
         )
+        weak_model_tracker[id(cloned_model)] = cloned_model
         self._train_model(cloned_model, other_model=models[other_index])
         self.model_cache[(self.create_model, *self._model_kwargs.values(),
                           utils.keras_model_weights_to_bytes(cloned_model))] = cloned_model
@@ -242,6 +245,7 @@ class ModelFreeLearningPolicy(QPolicy):
     def get_or_create_model(self, serialized_model: Optional[bytes] = None) -> keras.Model:
         if serialized_model is None:
             model = self.create_model(**self._model_kwargs)
+            weak_model_tracker[id(model)] = model
             key = (self.create_model, *self._model_kwargs.values(),
                    utils.keras_model_weights_to_bytes(model))
             self.model_cache[key] = model
@@ -253,6 +257,7 @@ class ModelFreeLearningPolicy(QPolicy):
             except KeyError:
                 self.model_cache[key] = self.create_model(**self._model_kwargs,
                                                           serialized_model=serialized_model)
+                weak_model_tracker[id(model)] = model
                 return self.model_cache[key]
 
 
