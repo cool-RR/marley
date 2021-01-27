@@ -72,24 +72,31 @@ class ModelJockey(collections.abc.Mapping):
     def max_size(self) -> int:
         return self.serialized_model_to_model.get_size()
 
-    def __getitem__(self, serialized_model: Optional[bytes]) -> keras.Model:
+    def __getitem__(self, serialized_model: bytes) -> keras.Model:
         try:
             return self.serialized_model_to_model[serialized_model]
         except KeyError:
             model = self.model_spec()
-            if serialized_model is not None:
-                _deserialize_to_model(model, serialized_model)
+            _deserialize_to_model(model, serialized_model)
 
             self.weak_model_tracker[id(model)] = model
             self.model_to_serialized_model[model] = serialized_model
             self.serialized_model_to_model[serialized_model] = model
             return model
 
+
     def get_random_model(self) -> keras.Model:
-        return self[None]
+        model = self.model_spec()
+        serialized_model = _serialize_model(model)
+
+        self.weak_model_tracker[id(model)] = model
+        self.model_to_serialized_model[model] = serialized_model
+        self.serialized_model_to_model[serialized_model] = model
+        return model
+
 
     def get_random_serialized_model(self) -> keras.Model:
-        return self.model_to_serialized_model[self[None]]
+        return self.model_to_serialized_model[self.get_random_model()]
 
     def __iter__(self) -> Iterator[bytes]:
         return iter(self.serialized_model_to_model)
