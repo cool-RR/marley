@@ -749,8 +749,7 @@ class Policy(_GridRoyalePolicy, gamey.ModelFreeLearningPolicy):
         gamey.ModelFreeLearningPolicy.__init__(self, training_period=training_period, **kwargs)
 
     @staticmethod
-    def create_model(observation_neural_dtype: np.dtype, action_n_neurons: int,
-                     serialized_model: Optional[bytes] = None) -> keras.Model:
+    def create_model(observation_neural_dtype: np.dtype, action_n_neurons: int) -> keras.Model:
 
         grid_input = keras.Input(
             shape=observation_neural_dtype['grid'].shape,
@@ -794,13 +793,13 @@ class Policy(_GridRoyalePolicy, gamey.ModelFreeLearningPolicy):
         model = keras.Model([grid_input, sequential_input], output)
         model.compile(optimizer='rmsprop', loss='mse', metrics=['accuracy'])
 
-        # todo: I believe the logic below should not be in the `create_model` method, which is meant
-        # to be overridden.
-        if serialized_model is None:
-            gamey.utils.keras_model_weights_to_bytes(model) # Save to cache
-        else:
-            gamey.utils.load_keras_model_weights_from_bytes(model, serialized_model,
-                                                            save_to_cache=False)
+        # # todo: I believe the logic below should not be in the `create_model` method, which is meant
+        # # to be overridden.
+        # if serialized_model is None:
+            # gamey.utils.keras_model_weights_to_bytes(model) # Save to cache
+        # else:
+            # gamey.utils.load_keras_model_weights_from_bytes(model, serialized_model,
+                                                            # save_to_cache=False)
 
         return model
 

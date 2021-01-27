@@ -72,15 +72,15 @@ class ModelJockey(collections.abc.Mapping):
                 self.model_to_serialized_model[model] = serialized_model = path.read_bytes()
                 return serialized_model
 
-    def load_keras_model_weights_from_bytes(model: keras.Model,
-                                            weights: collections.abc.ByteString, *,
-                                            save_to_cache: bool = True) -> None:
-        with tempfile.TemporaryDirectory() as temp_folder:
-            path = pathlib.Path(temp_folder) / 'model.h5'
-            path.write_bytes(weights)
-            model.load_weights(path)
-            if save_to_cache:
-                model._cached_serialized_model = weights
+    # def load_keras_model_weights_from_bytes(model: keras.Model,
+                                            # weights: collections.abc.ByteString, *,
+                                            # save_to_cache: bool = True) -> None:
+        # with tempfile.TemporaryDirectory() as temp_folder:
+            # path = pathlib.Path(temp_folder) / 'model.h5'
+            # path.write_bytes(weights)
+            # model.load_weights(path)
+            # if save_to_cache:
+                # model._cached_serialized_model = weights
 
 
 
@@ -268,8 +268,7 @@ class ModelFreeLearningPolicy(QPolicy):
     model_jockey = ModelJockey(30)
 
     @staticmethod
-    def create_model(observation_neural_dtype: np.dtype, action_n_neurons: int,
-                     serialized_model: Optional[bytes] = None) -> keras.Model:
+    def create_model(observation_neural_dtype: np.dtype, action_n_neurons: int) -> keras.Model:
         if tuple(observation_neural_dtype.fields) != ('sequential',):
             raise MustDefineCustomModel
         model = keras.models.Sequential(
@@ -296,15 +295,16 @@ class ModelFreeLearningPolicy(QPolicy):
             ),
         )
         model.compile(optimizer='rmsprop', loss='mse', metrics=['accuracy'])
-        # todo: I believe the logic below should not be in the `create_model` method, which is meant
-        # to be overridden.
-        if serialized_model is None:
-            utils.keras_model_weights_to_bytes(model) # Save to cache
-        else:
-            utils.load_keras_model_weights_from_bytes(model, serialized_model,
-                                                      save_to_cache=False)
+        # # todo: I believe the logic below should not be in the `create_model` method, which is meant
+        # # to be overridden.
+        # if serialized_model is None:
+            # utils.keras_model_weights_to_bytes(model) # Save to cache
+        # else:
+            # utils.load_keras_model_weights_from_bytes(model, serialized_model,
+                                                      # save_to_cache=False)
 
         return model
+
 
 
     def get_or_create_model(self, serialized_model: Optional[bytes] = None) -> keras.Model:
