@@ -755,7 +755,7 @@ class Policy(_GridRoyalePolicy, gamey.ModelFreeLearningPolicy):
 
         grid_input = keras.Input(
             shape=observation_neural_dtype['grid'].shape,
-            name='grid_input'
+            name='grid'
         )
         grid_0 = keras.layers.Conv2D(
             16, 2, activation='relu',
@@ -776,7 +776,7 @@ class Policy(_GridRoyalePolicy, gamey.ModelFreeLearningPolicy):
 
         sequential_input = keras.Input(
             shape=observation_neural_dtype['sequential'].shape,
-            name='sequential_input'
+            name='sequential'
         )
 
         concatenate_layer = keras.layers.concatenate([grid_output, sequential_input])
