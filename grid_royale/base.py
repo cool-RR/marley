@@ -873,17 +873,17 @@ def serve(*, host: str, port: str) -> None:
 
 @grid_royale.command()
 @click.argument('game_name', default='blackjack')
-@click.option('--n-training-games', default=1_000)
+@click.option('--n-training-states', default=10_000)
 @click.option('--n-evaluation-games', default=100)
-def sample(game_name: str, n_training_games: int, n_evaluation_games: int):
+def sample(game_name: str, n_training_states: int, n_evaluation_games: int):
     assert re.match('^[a-z_][a-z0-9_]{1,100}', game_name)
-    from grid_royale.gamey.sample_games import blackjack, griddler
+    from grid_royale.gamey.sample_games import blackjack# , griddler
     games = {
         'blackjack': blackjack,
-        'griddler': griddler,
+        # 'griddler': griddler,
     }
     game = games[game_name]
-    game.demo(n_training_games=n_training_games,
+    game.demo(n_training_states=n_training_states,
               n_evaluation_games=n_evaluation_games)
 
 @grid_royale.command()
