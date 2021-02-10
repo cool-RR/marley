@@ -24,36 +24,46 @@ import keras.models
 import tensorflow as tf
 import numpy as np
 
-from .strategizing import Strategy
-from .base import Observation, Action, ActionObservation
+from .policing import Policy
+from .base import Observation, Action
 from . import utils
 
 
-class ModelBasedEpisodicLearningStrategy(Strategy):
-    '''
-    Model-based episodic learning strategy.
+@dataclasses.dataclass(order=True, frozen=True)
+class ActionObservation(utils.NiceDataclass):
+    action: Optional[Action]
+    observation: Observation
 
-    This strategy assumes we're playing full episodes to the end, and there is no reward
+
+
+class ModelBasedEpisodicLearningPolicy(Policy):
+    '''
+    Model-based episodic learning policy.
+
+    This policy assumes we're playing full episodes to the end, and there is no reward
     discounting.
     '''
-    def __init__(self, curiosity: numbers.Real = 2, gamma: numbers.Real = 0.9) -> None:
+    def __init__(self, curiosity: numbers.Real = 2) -> None:
         self.reward_map = RewardMap()
         self.curiosity = curiosity
-        self.gamma = gamma
         self.action_observation_chains_lists = collections.defaultdict(list)
 
+    def get_next_policy(self, old_observation: Observation, action: Action, reward: numbers.Number,
+                        new_observation: Observation) -> Policy:
+        # Gotta call self.train in an immutable way
+        raise NotImplementedError
 
-    def decide_action_for_observation(self, observation: Observation) -> Action:
-        action = max(
+    def get_next_action(self, observation: Observation) -> Action:
+        return max(
             observation.legal_actions,
             key=lambda action: self.reward_map.get_ucb(
                 observation, action, curiosity=self.curiosity
             )
         )
-        return action
 
     def train(self, observation: Observation, action: Action,
               next_observation: Observation) -> None:
+        raise fuck
 
         action_observation_chains = self.action_observation_chains_lists[observation]
         try:
@@ -63,7 +73,7 @@ class ModelBasedEpisodicLearningStrategy(Strategy):
 
         action_observation_chain.append(ActionObservation(action, next_observation))
 
-        if next_observation.is_end:
+        if next_observation.state.is_end:
             total_reward = 0
             for new_action_observation, old_action_observation in \
                                    utils.iterate_windowed_pairs(reversed(action_observation_chain)):

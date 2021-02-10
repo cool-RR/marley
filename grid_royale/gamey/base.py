@@ -28,12 +28,6 @@ from . import exceptions
 
 
 
-@dataclasses.dataclass(order=True, frozen=True)
-class ActionObservation(utils.NiceDataclass):
-    action: Optional[Action]
-    observation: Observation
-
-
 class _ActionType(abc.ABCMeta):# collections.abc.Sequence):
     __iter__ = lambda cls: iter(cls.all_actions)
     __len__ = lambda cls: len(cls.all_actions)
@@ -87,7 +81,7 @@ class Action(metaclass=_ActionType):
             return self._to_neural
 
     @classmethod
-    def from_neural(cls, neurons: Iterable) -> Action:
+    def from_neural(cls, neural: Iterable) -> Action:
         # Implementation for simple discrete actions. Can override.
         return cls[tuple(neural).index(1)]
 
@@ -104,8 +98,7 @@ class ActionEnum(Action, enum.Enum, metaclass=_ActionEnumType):
 class Observation(abc.ABC):
     state: State
     legal_actions: Tuple[Action, ...]
-    is_end: bool
-    reward: numbers.Real
+    neural_dtype: np.dtype
 
     @abc.abstractmethod
     def to_neural(self) -> np.ndarray:
@@ -114,45 +107,13 @@ class Observation(abc.ABC):
 
 PlayerId = TypeVar('PlayerId', bound=Hashable)
 
-class State(abc.ABC):
-    Observation: Type[Observation]
-    Action: Type[Action]
-    is_end: bool
-    player_id_to_observation: ImmutableDict[PlayerId, Observation]
 
-    @abc.abstractmethod
-    def get_next_state_from_actions(self, player_id_to_action: Mapping[PlayerId, Action]) -> State:
-        raise NotImplementedError
-
-    @staticmethod
-    @abc.abstractmethod
-    def make_initial() -> State:
-        '''Create an initial world state that we can start playing with.'''
-        raise NotImplementedError
+@dataclasses.dataclass(order=True, frozen=True)
+class Story:
+    old_observation: Observation
+    action: Action
+    reward: numbers.Number
+    new_observation: Observation
 
 
-class _SinglePlayerStateType(abc.ABCMeta):
-    @property
-    def Observation(cls) -> _SinglePlayerStateType:
-        return cls
-
-
-class SinglePlayerState(State, Observation, metaclass=_SinglePlayerStateType):
-
-    player_id_to_observation = property(lambda self: ImmutableDict({None: self}))
-
-
-    @abc.abstractmethod
-    def get_next_state_from_action(self, action: Action) -> SinglePlayerState:
-        raise NotImplementedError
-
-    def get_next_state_from_actions(self, player_id_to_action: Mapping[PlayerId, Action]) \
-                                                                               -> SinglePlayerState:
-        return self.get_next_state_from_action(more_itertools.one(player_id_to_action.values()))
-
-
-
-
-
-from . import strategizing
-
+from .aggregating import State

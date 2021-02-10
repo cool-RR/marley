@@ -49,9 +49,9 @@ def animate(states: Iterable[State]) -> Iterator[dict]:
         #                                                                                          #
         players = []
 
-        for letter, old_observation in old_state.player_id_to_observation.items():
+        for letter, old_observation in old_state.items():
             old_observation: Observation
-            new_observation: Observation = new_state.player_id_to_observation[letter]
+            new_observation: Observation = new_state[letter]
             players.append((
                 letter, (tuple(old_observation.position), tuple(new_observation.position)),
                 (color_map[old_observation.reward], color_map[new_observation.reward]), (1, 1),

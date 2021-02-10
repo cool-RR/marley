@@ -4,173 +4,237 @@
 from __future__ import annotations
 
 import random
+import weakref
 import concurrent.futures
 import numbers
+import functools
+import collections.abc
 from typing import (Iterable, Union, Optional, Tuple, Any, Iterator, Type,
-                    Sequence, Callable)
+                    Sequence, Callable, Mapping, MutableMapping)
+import hashlib
 import weakref
+import dataclasses
+import pathlib
+import tempfile
 
 import keras.models
 import more_itertools
 import numpy as np
+from python_toolbox.combi import ChainSpace # Must remove this dependency
+import lru # todo: probably replace
 
-from .base import Observation, Action, ActionObservation
-from .strategizing import Strategy, QStrategy
+from .base import Observation, Action, Story
+from .policing import Policy, QPolicy
 from . import utils
+from .timelining import Timeline, StoryDoesntFitInTimeline
 
-BATCH_SIZE = 64
+DEFAULT_MAX_BATCH_SIZE = 64
+DEFAULT_MAX_PAST_MEMORY_SIZE = 1_000
 
-def _fit_external(model: keras.Model, *args, **kwargs) -> list:
-    model.fit(*args, **kwargs)
-    return model.get_weights()
-
-class TrainingData:
-    def __init__(self, model_free_learning_strategy: ModelFreeLearningStrategy, *,
-                 max_size: int = 5_000) -> None:
-
-        self.model_free_learning_strategy = model_free_learning_strategy
-        self.model: Optional[keras.Model] = None
-
-        self.max_size = max_size
-        self.counter = 0
-        self._last_trained_batch = 0
-        self.old_observation_neuron_array = None
-        self.new_observation_neuron_array = None
-        self.action_neuron_array = None
-        self.reward_array = np.zeros(max_size)
-        self.are_not_end_array = np.zeros(max_size)
-        self.other_training_data = self
-        self._created_arrays_and_model = False
-
-    def _create_arrays_and_model(self, observation: Observation, action: Action,):
-        self.model = self.model_free_learning_strategy.create_model(observation, action)
-        observation_neural = observation.to_neural()
-        self.old_observation_neuron_array = np.zeros(
-            (self.max_size,), dtype=observation_neural.dtype
-        )
-        self.new_observation_neuron_array = np.zeros(
-            self.old_observation_neuron_array.shape,
-            dtype=observation_neural.dtype
-        )
-        self.action_neuron_array = np.zeros(
-            (self.max_size, type(action).n_neurons)
-        )
-        self._created_arrays_and_model = True
+class MustDefineCustomModel(NotImplementedError):
+    pass
 
 
+@dataclasses.dataclass(frozen=True)
+class ModelSpec:
+    create_model: Callable
+    observation_neural_dtype: np.dtype
+    action_n_neurons: int
 
-    def add_and_maybe_train(self, observation: Observation, action: Action,
-                            next_observation: Observation) -> None:
-        if not self._created_arrays_and_model:
-            self._create_arrays_and_model(observation, action)
-        self.old_observation_neuron_array[self.counter_modulo] = observation.to_neural()
-        self.action_neuron_array[self.counter_modulo] = action.to_neural()
-        self.new_observation_neuron_array[self.counter_modulo] = next_observation.to_neural()
-        self.reward_array[self.counter_modulo] = next_observation.reward
-        self.are_not_end_array[self.counter_modulo] = int(not next_observation.is_end)
-        self.counter += 1
-
-        if self.is_training_time():
-
-            n_actions = len(self.model_free_learning_strategy.State.Action)
-
-            pre_slicer = ((lambda x: x) if self.filled_max_size else
-                          (lambda x: x[:self.counter_modulo]))
-            random_indices = np.random.choice(
-                self.max_size if self.filled_max_size else self.counter_modulo,
-                BATCH_SIZE
-            )
-            slicer = lambda x: pre_slicer(x)[random_indices]
-
-            old_observation_neurals = slicer(self.old_observation_neuron_array)
-            new_observation_neurals = slicer(self.new_observation_neuron_array)
-            action_neurals = slicer(self.action_neuron_array)
-            are_not_ends = slicer(self.are_not_end_array)
-            rewards = slicer(self.reward_array)
-            n_data_points = old_observation_neurals.shape[0]
-
-            prediction = self.predict(
-                np.concatenate((old_observation_neurals, new_observation_neurals))
-            )
-            wip_q_values, new_q_values = np.split(prediction, 2)
-            new_other_q_values = self.other_training_data.predict(
-                new_observation_neurals
-            )
-
-            # Assumes discrete actions:
-            action_indices = np.dot(action_neurals, range(n_actions)).astype(np.int32)
-
-            batch_index = np.arange(n_data_points, dtype=np.int32)
-            wip_q_values[batch_index, action_indices] = (
-                rewards + self.model_free_learning_strategy.gamma * are_not_ends *
-                new_other_q_values[np.arange(new_q_values.shape[0]),
-                                   np.argmax(new_q_values, axis=1)]
-
-            )
+    def __call__(self) -> keras.Model:
+        return self.create_model(self.observation_neural_dtype, self.action_n_neurons)
 
 
-            fit_arguments = {
-                'x': {name: old_observation_neurals[name] for name
-                      in old_observation_neurals.dtype.names},
-                'y': wip_q_values,
-                'verbose': 0,
-            }
+def _serialize_model(model: keras.Model) -> bytes:
+    with tempfile.TemporaryDirectory() as temp_folder:
+        path = pathlib.Path(temp_folder) / 'model.h5'
+        model.save_weights(path, save_format='h5')
+        return path.read_bytes()
 
-            self.model.fit(**fit_arguments)
-
-            self.mark_trained()
+def _deserialize_to_model(model: keras.Model,
+                          serialized_model: collections.abc.ByteString) -> None:
+    with tempfile.TemporaryDirectory() as temp_folder:
+        path = pathlib.Path(temp_folder) / 'model.h5'
+        path.write_bytes(serialized_model)
+        model.load_weights(path)
 
 
 
 
-    def is_training_time(self) -> bool:
-        n_batches = self.counter // self.model_free_learning_strategy.training_batch_size
-        return n_batches > self._last_trained_batch
-
-
-    def mark_trained(self) -> None:
-        self._last_trained_batch = \
-                               self.counter // self.model_free_learning_strategy.training_batch_size
-        assert not self.is_training_time()
+class ModelJockey(collections.abc.Mapping):
+    def __init__(self, model_spec: ModelSpec, max_size: int = 5) -> None:
+        self.model_spec = model_spec
+        self.weak_model_tracker = weakref.WeakValueDictionary()
+        self.model_to_serialized_model = utils.WeakKeyIdentityDict()
+        self.serialized_model_to_model = lru.LRU(max_size)
 
     @property
-    def counter_modulo(self) -> int:
-        return self.counter % self.max_size
+    def max_size(self) -> int:
+        return self.serialized_model_to_model.get_size()
 
-    @property
-    def filled_max_size(self) -> bool:
-        return self.counter >= self.max_size
+    def __getitem__(self, serialized_model: bytes) -> keras.Model:
+        try:
+            return self.serialized_model_to_model[serialized_model]
+        except KeyError:
+            model = self.model_spec()
+            _deserialize_to_model(model, serialized_model)
 
-    def predict(self, input_array):
-        return self.model.predict({name: input_array[name] for name in input_array.dtype.names})
+            self.weak_model_tracker[id(model)] = model
+            self.model_to_serialized_model[model] = serialized_model
+            self.serialized_model_to_model[serialized_model] = model
+            return model
+
+
+    def get_random_model(self) -> keras.Model:
+        model = self.model_spec()
+        serialized_model = _serialize_model(model)
+
+        self.weak_model_tracker[id(model)] = model
+        self.model_to_serialized_model[model] = serialized_model
+        self.serialized_model_to_model[serialized_model] = model
+        return model
+
+
+    def get_random_serialized_model(self) -> keras.Model:
+        return self.model_to_serialized_model[self.get_random_model()]
+
+    def __iter__(self) -> Iterator[bytes]:
+        return iter(self.serialized_model_to_model)
+
+    def __len__(self) -> int:
+        return len(self.serialized_model_to_model)
+
+
+    def serialize_model(self, model: keras.Model) -> bytes:
+        try:
+            return self.model_to_serialized_model[model]
+        except AttributeError:
+            self.model_to_serialized_model[model] = serialized_model = _serialize_model(model)
+            return serialized_model
+
+
+    def clone_model_and_train(self, serialized_model: bytes,
+                              train: Callable[[keras.Model], None]) -> bytes:
+        if len(self) < self.max_size:
+            model = self.model_spec()
+        else:
+            # Todo: Two race condition: Peek and get, and someone using this model elsewhere
+            oldest_serialized_model, model = self.serialized_model_to_model.peek_last_item()
+            del self.serialized_model_to_model[oldest_serialized_model]
+            del self.model_to_serialized_model[model]
+
+        _deserialize_to_model(model, serialized_model)
+        train(model)
+        new_serialized_model = _serialize_model(model)
+
+        self.weak_model_tracker[id(model)] = model
+        self.model_to_serialized_model[model] = new_serialized_model
+        self.serialized_model_to_model[new_serialized_model] = model
+
+        return new_serialized_model
+
+
+
+class ModelMegaJockey(collections.abc.Mapping):
+
+    def __init__(self):
+        self._dict = {}
+
+    def __len__(self) -> int:
+        return len(self._dict)
+
+    def __iter__(self) -> Iterator[ModelSpec]:
+        return iter(self._dict)
+
+    def __getitem__(self, model_spec: ModelSpec) -> ModelJockey:
+        try:
+            return self._dict[model_spec]
+        except KeyError:
+            self._dict[model_spec] = model_jockey = ModelJockey(model_spec)
+            return model_jockey
+
+
+model_mega_jockey = ModelMegaJockey()
+
+class ModelManager(collections.abc.Sequence):
+    def __init__(self, model_free_learning_policy: ModelFreeLearningPolicy) -> None:
+        self.model_free_learning_policy = model_free_learning_policy
+
+    def __len__(self):
+        return len(self.model_free_learning_policy.serialized_models)
+
+    def __getitem__(self, i: Union[int, slice]) -> keras.Model:
+        if isinstance(i, slice):
+            raise NotImplementedError
+        assert isinstance(i, int)
+        return self.model_free_learning_policy.model_jockey[
+            self.model_free_learning_policy.serialized_models[i]
+        ]
 
 
 
 
+class ModelFreeLearningPolicy(QPolicy):
+    def __init__(self, *, action_type: Optional[Type[Action]] = None,
+                 observation: Optional[Union[Observation, Type[Observation]]] = None,
+                 observation_neural_dtype: Optional[np.dtype] = None,
+                 serialized_models: Optional[Sequence[bytes]] = None,
+                 epsilon: numbers.Real = 0.1, gamma: numbers.Real = 0.9, training_counter: int = 0,
+                 training_period: numbers.Real = 100, n_models: int = 2,
+                 timelines: Iterable[Timeline] = (),
+                 ) -> None:
+        if action_type is None:
+            assert self.Action is not None
+        else:
+            self.Action = action_type
 
-class ModelFreeLearningStrategy(QStrategy):
-    def __init__(self, *, epsilon: numbers.Real = 0.1, gamma: numbers.Real = 0.9,
-                 training_batch_size: int = 100, n_models: int = 2) -> None:
+        if observation_neural_dtype is not None:
+            assert observation is None
+            self.observation_neural_dtype = observation_neural_dtype
+        elif observation is not None:
+            self.observation_neural_dtype = observation.neural_dtype
+        elif hasattr(self, 'Observation'):
+            self.observation_neural_dtype = self.Observation.neural_dtype
+        else:
+            assert self.observation_neural_dtype is not None # Defined as class attribute
+
         self.epsilon = epsilon
         self.gamma = gamma
-        self._fit_future: Optional[concurrent.futures.Future] = None
-
-        self.training_batch_size = training_batch_size
-        self.training_datas = tuple(TrainingData(self) for _ in range(n_models))
-        for left_training_data, right_training_data in utils.iterate_windowed_pairs(
-                                                   self.training_datas + (self.training_datas[0],)):
-            left_training_data.other_training_data = right_training_data
+        self.training_counter = training_counter
+        self.training_period = training_period
+        if serialized_models is None:
+            self.serialized_models = tuple(self.model_jockey.get_random_serialized_model()
+                                           for _ in range(n_models))
+        else:
+            assert len(serialized_models) == n_models
+            self.serialized_models = tuple(serialized_models)
 
         self.q_map_cache = weakref.WeakKeyDictionary()
+        self.timelines = tuple(timelines)
+        self.fingerprint = hashlib.sha512(b''.join(self.serialized_models)).hexdigest()[:6]
+        self.models = ModelManager(self)
 
+    @property
+    def _model_kwargs(self):
+        return dict(observation_neural_dtype=self.observation_neural_dtype,
+                    action_n_neurons=self.Action.n_neurons)
 
+    @property
+    def _model_spec(self):
+        return ModelSpec(self.create_model, **self._model_kwargs)
 
-    def train(self, observation: Observation, action: Action,
-              next_observation: Observation) -> None:
-
-        training_data = random.choice(self.training_datas)
-        training_data.add_and_maybe_train(observation, action, next_observation)
-
+    def _get_clone_kwargs(self):
+        return {
+            'epsilon': self.epsilon,
+            'gamma': self.gamma,
+            'training_counter': self.training_counter,
+            'training_period': self.training_period,
+            'serialized_models': self.serialized_models,
+            'n_models': len(self.models),
+            'timelines': self.timelines,
+            'action_type': self.Action,
+            'observation_neural_dtype': self.observation_neural_dtype,
+        }
 
     def get_qs_for_observations(self, observations: Sequence[Observation] = None) \
                                                             -> Tuple[Mapping[Action, numbers.Real]]:
@@ -178,12 +242,9 @@ class ModelFreeLearningStrategy(QStrategy):
         if observation_neurals:
             assert utils.is_structured_array(observation_neurals[0])
         input_array = np.concatenate(observation_neurals)
-        training_data = random.choice(self.training_datas)
-        if training_data.model is None:
-            prediction_output = np.random.rand(input_array.shape[0], self.State.Action.n_neurons)
-        else:
-            prediction_output = training_data.predict(input_array)
-        actions = tuple(self.State.Action)
+        model = random.choice(self.models)
+        prediction_output = self.predict(model, input_array)
+        actions = tuple(self.Action)
         return tuple(
             {action: q for action, q in dict(zip(actions, output_row)).items()
              if (action in observation.legal_actions)}
@@ -191,10 +252,74 @@ class ModelFreeLearningStrategy(QStrategy):
         )
 
 
+    def get_next_policy(self, story: Story) -> ModelFreeLearningPolicy:
+        clone_kwargs = self._get_clone_kwargs()
 
-    def decide_action_for_observation(self, observation: Observation, *,
-                                       forced_epsilon: Optional[numbers.Real] = None) -> Action:
-        epsilon = self.epsilon if forced_epsilon is None else forced_epsilon
+        timelines = list(self.timelines)
+        try:
+            timelines[-1] += story
+        except StoryDoesntFitInTimeline:
+            timelines.append(Timeline.make_initial(story))
+        except IndexError:
+            if timelines:
+                raise
+            timelines.append(Timeline.make_initial(story))
+
+        clone_kwargs['timelines'] = tuple(timelines)
+
+        if self.training_counter + 1 == self.training_period: # It's training time!
+            clone_kwargs['training_counter'] == 0
+            clone_kwargs['serialized_models'] = self.train_model_and_cycle()
+
+        else:  # It's not training time.
+            clone_kwargs['training_counter'] += 1
+        return type(self)(**clone_kwargs)
+
+
+    def clone_and_train(self, n: int = 1, *, max_batch_size: int = DEFAULT_MAX_BATCH_SIZE,
+                        max_past_memory_size: int = DEFAULT_MAX_PAST_MEMORY_SIZE) -> \
+                                                                            ModelFreeLearningPolicy:
+        clone_kwargs = self._get_clone_kwargs()
+
+        clone_kwargs['training_counter'] = 0
+
+        for _ in range(n):
+            clone_kwargs['serialized_models'] = self.train_model_and_cycle(
+                clone_kwargs['serialized_models'],
+                max_batch_size=max_batch_size,
+                max_past_memory_size=max_past_memory_size,
+            )
+
+        return type(self)(**clone_kwargs)
+
+
+    def clone_without_timelines(self) -> ModelFreeLearningPolicy:
+        clone_kwargs = {
+            **self._get_clone_kwargs(),
+            'timelines': (),
+        }
+        return type(self)(**clone_kwargs)
+
+
+
+    def train_model_and_cycle(self, serialized_models: Optional[Tuple[bytes]] = None,
+                        max_batch_size: int = DEFAULT_MAX_BATCH_SIZE,
+                        max_past_memory_size: int = DEFAULT_MAX_PAST_MEMORY_SIZE) -> Tuple[bytes]:
+        serialized_models = (self.serialized_models if serialized_models is None
+                             else serialized_models)
+        train_model = lambda model: self._train_model(
+            model, other_model=self.model_jockey[serialized_models[-1]],
+            max_batch_size=max_batch_size, max_past_memory_size=max_past_memory_size
+        )
+        serialized_trained_model = self.model_jockey.clone_model_and_train(
+            serialized_models[0], train_model
+        )
+        return serialized_models[1:] + (serialized_trained_model,)
+
+
+
+    def get_next_action(self, observation: Observation) -> Action:
+        epsilon = self.epsilon
         if (epsilon > 0) and (epsilon == 1 or epsilon > random.random()):
             # The verbose condition above is an optimized version of `if epsilon > random.random():`
             return random.choice(observation.legal_actions)
@@ -204,6 +329,8 @@ class ModelFreeLearningStrategy(QStrategy):
             except KeyError:
                 q_map = self.q_map_cache[observation] = self.get_qs_for_observation(observation)
             return max(q_map, key=q_map.__getitem__)
+
+
 
 
     def get_observation_v(self, observation: Observation,
@@ -219,14 +346,22 @@ class ModelFreeLearningStrategy(QStrategy):
             weights=(1 - epsilon, epsilon)
         )
 
-    def _extra_repr(self) -> str:
-        return f'(<...>, n_models={len(self.training_datas)})'
+    def __repr__(self) -> str:
+        return f'<{type(self).__name__}: {self.fingerprint}>'
 
-    def create_model(self, observation: Observation, action: Action) -> keras.Model:
+    @property
+    def model_jockey(self) -> ModelJockey:
+        return model_mega_jockey[self._model_spec]
+
+
+    @staticmethod
+    def create_model(observation_neural_dtype: np.dtype, action_n_neurons: int) -> keras.Model:
+        if tuple(observation_neural_dtype.fields) != ('sequential',):
+            raise MustDefineCustomModel
         model = keras.models.Sequential(
             layers=(
                 keras.layers.Input(
-                    shape=observation.to_neural()[0]['sequential'].shape,
+                    shape=observation_neural_dtype['sequential'].shape,
                     name='sequential'
                 ),
                 keras.layers.Dense(
@@ -242,12 +377,87 @@ class ModelFreeLearningStrategy(QStrategy):
                 ),
                 keras.layers.Dropout(rate=0.1),
                 keras.layers.Dense(
-                    action.to_neural().shape[0] # activation='relu'
+                    action_n_neurons # activation='relu'
                 ),
             ),
         )
         model.compile(optimizer='rmsprop', loss='mse', metrics=['accuracy'])
+
         return model
 
 
+    def predict(self, model: keras.Model, input_array: np.ndarray) -> np.ndarray:
+        return model.predict({name: input_array[name] for name in input_array.dtype.names})
 
+
+    def _train_model(self, model: keras.Model, *, other_model: keras.Model,
+                     max_batch_size: int = DEFAULT_MAX_BATCH_SIZE,
+                     max_past_memory_size: int = DEFAULT_MAX_PAST_MEMORY_SIZE) -> None:
+
+        ### Getting a random selection of stories to train on: #####################################
+        #                                                                                          #
+        past_memory = ChainSpace(map(reversed, reversed(self.timelines)))
+        foo = min(max_past_memory_size, len(past_memory))
+        batch_size = min(max_batch_size, foo)
+        indices = utils.random_ints_in_range(0, foo, batch_size)
+        stories = tuple(past_memory[index] for index in indices)
+        #                                                                                          #
+        ### Finished getting a random selection of stories to train on. ############################
+
+        ### Initializing arrays: ###################################################################
+        #                                                                                          #
+        old_observation_neural_array = np.zeros(
+            (batch_size,), dtype=self.observation_neural_dtype
+        )
+        action_neural_array = np.zeros(
+            (batch_size, self.Action.n_neurons), dtype=bool
+        )
+        reward_array = np.zeros(batch_size)
+        new_observation_neural_array = np.zeros(
+            (batch_size,), dtype=self.observation_neural_dtype
+        )
+        are_not_end_array = np.zeros(batch_size, dtype=bool)
+
+        for i, story in enumerate(stories):
+            story: Story
+            old_observation_neural_array[i] = story.old_observation.to_neural()
+            action_neural_array[i] = story.action.to_neural()
+            reward_array[i] = story.reward
+            new_observation_neural_array[i] = story.new_observation.to_neural()
+            are_not_end_array[i] = not story.new_observation.state.is_end
+
+        #                                                                                          #
+        ### Finished initializing arrays. ##########################################################
+
+        prediction = self.predict(
+            model,
+            np.concatenate((old_observation_neural_array, new_observation_neural_array))
+        )
+        wip_q_values, new_q_values = np.split(prediction, 2)
+
+        if other_model is model:
+            new_other_q_values = new_q_values
+        else:
+            new_other_q_values = self.predict(
+                other_model,
+                new_observation_neural_array
+            )
+
+
+        action_indices = np.dot(action_neural_array, range(self.Action.n_neurons)).astype(np.int32)
+        batch_index = np.arange(batch_size, dtype=np.int32)
+        wip_q_values[batch_index, action_indices] = (
+            reward_array + self.gamma * are_not_end_array *
+            new_other_q_values[np.arange(new_q_values.shape[0]),
+                               np.argmax(new_q_values, axis=1)]
+        )
+
+
+        fit_arguments = {
+            'x': {name: old_observation_neural_array[name] for name
+                  in old_observation_neural_array.dtype.names},
+            'y': wip_q_values,
+            'verbose': 0,
+        }
+
+        model.fit(**fit_arguments)
