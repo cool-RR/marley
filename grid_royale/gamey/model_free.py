@@ -458,6 +458,7 @@ class ModelFreeLearningPolicy(QPolicy):
                   in old_observation_neural_array.dtype.names},
             'y': wip_q_values,
             'verbose': 0,
+            'epochs': 10,
         }
 
         model.fit(**fit_arguments)
