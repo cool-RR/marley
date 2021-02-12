@@ -83,12 +83,4 @@ def shuffled(sequence: Sequence) -> list:
     random.shuffle(sequence_copy)
     return sequence_copy
 
-def random_ints_in_range(start: int, stop: int, n: int) -> Tuple[int]:
-    if n > (stop - start):
-        raise ValueError
-    result = set()
-    while len(result) < n:
-        result.add(random.randint(start, stop - 1))
-    return tuple(sorted(result))
-
 
