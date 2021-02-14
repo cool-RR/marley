@@ -287,6 +287,21 @@ class LazyTuple(collections.abc.Sequence):
             return hash(tuple(self))
 
 
+def massage_iterable(iterable, unallowed_types=(bytes,)):
+    '''
+    Return a version of `iterable` that is an immutable sequence.
+
+    If `iterable` is already an immutable sequence, it returns it as is; otherwise, it makes it
+    into a `LazyTuple`.
+    '''
+    assert isinstance(iterable, collections.abc.Iterable)
+    if isinstance(iterable, (collections.abc.MutableSequence, *unallowed_types)) or \
+       not isinstance(iterable, collections.abc.Sequence):
+        return LazyTuple(iterable)
+    else:
+        return iterable
+
+
 
 class ChainSpace(collections.abc.Sequence):
     '''
@@ -308,20 +323,25 @@ class ChainSpace(collections.abc.Sequence):
         4
 
     '''
-    def __init__(self, sequences):
-        self.sequences = LazyTuple(sequences)
+    def __init__(self, iterables):
+        self.sequences = LazyTuple(map(massage_iterable, iterables))
         self.accumulated_lengths = LazyTuple(
             itertools.accumulate(map(len, self.sequences), initial=0)
         )
+        self.accumulated_lengths.exhaust(1)
 
     def __len__(self):
         return self.accumulated_lengths[-1]
 
+    known_length = property(lambda self: self.accumulated_lengths.collected_data[-1])
+
     def __repr__(self):
-        return '<%s: %s>' % (
-            type(self).__name__,
-            '+'.join(str(len(sequence)) for sequence in self.sequences),
-        )
+        if self.sequences.is_exhausted:
+            text = f'Exhausted; {len(self.sequences)} sequences; {len(self)} items'
+        else:
+            text = (f'Not exhausted; >={len(self.sequences.collected_data)} sequences; '
+                    f'>={self.known_length} items')
+        return f'<{type(self).__name__}: {text}>'
 
     def __getitem__(self, i):
         if isinstance(i, slice):

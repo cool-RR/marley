@@ -3,8 +3,8 @@ click>=7.1.2
 flask>=1.1.2
 immutabledict>=1.0.0
 lru-dict>=1.1.7
-more-itertools>=8.5.0
+more-itertools>=8.7.0
 numpy # No version specified because of Tensorflow and MKL shenanigans
-requests>=2.24.0
+requests>=2.25.1
 scipy>=1.5.2
 tensorflow>=2.3.1
