@@ -905,8 +905,8 @@ def play(*, board_size: int, n_players: int, n_food_tiles: int, allow_shooting: 
 
 
 @grid_royale.command()
-@click.option('--n-players', type=int, default=DEFAULT_N_PLAYERS)
-@click.option('--n-food-tiles', type=int, default=DEFAULT_N_FOOD_TILES)
+@click.option('--n-players', type=int, default=3)
+@click.option('--n-food-tiles', type=int, default=5)
 @click.option('--allow-shooting/--no-shooting', default=True)
 @click.option('--allow-walling/--no-walling', default=False)
 @click.option('--browser/--no-browser', 'open_browser', default=True)
