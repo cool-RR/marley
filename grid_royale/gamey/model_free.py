@@ -20,7 +20,6 @@ import tempfile
 import keras.models
 import more_itertools
 import numpy as np
-from python_toolbox.combi import ChainSpace # Must remove this dependency
 import lru # todo: probably replace
 
 from .base import Observation, Action, Story
@@ -396,7 +395,7 @@ class ModelFreeLearningPolicy(QPolicy):
 
         ### Getting a random selection of stories to train on: #####################################
         #                                                                                          #
-        past_memory = ChainSpace(map(reversed, reversed(self.timelines)))
+        past_memory = utils.ChainSpace(map(reversed, reversed(self.timelines)))
         foo = min(max_past_memory_size, len(past_memory))
         batch_size = min(max_batch_size, foo)
         indices = tuple(sorted(random.sample(range(foo), batch_size)))

@@ -15,17 +15,9 @@ import tempfile
 
 import more_itertools
 from immutabledict import immutabledict as ImmutableDict
+from .iterating import *
 from .weak_key_identity_dict import WeakKeyIdentityDict
-
-
-class LastDetectingIterator(more_itertools.peekable):
-    def on_last_item(self):
-        try:
-            self.peek()
-        except StopIteration:
-            return True
-        else:
-            return False
+from .chain_space import ChainSpace
 
 
 def cute_div(x: numbers.Number, y: numbers.Number) -> numbers.Number:
@@ -45,17 +37,6 @@ def clamp(number, /, minimum, maximum):
         return maximum
     else:
         return number
-
-
-def iterate_windowed_pairs(iterable: Iterable) -> Iterator:
-    iterator = iter(iterable)
-    try:
-        old = next(iterator)
-    except StopIteration:
-        return
-    for new in iterator:
-        yield (old, new)
-        old = new
 
 
 class NiceDataclass(collections.abc.Sequence):
