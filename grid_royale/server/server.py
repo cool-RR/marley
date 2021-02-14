@@ -16,7 +16,7 @@ from typing import (Optional, Tuple, Union, Container, Hashable, Iterator,
 
 import flask
 
-from grid_royale.base import get_games_folder
+from grid_royale.core import get_games_folder
 
 
 DEFAULT_HOST = '127.0.0.1'

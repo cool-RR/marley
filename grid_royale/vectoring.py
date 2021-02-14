@@ -14,8 +14,7 @@ from typing import (Optional, Tuple, Union, Container, Hashable, Iterator,
                     Iterable, Any, Dict, FrozenSet)
 import numpy as np
 
-
-from . import base
+from . import core
 
 
 @dataclasses.dataclass(frozen=True)
@@ -60,7 +59,7 @@ class Vector:
 
 class Position(Vector):
     @staticmethod
-    def iterate_all(state_or_board_size: Union[base.Grid, int], /):
+    def iterate_all(state_or_board_size: Union[core.Grid, int], /):
         '''Iterate over all positions in a board of the given size.'''
 
         board_size: int = (state_or_board_size if isinstance(state_or_board_size, int)

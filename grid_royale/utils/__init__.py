@@ -3,6 +3,7 @@
 
 '''A collection of general-purpose tools.'''
 
+from __future__ import annotations
 
 import tempfile
 import shutil
@@ -16,6 +17,8 @@ import threading
 import copyreg
 import contextlib
 from typing import Iterable, Iterator, Hashable
+import time
+import datetime as datetime_module
 
 import tensorflow.compat.v1
 
@@ -320,3 +323,26 @@ def zip(*iterables, strict: bool = False):
         return builtins.zip(*iterables)
     else:
         return _zip_strict(*iterables)
+
+
+class NiceTaskShower:
+    def __init__(self, message: str) -> None:
+        self.message = message
+
+
+    def __enter__(self) -> NiceTaskShower:
+        print(f'{self.message}...', end='')
+        self.start_time = time.monotonic()
+        return self
+
+
+    def dot(self) -> NiceTaskShower:
+        print('.', end='')
+
+    def __exit__(self, exc_type, exc_value, exc_traceback) -> None:
+        end_time = time.monotonic()
+        duration = datetime_module.timedelta(seconds=(end_time - self.start_time))
+        minutes, seconds = map(int, divmod(duration.total_seconds(), 60))
+        word = 'Done' if exc_value is None else 'Failed'
+        print(f' {word} in {minutes}:{seconds:02d} seconds.',)
+

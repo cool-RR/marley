@@ -3,10 +3,16 @@
 
 import os
 import collections
+import logging
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # Avoid TensorFlow spam
+# Avoid TensorFlow spam:
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+logging.getLogger('tensorflow').addFilter(
+    lambda record: 'Tracing is expensive and the excessive' not in record.msg
+)
 
-from .base import *
+from .core import *
+from .commands import grid_royale
 
 __VersionInfo = collections.namedtuple('VersionInfo',
                                        ('major', 'minor', 'micro'))

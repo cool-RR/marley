@@ -14,9 +14,9 @@ def test_simple():
     assert len(game) == 1
     (state_0,) = game.states
     assert isinstance(state_0, State)
-    assert len(state_0.food_positions) == grid_royale.base.DEFAULT_N_FOOD_TILES
+    assert len(state_0.food_positions) == grid_royale.constants.DEFAULT_N_FOOD_TILES
     assert len(state_0) == 1 # One player makes for one observation.
-    assert state_0.board_size == grid_royale.base.DEFAULT_BOARD_SIZE
+    assert state_0.board_size == grid_royale.constants.DEFAULT_BOARD_SIZE
     assert not state_0.is_end
     assert not state_0.bullets
     state_0_again, state_1, state_2 = more_itertools.islice_extended(game)[:3]
