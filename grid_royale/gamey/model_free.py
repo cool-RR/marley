@@ -180,7 +180,7 @@ class ModelFreeLearningPolicy(QPolicy):
                  serialized_models: Optional[Sequence[bytes]] = None,
                  epsilon: numbers.Real = 0.1, gamma: numbers.Real = 0.9, training_counter: int = 0,
                  training_period: numbers.Real = 100, n_models: int = 2,
-                 timelines: Iterable[Timeline] = (),
+                 timelines: Iterable[Timeline] = (), is_static: bool = False,
                  ) -> None:
         if action_type is None:
             assert self.Action is not None
@@ -212,6 +212,8 @@ class ModelFreeLearningPolicy(QPolicy):
         self.timelines = tuple(timelines)
         self.fingerprint = hashlib.sha512(b''.join(self.serialized_models)).hexdigest()[:6]
         self.models = ModelManager(self)
+        self.is_static = is_static
+
 
     @property
     def _model_kwargs(self):
@@ -233,6 +235,7 @@ class ModelFreeLearningPolicy(QPolicy):
             'timelines': self.timelines,
             'action_type': self.Action,
             'observation_neural_dtype': self.observation_neural_dtype,
+            'is_static': self.is_static,
         }
 
     def get_qs_for_observations(self, observations: Sequence[Observation] = None) \
@@ -252,6 +255,9 @@ class ModelFreeLearningPolicy(QPolicy):
 
 
     def get_next_policy(self, story: Story) -> ModelFreeLearningPolicy:
+        if self.is_static:
+            return self
+
         clone_kwargs = self._get_clone_kwargs()
 
 
@@ -273,7 +279,7 @@ class ModelFreeLearningPolicy(QPolicy):
 
         if self.training_counter + 1 == self.training_period: # It's training time!
             clone_kwargs['training_counter'] == 0
-            clone_kwargs['serialized_models'] = self.train_model_and_cycle()
+            clone_kwargs['serialized_models'] = self._train_model_and_cycle()
 
         else:  # It's not training time.
             clone_kwargs['training_counter'] += 1
@@ -283,12 +289,14 @@ class ModelFreeLearningPolicy(QPolicy):
     def clone_and_train(self, n: int = 1, *, max_batch_size: int = DEFAULT_MAX_BATCH_SIZE,
                         max_past_memory_size: int = DEFAULT_MAX_PAST_MEMORY_SIZE) -> \
                                                                             ModelFreeLearningPolicy:
+        assert not self.is_static
+
         clone_kwargs = self._get_clone_kwargs()
 
         clone_kwargs['training_counter'] = 0
 
         for _ in range(n):
-            clone_kwargs['serialized_models'] = self.train_model_and_cycle(
+            clone_kwargs['serialized_models'] = self._train_model_and_cycle(
                 clone_kwargs['serialized_models'],
                 max_batch_size=max_batch_size,
                 max_past_memory_size=max_past_memory_size,
@@ -306,9 +314,10 @@ class ModelFreeLearningPolicy(QPolicy):
 
 
 
-    def train_model_and_cycle(self, serialized_models: Optional[Tuple[bytes]] = None,
-                        max_batch_size: int = DEFAULT_MAX_BATCH_SIZE,
-                        max_past_memory_size: int = DEFAULT_MAX_PAST_MEMORY_SIZE) -> Tuple[bytes]:
+    def _train_model_and_cycle(self, serialized_models: Optional[Tuple[bytes]] = None,
+                               max_batch_size: int = DEFAULT_MAX_BATCH_SIZE,
+                               max_past_memory_size: int = DEFAULT_MAX_PAST_MEMORY_SIZE) -> \
+                                                                                       Tuple[bytes]:
         serialized_models = (self.serialized_models if serialized_models is None
                              else serialized_models)
         train_model = lambda model: self._train_model(
