@@ -254,14 +254,19 @@ class ModelFreeLearningPolicy(QPolicy):
     def get_next_policy(self, story: Story) -> ModelFreeLearningPolicy:
         clone_kwargs = self._get_clone_kwargs()
 
+
         timelines = list(self.timelines)
-        try:
-            timelines[-1] += story
-        except StoryDoesntFitInTimeline:
-            timelines.append(Timeline.make_initial(story))
-        except IndexError:
-            if timelines:
-                raise
+        for timeline in reversed(timelines):
+            try:
+                timeline += story
+            except StoryDoesntFitInTimeline:
+                # This story belongs on a different timeline, keep searching for it:
+                continue
+            else:
+                # We found the right timeline and added the story to it, we're done:
+                break
+        else:
+            # No matching timelines, start a new one:
             timelines.append(Timeline.make_initial(story))
 
         clone_kwargs['timelines'] = tuple(timelines)
