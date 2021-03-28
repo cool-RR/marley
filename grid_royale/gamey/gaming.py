@@ -96,26 +96,8 @@ class Game(collections.abc.Sequence):
 
 
     def __iter__(self) -> Iterator[aggregating.State]:
-
-        self._assert_correct_lengths()
-
-        yield from self.states
-
-        state: aggregating.State = self.states[-1]
-        culture: aggregating.Culture = self.cultures[-1]
-
-        while not state.is_end:
-            activity = culture.get_next_activity(state)
-            self.activities.append(activity)
-
-            payoff, state = state.get_next_payoff_and_state(activity)
-            self.payoffs.append(payoff)
-            self.states.append(state)
-
-            culture = culture.get_next_culture(self.states[-2], activity, payoff, state)
-            self.cultures.append(culture)
-
-            self._assert_correct_lengths()
+        for states in Game.multi_iterate((self,)):
+            (state,) = states
             yield state
 
     def __len__(self) -> int:
@@ -138,5 +120,54 @@ class Game(collections.abc.Sequence):
         for _ in more_itertools.islice_extended(self)[:n]:
             pass
         assert self.states[-1].is_end or len(self.states) == n
+
+
+    @staticmethod
+    def multi_iterate(games: Sequence[Game]) -> Iterator[tuple[Optional[aggregating.State], ...]]:
+
+        for game in games:
+            game._assert_correct_lengths()
+
+        for i in itertools.count():
+            states = [None] * len(games)
+            game_indices_to_play = []
+            for j, game in enumerate(games):
+                try:
+                    states[j] = game.states[i]
+                except IndexError:
+                    game_indices_to_play.append(j)
+
+
+            ###########################################################
+
+            # todo: This is all shit below, gotta replace it:
+
+            yield from self.states
+
+            state: aggregating.State = self.states[-1]
+            culture: aggregating.Culture = self.cultures[-1]
+
+            while not state.is_end:
+                activity = culture.get_next_activity(state)
+                self.activities.append(activity)
+
+                payoff, state = state.get_next_payoff_and_state(activity)
+                self.payoffs.append(payoff)
+                self.states.append(state)
+
+                culture = culture.get_next_culture(self.states[-2], activity, payoff, state)
+                self.cultures.append(culture)
+
+                self._assert_correct_lengths()
+                yield state
+
+            ###########################################################
+
+            if all((state is None) for state in states):
+                return
+            yield tuple(states)
+
+
+
 
 
