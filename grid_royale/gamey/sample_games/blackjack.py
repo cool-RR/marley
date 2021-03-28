@@ -274,6 +274,7 @@ def demo(n_training_states: int = 1_000, n_evaluation_games: int = 100) -> None:
 
     for model_free_learning_policy in (single_model_free_learning_policy,
                                        double_model_free_learning_policy):
+        model_free_learning_policy: ModelFreeLearningPolicy
         print(f'Training {model_free_learning_policy} on {n_training_states:,} states...',
               end='')
         sys.stdout.flush()
