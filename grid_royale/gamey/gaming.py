@@ -159,9 +159,9 @@ class Game(collections.abc.Sequence):
             # it.
 
             q_policy_to_observations = collections.defaultdict(list)
-            iterator = itertools.chain.from_iterable(((game.states[-1] + game.cultures[-1])
+            iterator = itertools.chain.from_iterable(((game.states[-1] + game.cultures[-1]).values()
                                                       for game in games_to_play))
-            for _player_id, observation, policy in iterator:
+            for observation, policy in iterator:
                 if isinstance(policy, policing.QPolicy):
                     q_policy_to_observations[policy].append[observation]
 
