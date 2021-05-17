@@ -163,7 +163,7 @@ class Game(collections.abc.Sequence):
                                                       for game in games_to_play))
             for observation, policy in iterator:
                 if isinstance(policy, policing.QPolicy):
-                    q_policy_to_observations[policy].append[observation]
+                    q_policy_to_observations[policy].append(observation)
 
             for q_policy, observations in q_policy_to_observations.items():
                 q_policy.get_qs_for_observations(observations) # Automatically caches the result.
@@ -172,8 +172,13 @@ class Game(collections.abc.Sequence):
             ### Finished making Q-policies way faster by batching matrix operations. ###############
 
             for j, game in zip(game_indices_to_play, games_to_play):
+                assert state_deck[j] is None
                 state: aggregating.State = game.states[-1]
                 culture: aggregating.Culture = game.cultures[-1]
+
+                if state.is_end:
+                    finished_game_indices.add(j)
+                    continue
 
                 activity = culture.get_next_activity(state)
                 game.activities.append(activity)
@@ -182,7 +187,6 @@ class Game(collections.abc.Sequence):
                 game.payoffs.append(next_payoff)
                 game.states.append(next_state)
 
-                assert state_deck[j] is None
                 state_deck[j] = next_state
 
                 next_culture = culture.get_next_culture(state, activity, next_payoff, next_state)
