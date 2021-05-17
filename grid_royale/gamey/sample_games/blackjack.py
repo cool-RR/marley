@@ -198,18 +198,18 @@ class BlackjackPolicy(gamey.SoloEpisodicPolicy):
 class RandomPolicy(BlackjackPolicy, gamey.RandomPolicy):
     pass
 
-class AlwaysHitPolicy(BlackjackPolicy, gamey.StaticPolicy):
+class AlwaysHitPolicy(BlackjackPolicy, gamey.CategoricallyStubbornPolicy):
     def get_next_action(self, observation: BlackjackState) -> BlackjackAction:
         return (BlackjackAction.hit if (BlackjackAction.hit in observation.legal_actions)
                 else BlackjackAction.wait)
 
-class AlwaysStickPolicy(BlackjackPolicy, gamey.StaticPolicy):
+class AlwaysStickPolicy(BlackjackPolicy, gamey.CategoricallyStubbornPolicy):
     '''A policy that always sticks, no matter what.'''
     def get_next_action(self, observation: BlackjackState) -> BlackjackAction:
         return (BlackjackAction.stick if (BlackjackAction.stick in observation.legal_actions)
                 else BlackjackAction.wait)
 
-class ThresholdPolicy(BlackjackPolicy, gamey.StaticPolicy):
+class ThresholdPolicy(BlackjackPolicy, gamey.CategoricallyStubbornPolicy):
     '''
     A policy that sticks if the sum of cards is below the given threshold.
     '''

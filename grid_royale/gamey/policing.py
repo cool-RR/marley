@@ -37,6 +37,8 @@ class Policy(abc.ABC):
     Your fancy machine-learning code goes here.
     '''
 
+    is_stubborn: bool
+
     @abc.abstractmethod
     def get_next_policy(self, story: aggregating.Story) -> Policy:
         # Put your training logic here, if you wish your policy to have training.
@@ -46,6 +48,10 @@ class Policy(abc.ABC):
     def get_next_action(self, observation: Observation) -> Action:
         raise NotImplementedError
 
+    @abc.abstractmethod
+    def get_stubborn(self) -> Policy:
+        raise NotImplementedError
+
     def __repr__(self) -> str:
         return f'{type(self).__name__}{self._extra_repr()}'
 
@@ -53,9 +59,16 @@ class Policy(abc.ABC):
         return ('(<...>)' if inspect.signature(self.__init__).parameters else '()')
 
 
-class StaticPolicy(Policy):
-    def get_next_policy(self, story: aggregating.Story) -> Policy:
+class CategoricallyStubbornPolicy(Policy):
+
+    is_stubborn =  True
+
+    def get_next_policy(self, story: aggregating.Story) -> CategoricallyStubbornPolicy:
         return self
+
+    def get_stubborn(self) -> CategoricallyStubbornPolicy:
+        return self
+
 
 
 class SoloPolicy(Policy):
@@ -69,8 +82,9 @@ class SoloEpisodicPolicy(SoloPolicy):
 
     def get_score(self, make_initial_state: Callable[[], aggregating.State], n: int = 1_000) -> int:
         scores = []
+        stubborn_culture = self.get_stubborn().culture
         for _ in range(n):
-            game = gaming.Game.from_state_culture(make_initial_state(), self.culture)
+            game = gaming.Game.from_state_culture(make_initial_state(), stubborn_culture)
             game.crunch()
             scores.append(sum(payoff.get_single() for payoff in game.payoffs))
         return np.mean(scores)
@@ -87,7 +101,7 @@ class SoloEpisodicPolicy(SoloPolicy):
         return culture.get_single()
 
 
-class RandomPolicy(StaticPolicy):
+class RandomPolicy(CategoricallyStubbornPolicy):
     def get_next_action(self, observation: Observation) -> Action:
         return random.choice(observation.legal_actions)
 

@@ -180,7 +180,7 @@ class ModelFreeLearningPolicy(QPolicy):
                  serialized_models: Optional[Sequence[bytes]] = None,
                  epsilon: numbers.Real = 0.1, gamma: numbers.Real = 0.9, training_counter: int = 0,
                  training_period: numbers.Real = 100, n_models: int = 2,
-                 timelines: Iterable[Timeline] = (), is_static: bool = False,
+                 timelines: Iterable[Timeline] = (), is_stubborn: bool = False,
                  ) -> None:
         if action_type is None:
             assert self.Action is not None
@@ -212,7 +212,7 @@ class ModelFreeLearningPolicy(QPolicy):
         self.timelines = tuple(timelines)
         self.fingerprint = hashlib.sha512(b''.join(self.serialized_models)).hexdigest()[:6]
         self.models = ModelManager(self)
-        self.is_static = is_static
+        self.is_stubborn = is_stubborn
 
 
     @property
@@ -235,8 +235,16 @@ class ModelFreeLearningPolicy(QPolicy):
             'timelines': self.timelines,
             'action_type': self.Action,
             'observation_neural_dtype': self.observation_neural_dtype,
-            'is_static': self.is_static,
+            'is_stubborn': self.is_stubborn,
         }
+
+    def get_stubborn(self) -> ModelFreeLearningPolicy:
+        if self.is_stubborn:
+            return self
+        else:
+            clone_kwargs = self._get_clone_kwargs()
+            clone_kwargs['is_stubborn'] = True
+            return type(self)(**clone_kwargs)
 
     def get_qs_for_observations(self, observations: Sequence[Observation] = None) \
                                                             -> Tuple[Mapping[Action, numbers.Real]]:
@@ -255,7 +263,7 @@ class ModelFreeLearningPolicy(QPolicy):
 
 
     def get_next_policy(self, story: Story) -> ModelFreeLearningPolicy:
-        if self.is_static:
+        if self.is_stubborn:
             return self
 
         clone_kwargs = self._get_clone_kwargs()
@@ -289,7 +297,7 @@ class ModelFreeLearningPolicy(QPolicy):
     def clone_and_train(self, n: int = 1, *, max_batch_size: int = DEFAULT_MAX_BATCH_SIZE,
                         max_past_memory_size: int = DEFAULT_MAX_PAST_MEMORY_SIZE) -> \
                                                                             ModelFreeLearningPolicy:
-        assert not self.is_static
+        assert not self.is_stubborn
 
         clone_kwargs = self._get_clone_kwargs()
 
