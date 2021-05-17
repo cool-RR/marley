@@ -254,12 +254,11 @@ class ModelFreeLearningPolicy(QPolicy):
         model = random.choice(self.models)
         prediction_output = self.predict(model, input_array)
         actions = tuple(self.Action)
-        for observation, output_row in zip(observations, prediction_output):
-            self.q_map_cache[observation] = {
-                action: q for action, q in dict(zip(actions, output_row)).items()
-                if (action in observation.legal_actions)
-            }
-
+        return tuple(
+            {action: q for action, q in dict(zip(actions, output_row)).items()
+             if (action in observation.legal_actions)}
+            for observation, output_row in zip(observations, prediction_output)
+        )
 
     def get_next_policy(self, story: Story) -> ModelFreeLearningPolicy:
         if self.is_stubborn:
