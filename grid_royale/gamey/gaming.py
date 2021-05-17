@@ -185,12 +185,10 @@ class Game(collections.abc.Sequence):
                 assert state_deck[j] is None
                 state_deck[j] = next_state
 
-                culture = culture.get_next_culture(game.states[-2], activity,
-                                                   next_payoff, next_state)
-                game.cultures.append(culture)
+                next_culture = culture.get_next_culture(state, activity, next_payoff, next_state)
+                game.cultures.append(next_culture)
 
                 game._assert_correct_lengths()
-
 
 
             if all((state is None) for state in state_deck):
