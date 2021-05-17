@@ -87,7 +87,9 @@ class SoloEpisodicPolicy(SoloPolicy):
                       for _ in range(n))
         gaming.Game.multi_crunch(games)
         return np.mean(
-            sum(payoff.get_single() for payoff in game.payoffs) for game in games
+            tuple(
+                sum(payoff.get_single() for payoff in game.payoffs) for game in games
+            )
         )
 
 
