@@ -128,10 +128,18 @@ class Game(collections.abc.Sequence):
         for game in games:
             game._assert_correct_lengths()
 
+        finished_game_indices = set()
+
+        def enumerate_unfinished_games():
+            for j, game in enumerate(games):
+                if j not in finished_game_indices:
+                    yield (j, game)
+
+
         for i in itertools.count():
             states = [None] * len(games)
             game_indices_to_play = []
-            for j, game in enumerate(games):
+            for j, game in enumerate_unfinished_games():
                 try:
                     states[j] = game.states[i]
                 except IndexError:
@@ -164,6 +172,7 @@ class Game(collections.abc.Sequence):
             ###########################################################
 
             if all((state is None) for state in states):
+                assert finished_game_indices == set(range(len(games)))
                 return
             yield tuple(states)
 
