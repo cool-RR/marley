@@ -240,8 +240,8 @@ def demo(n_training_states: int = 1_000, n_evaluation_games: int = 100) -> None:
     print('Starting Blackjack demo.')
 
     learning_policies = [
-        single_model_free_learning_policy := ModelFreeLearningPolicy(gamma=1, n_models=1),
-        double_model_free_learning_policy := ModelFreeLearningPolicy(gamma=1, n_models=2),
+        single_model_free_learning_policy := ModelFreeLearningPolicy(discount=1, n_models=1),
+        double_model_free_learning_policy := ModelFreeLearningPolicy(discount=1, n_models=2),
     ]
     policies = [
         RandomPolicy(),

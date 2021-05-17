@@ -206,6 +206,17 @@ class Game(collections.abc.Sequence):
             yield tuple(state_deck)
 
 
+    @property
+    def total_payoff(self, *, start: int = 0, discount: numbers.Real = 1):
+        assert start >= 0
+        assert 0 <= discount <= 1
+        wip_payoff = collections.defaultdict(lambda: 0)
+        payoffs = more_itertools.islice_extended(self.payoffs)[start:]
+        for i, payoff in enumerate(payoffs):
+            for player_id, reward in payoff.items():
+                wip_payoff[player_id] += (discount ** i) * reward
+
+        return aggregating.Payoff(wip_payoff)
 
 
 

@@ -178,8 +178,8 @@ class ModelFreeLearningPolicy(QPolicy):
                  observation: Optional[Union[Observation, Type[Observation]]] = None,
                  observation_neural_dtype: Optional[np.dtype] = None,
                  serialized_models: Optional[Sequence[bytes]] = None,
-                 epsilon: numbers.Real = 0.1, gamma: numbers.Real = 0.9, training_counter: int = 0,
-                 training_period: numbers.Real = 100, n_models: int = 2,
+                 epsilon: numbers.Real = 0.1, discount: numbers.Real = 0.9,
+                 training_counter: int = 0, training_period: numbers.Real = 100, n_models: int = 2,
                  timelines: Iterable[Timeline] = (), is_stubborn: bool = False,
                  ) -> None:
         if action_type is None:
@@ -198,7 +198,7 @@ class ModelFreeLearningPolicy(QPolicy):
             assert self.observation_neural_dtype is not None # Defined as class attribute
 
         self.epsilon = epsilon
-        self.gamma = gamma
+        self.discount = discount
         self.training_counter = training_counter
         self.training_period = training_period
         if serialized_models is None:
@@ -226,7 +226,7 @@ class ModelFreeLearningPolicy(QPolicy):
     def _get_clone_kwargs(self):
         return {
             'epsilon': self.epsilon,
-            'gamma': self.gamma,
+            'discount': self.discount,
             'training_counter': self.training_counter,
             'training_period': self.training_period,
             'serialized_models': self.serialized_models,
@@ -463,7 +463,7 @@ class ModelFreeLearningPolicy(QPolicy):
         action_indices = np.dot(action_neural_array, range(self.Action.n_neurons)).astype(np.int32)
         batch_index = np.arange(batch_size, dtype=np.int32)
         wip_q_values[batch_index, action_indices] = (
-            reward_array + self.gamma * are_not_end_array *
+            reward_array + self.discount * are_not_end_array *
             new_other_q_values[np.arange(new_q_values.shape[0]),
                                np.argmax(new_q_values, axis=1)]
         )
