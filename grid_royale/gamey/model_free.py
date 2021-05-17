@@ -246,8 +246,14 @@ class ModelFreeLearningPolicy(QPolicy):
             clone_kwargs['is_stubborn'] = True
             return type(self)(**clone_kwargs)
 
-    def get_qs_for_observations(self, observations: Sequence[Observation] = None) \
-                                                            -> Tuple[Mapping[Action, numbers.Real]]:
+    def get_qs_for_observations(self, observations: Sequence[Observation] = None) -> \
+                                                               Tuple[Mapping[Action, numbers.Real]]:
+        try:
+            return tuple(self.q_map_cache[observation] for observation in observations)
+        except KeyError:
+            if any(observation in self.q_map_cache for observation in observations):
+                raise NotImplementedError("Can't deal yet with only some of the observations "
+                                          "existing in cache.")
         observation_neurals = [observation.to_neural() for observation in observations]
         if observation_neurals:
             assert utils.is_structured_array(observation_neurals[0])
@@ -255,11 +261,12 @@ class ModelFreeLearningPolicy(QPolicy):
         model = random.choice(self.models)
         prediction_output = self.predict(model, input_array)
         actions = tuple(self.Action)
-        return tuple(
-            {action: q for action, q in dict(zip(actions, output_row)).items()
-             if (action in observation.legal_actions)}
-            for observation, output_row in zip(observations, prediction_output)
-        )
+        for observation, output_row in zip(observations, prediction_output):
+            self.q_map_cache[observation] = {
+                action: q for action, q in dict(zip(actions, output_row)).items()
+                if (action in observation.legal_actions)
+            }
+        return tuple(self.q_map_cache[observation] for observation in observations)
 
 
     def get_next_policy(self, story: Story) -> ModelFreeLearningPolicy:
@@ -345,10 +352,7 @@ class ModelFreeLearningPolicy(QPolicy):
             # The verbose condition above is an optimized version of `if epsilon > random.random():`
             return random.choice(observation.legal_actions)
         else:
-            try:
-                q_map = self.q_map_cache[observation]
-            except KeyError:
-                q_map = self.q_map_cache[observation] = self.get_qs_for_observation(observation)
+            q_map = self.get_qs_for_observation(observation) # This is cached.
             return max(q_map, key=q_map.__getitem__)
 
 
