@@ -171,24 +171,27 @@ class Game(collections.abc.Sequence):
             #                                                                                      #
             ### Finished making Q-policies way faster by batching matrix operations. ###############
 
-            state: aggregating.State = self.states[-1]
-            culture: aggregating.Culture = self.cultures[-1]
+            for j, game in zip(game_indices_to_play, games_to_play):
+                state: aggregating.State = game.states[-1]
+                culture: aggregating.Culture = game.cultures[-1]
 
-            while not state.is_end:
                 activity = culture.get_next_activity(state)
-                self.activities.append(activity)
+                game.activities.append(activity)
 
-                payoff, state = state.get_next_payoff_and_state(activity)
-                self.payoffs.append(payoff)
-                self.states.append(state)
+                next_payoff, next_state = state.get_next_payoff_and_state(activity)
+                game.payoffs.append(next_payoff)
+                game.states.append(next_state)
 
-                culture = culture.get_next_culture(self.states[-2], activity, payoff, state)
-                self.cultures.append(culture)
+                assert state_deck[j] is None
+                state_deck[j] = next_state
 
-                self._assert_correct_lengths()
-                yield state
+                culture = culture.get_next_culture(game.states[-2], activity,
+                                                   next_payoff, next_state)
+                game.cultures.append(culture)
 
-            ###########################################################
+                game._assert_correct_lengths()
+
+
 
             if all((state is None) for state in state_deck):
                 assert finished_game_indices == set(range(len(games)))
