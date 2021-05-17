@@ -208,7 +208,6 @@ class ModelFreeLearningPolicy(QPolicy):
             assert len(serialized_models) == n_models
             self.serialized_models = tuple(serialized_models)
 
-        self.q_map_cache = weakref.WeakKeyDictionary()
         self.timelines = tuple(timelines)
         self.fingerprint = hashlib.sha512(b''.join(self.serialized_models)).hexdigest()[:6]
         self.models = ModelManager(self)
@@ -246,14 +245,8 @@ class ModelFreeLearningPolicy(QPolicy):
             clone_kwargs['is_stubborn'] = True
             return type(self)(**clone_kwargs)
 
-    def get_qs_for_observations(self, observations: Sequence[Observation] = None) -> \
+    def _get_qs_for_observations_uncached(self, observations: Sequence[Observation] = None) -> \
                                                                Tuple[Mapping[Action, numbers.Real]]:
-        try:
-            return tuple(self.q_map_cache[observation] for observation in observations)
-        except KeyError:
-            if any(observation in self.q_map_cache for observation in observations):
-                raise NotImplementedError("Can't deal yet with only some of the observations "
-                                          "existing in cache.")
         observation_neurals = [observation.to_neural() for observation in observations]
         if observation_neurals:
             assert utils.is_structured_array(observation_neurals[0])
@@ -266,7 +259,6 @@ class ModelFreeLearningPolicy(QPolicy):
                 action: q for action, q in dict(zip(actions, output_row)).items()
                 if (action in observation.legal_actions)
             }
-        return tuple(self.q_map_cache[observation] for observation in observations)
 
 
     def get_next_policy(self, story: Story) -> ModelFreeLearningPolicy:

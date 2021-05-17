@@ -18,6 +18,7 @@ import numbers
 from typing import (Iterable, Union, Optional, Tuple, Any, Iterator, Type,
                     Sequence, Callable, Mapping)
 import dataclasses
+import weakref
 
 import more_itertools
 import keras.models
@@ -109,10 +110,30 @@ class RandomPolicy(CategoricallyStubbornPolicy):
 class QPolicy(Policy):
     '''A policy that calculates q-value for observation-actions.'''
 
+    @property
+    @functools.cache
+    def q_map_cache(self) -> weakref.WeakKeyDictionary:
+        return weakref.WeakKeyDictionary()
+
+
     @abc.abstractmethod
-    def get_qs_for_observations(self, observations: Sequence[Observation]) \
+    def _get_qs_for_observations_uncached(self, observations: Sequence[Observation]) \
                                                             -> Tuple[Mapping[Action, numbers.Real]]:
         raise NotImplementedError
+
+    def get_qs_for_observations(self, observations: Sequence[Observation]) \
+                                                            -> Tuple[Mapping[Action, numbers.Real]]:
+        try:
+            return tuple(self.q_map_cache[observation] for observation in observations)
+        except KeyError:
+            if any(observation in self.q_map_cache for observation in observations):
+                raise NotImplementedError("Can't deal yet with only some of the observations "
+                                          "existing in cache.")
+        q_maps = self._get_qs_for_observations_uncached(observations)
+        for observation, q_map in zip(observations, q_maps):
+            self.q_map_cache[observation] = q_map
+
+        return tuple(self.q_map_cache[observation] for observation in observations)
 
     def get_qs_for_observation(self, observation: Observation) -> Mapping[Action, numbers.Real]:
         return more_itertools.one(self.get_qs_for_observations((observation,)))

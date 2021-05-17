@@ -150,6 +150,19 @@ class Game(collections.abc.Sequence):
 
             # todo: This is all shit below, gotta replace it:
 
+            # strategy_to_player_ids = self.strategy_to_player_ids
+            strategy_to_observations = collections.defaultdict(list)
+            for state in states:
+                if state is None or state.is_end:
+                    continue
+                for player_id, observation in state.player_id_to_observation.items():
+                    strategy_to_observations[self.player_id_to_strategy[player_id]].append(observation)
+
+            for strategy, observations in strategy_to_observations.items():
+                strategy: ModelFreeLearningStrategy
+                q_maps = strategy.get_qs_for_observations(observations)
+                strategy.q_map_cache.update(dict(zip(observations, q_maps)))
+
             yield from self.states
 
             state: aggregating.State = self.states[-1]
