@@ -121,6 +121,11 @@ class Game(collections.abc.Sequence):
             pass
         assert self.states[-1].is_end or len(self.states) == n
 
+    @staticmethod
+    def multi_crunch(games: Sequence[Game], n: Optional[int] = None) -> None:
+        for _ in more_itertools.islice_extended(Game.multi_iterate(games))[:n]:
+            pass
+
 
     @staticmethod
     def multi_iterate(games: Sequence[Game]) -> Iterator[tuple[Optional[aggregating.State], ...]]:

@@ -82,13 +82,13 @@ class SoloPolicy(Policy):
 class SoloEpisodicPolicy(SoloPolicy):
 
     def get_score(self, make_initial_state: Callable[[], aggregating.State], n: int = 1_000) -> int:
-        scores = []
         stubborn_culture = self.get_stubborn().culture
-        for _ in range(n):
-            game = gaming.Game.from_state_culture(make_initial_state(), stubborn_culture)
-            game.crunch()
-            scores.append(sum(payoff.get_single() for payoff in game.payoffs))
-        return np.mean(scores)
+        games = tuple(gaming.Game.from_state_culture(make_initial_state(), stubborn_culture)
+                      for _ in range(n))
+        gaming.Game.multi_crunch(games)
+        return np.mean(
+            sum(payoff.get_single() for payoff in game.payoffs) for game in games
+        )
 
 
     def train(self, make_initial_state: Callable[[], aggregating.State], n: int = 1_000) -> Policy:
