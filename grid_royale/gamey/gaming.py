@@ -124,6 +124,7 @@ class Game(collections.abc.Sequence):
 
     @staticmethod
     def multi_iterate(games: Sequence[Game]) -> Iterator[tuple[Optional[aggregating.State], ...]]:
+        from . import policing
 
         for game in games:
             game._assert_correct_lengths()
@@ -137,11 +138,11 @@ class Game(collections.abc.Sequence):
 
 
         for i in itertools.count():
-            states = [None] * len(games)
+            state_deck = [None] * len(games)
             game_indices_to_play = []
             for j, game in enumerate_unfinished_games():
                 try:
-                    states[j] = game.states[i]
+                    state_deck[j] = game.states[i]
                 except IndexError:
                     game_indices_to_play.append(j)
 
@@ -150,28 +151,25 @@ class Game(collections.abc.Sequence):
 
             # todo: This is all shit below, gotta replace it:
 
+            games_to_play = tuple(games[j] for j in game_indices_to_play)
 
             ### Making Q-policies way faster by batching matrix operations: ########################
             #                                                                                      #
-            # This section is an optimization, it's skipped when given policies that don't support
+            # This section is an optimization, it's a no-op when given policies that don't support
             # it.
-            WAS HERE Z Z Z Z Z Z Z
-            q_policy_to_observations = collections.defaultdict(list)
-            for state in states:
-                if state is None or state.is_end:
-                    continue
-                for player_id, observation in state.player_id_to_observation.items():
-                    q_policy_to_observations[self.player_id_to_strategy[player_id]].append(observation)
 
-            for strategy, observations in q_policy_to_observations.items():
-                strategy: ModelFreeLearningStrategy
-                q_maps = strategy.get_qs_for_observations(observations)
-                strategy.q_map_cache.update(dict(zip(observations, q_maps)))
+            q_policy_to_observations = collections.defaultdict(list)
+            iterator = itertools.chain.from_iterable(((game.states[-1] + game.cultures[-1])
+                                                      for game in games_to_play))
+            for _player_id, observation, policy in iterator:
+                if isinstance(policy, policing.QPolicy):
+                    q_policy_to_observations[policy].append[observation]
+
+            for q_policy, observations in q_policy_to_observations.items():
+                q_policy.get_qs_for_observations(observations) # Automatically caches the result.
 
             #                                                                                      #
             ### Finished making Q-policies way faster by batching matrix operations. ###############
-
-            yield from self.states
 
             state: aggregating.State = self.states[-1]
             culture: aggregating.Culture = self.cultures[-1]
@@ -192,10 +190,10 @@ class Game(collections.abc.Sequence):
 
             ###########################################################
 
-            if all((state is None) for state in states):
+            if all((state is None) for state in state_deck):
                 assert finished_game_indices == set(range(len(games)))
                 return
-            yield tuple(states)
+            yield tuple(state_deck)
 
 
 
