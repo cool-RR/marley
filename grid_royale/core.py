@@ -718,7 +718,7 @@ class BaseCulture(gamey.Culture):
                     for letter in LETTERS[:n_players]})
 
 
-class Culture(BaseCulture, gamey.TrainableCulture):
+class Culture(BaseCulture):
 
     @classmethod
     def make_policy(cls, *, board_size: int) -> Policy:

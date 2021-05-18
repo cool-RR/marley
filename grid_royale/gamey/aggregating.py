@@ -107,10 +107,8 @@ class Culture(BaseAggregate):
                                              (self + state + activity + payoff + next_state).items()
         })
 
-
-class TrainableCulture(Culture):
     def train(self, make_initial_state: Callable[[], State], n_games: int = 20,
-              n_states_per_game: int = 30) -> TrainableCulture:
+              n_states_per_game: int = 30) -> Culture:
         from .gaming import Game
         culture = self
         for _ in range(n_games):
