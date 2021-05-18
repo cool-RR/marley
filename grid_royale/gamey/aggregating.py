@@ -117,6 +117,17 @@ class Culture(BaseAggregate):
             culture = game.cultures[-1]
             yield culture
 
+    # def train(self, make_initial_state: Callable[[], aggregating.State], n: int = 1_000) -> Policy:
+        # culture = self.culture
+        # remaining_n = n
+        # while remaining_n:
+            # game = gaming.Game.from_state_culture(make_initial_state(), culture)
+            # game.crunch(remaining_n)
+            # remaining_n -= len(game.states)
+            # culture = game.cultures[-1]
+        # return culture.get_single()
+
+
 
 class State(BaseAggregate):
     _aggregate_value_type = Observation
