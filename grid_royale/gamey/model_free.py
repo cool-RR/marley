@@ -26,7 +26,6 @@ from grid_royale import gamey
 from .base import Observation, Action, Story
 from .policing import Policy, QPolicy
 from . import utils
-from .timelining import Timeline, StoryDoesntFitInTimeline
 
 DEFAULT_MAX_BATCH_SIZE = 64
 DEFAULT_MAX_PAST_MEMORY_SIZE = 1_000
@@ -180,8 +179,7 @@ class ModelFreeLearningPolicy(QPolicy):
                  observation_neural_dtype: Optional[np.dtype] = None,
                  serialized_models: Optional[Sequence[bytes]] = None,
                  epsilon: numbers.Real = 0.1, discount: numbers.Real = 0.9,
-                 training_counter: int = 0, training_period: numbers.Real = 100, n_models: int = 2,
-                 timelines: Iterable[Timeline] = ()) -> None:
+                 n_models: int = 2) -> None:
         if action_type is None:
             assert self.Action is not None
         else:
@@ -199,8 +197,6 @@ class ModelFreeLearningPolicy(QPolicy):
 
         self.epsilon = epsilon
         self.discount = discount
-        self.training_counter = training_counter
-        self.training_period = training_period
         if serialized_models is None:
             self.serialized_models = tuple(self.model_jockey.get_random_serialized_model()
                                            for _ in range(n_models))
@@ -208,7 +204,6 @@ class ModelFreeLearningPolicy(QPolicy):
             assert len(serialized_models) == n_models
             self.serialized_models = tuple(serialized_models)
 
-        self.timelines = tuple(timelines)
         self.fingerprint = hashlib.sha512(b''.join(self.serialized_models)).hexdigest()[:6]
         self.models = ModelManager(self)
 
@@ -226,17 +221,16 @@ class ModelFreeLearningPolicy(QPolicy):
         return {
             'epsilon': self.epsilon,
             'discount': self.discount,
-            'training_counter': self.training_counter,
-            'training_period': self.training_period,
             'serialized_models': self.serialized_models,
             'n_models': len(self.models),
-            'timelines': self.timelines,
             'action_type': self.Action,
             'observation_neural_dtype': self.observation_neural_dtype,
         }
 
     def _get_qs_for_observations_uncached(self, observations: Sequence[Observation] = None) -> \
                                                                Tuple[Mapping[Action, numbers.Real]]:
+        if not observations:
+            return ()
         observation_neurals = [observation.to_neural() for observation in observations]
         if observation_neurals:
             assert utils.is_structured_array(observation_neurals[0])
@@ -252,29 +246,7 @@ class ModelFreeLearningPolicy(QPolicy):
 
     def train(self, games: Sequence[gamey.Game]) -> ModelFreeLearningPolicy:
         clone_kwargs = self._get_clone_kwargs()
-
-        timelines = list(self.timelines)
-        for timeline in reversed(timelines):
-            try:
-                timeline += story
-            except StoryDoesntFitInTimeline:
-                # This story belongs on a different timeline, keep searching for it:
-                continue
-            else:
-                # We found the right timeline and added the story to it, we're done:
-                break
-        else:
-            # No matching timelines, start a new one:
-            timelines.append(Timeline.make_initial(story))
-
-        clone_kwargs['timelines'] = tuple(timelines)
-
-        if self.training_counter + 1 == self.training_period: # It's training time!
-            clone_kwargs['training_counter'] == 0
-            clone_kwargs['serialized_models'] = self._train_model_and_cycle()
-
-        else:  # It's not training time.
-            clone_kwargs['training_counter'] += 1
+        clone_kwargs['serialized_models'] = self._train_model_and_cycle(games=games)
         return type(self)(**clone_kwargs)
 
 
@@ -282,8 +254,6 @@ class ModelFreeLearningPolicy(QPolicy):
                         max_past_memory_size: int = DEFAULT_MAX_PAST_MEMORY_SIZE) -> \
                                                                             ModelFreeLearningPolicy:
         clone_kwargs = self._get_clone_kwargs()
-
-        clone_kwargs['training_counter'] = 0
 
         for _ in range(n):
             clone_kwargs['serialized_models'] = self._train_model_and_cycle(
@@ -293,15 +263,6 @@ class ModelFreeLearningPolicy(QPolicy):
             )
 
         return type(self)(**clone_kwargs)
-
-
-    def clone_without_timelines(self) -> ModelFreeLearningPolicy:
-        clone_kwargs = {
-            **self._get_clone_kwargs(),
-            'timelines': (),
-        }
-        return type(self)(**clone_kwargs)
-
 
 
     def _train_model_and_cycle(self, serialized_models: Optional[Tuple[bytes]] = None,
