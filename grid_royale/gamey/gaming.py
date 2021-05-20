@@ -62,25 +62,24 @@ class NarrativeManager(collections.abc.Mapping):
         self.game = game
 
     def __len__(self) -> int:
-        return len(self.game.cultures[0])
+        return len(self.game.culture)
 
     def __iter__(self) -> int:
-        return iter(self.game.cultures[0])
+        return iter(self.game.culture)
 
     def __getitem__(self, player_id: PlayerId) -> int:
-        assert player_id in self.game.cultures[0]
+        assert player_id in self.game.culture
         return Narrative(self.game, player_id)
 
     def __repr__(self):
         return (f'<{type(self).__name__} with {len(self)} narratives>')
 
 class Game(collections.abc.Sequence):
-    def __init__(self, *, states: Iterable[aggregating.State],
-                 cultures: Iterable[aggregating.Culture],
+    def __init__(self, culture: aggregating.Culture, *, states: Iterable[aggregating.State],
                  activities: Iterable[aggregating.Activity],
                  payoffs: Iterable[aggregating.Payoff]) -> None:
+        self.culture = culture
         self.states = list(states)
-        self.cultures = list(cultures)
         self.activities = list(activities)
         self.payoffs = list(payoffs)
         self.narratives = NarrativeManager(self)
@@ -91,8 +90,7 @@ class Game(collections.abc.Sequence):
         return cls(states=(state,), cultures=(culture,), activities=(), payoffs=())
 
     def _assert_correct_lengths(self) -> None:
-        assert (len(self.cultures) == len(self.states) ==
-                len(self.activities) + 1 == len(self.payoffs) + 1)
+        assert (len(self.states) == len(self.activities) + 1 == len(self.payoffs) + 1)
 
 
     def __iter__(self) -> Iterator[aggregating.State]:
@@ -179,13 +177,12 @@ class Game(collections.abc.Sequence):
             for j, game in zip(game_indices_to_play, games_to_play):
                 assert state_deck[j] is None
                 state: aggregating.State = game.states[-1]
-                culture: aggregating.Culture = game.cultures[-1]
 
                 if state.is_end:
                     finished_game_indices.add(j)
                     continue
 
-                activity = culture.get_next_activity(state)
+                activity = game.culture.get_next_activity(state)
                 game.activities.append(activity)
 
                 next_payoff, next_state = state.get_next_payoff_and_state(activity)
@@ -193,9 +190,6 @@ class Game(collections.abc.Sequence):
                 game.states.append(next_state)
 
                 state_deck[j] = next_state
-
-                next_culture = culture.get_next_culture(state, activity, next_payoff, next_state)
-                game.cultures.append(next_culture)
 
                 game._assert_correct_lengths()
 

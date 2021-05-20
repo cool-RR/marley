@@ -48,11 +48,6 @@ class ModelBasedEpisodicLearningPolicy(Policy):
         self.curiosity = curiosity
         self.action_observation_chains_lists = collections.defaultdict(list)
 
-    def get_next_policy(self, old_observation: Observation, action: Action, reward: numbers.Number,
-                        new_observation: Observation) -> Policy:
-        # Gotta call self.train in an immutable way
-        raise NotImplementedError
-
     def get_next_action(self, observation: Observation) -> Action:
         return max(
             observation.legal_actions,
@@ -61,9 +56,8 @@ class ModelBasedEpisodicLearningPolicy(Policy):
             )
         )
 
-    def train(self, observation: Observation, action: Action,
-              next_observation: Observation) -> None:
-        raise fuck
+    def train(self, games: Sequence[gamey.Game]) -> ModelBasedEpisodicLearningPolicy:
+        raise NotImplementedError
 
         action_observation_chains = self.action_observation_chains_lists[observation]
         try:

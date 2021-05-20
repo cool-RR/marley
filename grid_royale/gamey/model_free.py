@@ -22,6 +22,7 @@ import more_itertools
 import numpy as np
 import lru # todo: probably replace
 
+from grid_royale import gamey
 from .base import Observation, Action, Story
 from .policing import Policy, QPolicy
 from . import utils
@@ -260,7 +261,7 @@ class ModelFreeLearningPolicy(QPolicy):
             for observation, output_row in zip(observations, prediction_output)
         )
 
-    def get_next_policy(self, story: Story) -> ModelFreeLearningPolicy:
+    def train(self, games: Sequence[gamey.Game]) -> ModelFreeLearningPolicy:
         if self.is_stubborn:
             return self
 

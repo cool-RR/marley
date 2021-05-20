@@ -626,7 +626,7 @@ class NaivePolicy(BasePolicy):
     def __init__(self, epsilon: int = 0.2) -> None:
         self.epsilon = epsilon
 
-    def get_next_policy(self, story: gamey.Story) -> NaivePolicy:
+    def train(self, games: Sequence[gamey.Game]) -> NaivePolicy:
         return self
 
     def get_next_action(self, observation: Observation) -> Action:

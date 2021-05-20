@@ -98,15 +98,6 @@ class Culture(BaseAggregate):
             player_id, (policy, observation) in (self + state).items()
         })
 
-    def get_next_culture(self, state: State, activity: Activity, payoff: Payoff,
-                         next_state: State) -> Culture:
-        return Culture({
-            player_id: policy.get_next_policy(Story(old_observation, action,
-                                                    reward, new_observation)) for
-            player_id, (policy, old_observation, action, reward, new_observation) in
-                                             (self + state + activity + payoff + next_state).items()
-        })
-
     def train(self, make_initial_state: Callable[[], State], n_games: int = 20,
               n_states_per_game: int = 30) -> Culture:
         from .gaming import Game
