@@ -107,7 +107,8 @@ class Culture(BaseAggregate):
             games = [Game.from_state_culture(make_initial_state(), culture) for _ in range(n_games)]
             Game.multi_crunch(games, n=max_game_length)
             culture = type(self)(
-                {player_id: policy.train(games) for player_id, policy in culture.items()}
+                {player_id: policy.train(tuple(game.narratives[player_id] for game in games))
+                 for player_id, policy in culture.items()}
             )
         return culture
 

@@ -39,7 +39,7 @@ class Policy(abc.ABC):
     Your fancy machine-learning code goes here.
     '''
 
-    def train(self, games: Sequence[gamey.Game]) -> Policy:
+    def train(self, narratives: Sequence[gamey.Narrative]) -> Policy:
         # Override this method with your training code
         return self
 

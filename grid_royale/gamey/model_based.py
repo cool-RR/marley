@@ -24,6 +24,7 @@ import keras.models
 import tensorflow as tf
 import numpy as np
 
+from grid_royale import gamey
 from .policing import Policy
 from .base import Observation, Action
 from . import utils
@@ -56,7 +57,7 @@ class ModelBasedEpisodicLearningPolicy(Policy):
             )
         )
 
-    def train(self, games: Sequence[gamey.Game]) -> ModelBasedEpisodicLearningPolicy:
+    def train(self, narratives: Sequence[gamey.Narrative]) -> ModelBasedEpisodicLearningPolicy:
         raise NotImplementedError
 
         action_observation_chains = self.action_observation_chains_lists[observation]
