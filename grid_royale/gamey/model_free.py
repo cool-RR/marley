@@ -181,8 +181,7 @@ class ModelFreeLearningPolicy(QPolicy):
                  serialized_models: Optional[Sequence[bytes]] = None,
                  epsilon: numbers.Real = 0.1, discount: numbers.Real = 0.9,
                  training_counter: int = 0, training_period: numbers.Real = 100, n_models: int = 2,
-                 timelines: Iterable[Timeline] = (), is_stubborn: bool = False,
-                 ) -> None:
+                 timelines: Iterable[Timeline] = ()) -> None:
         if action_type is None:
             assert self.Action is not None
         else:
@@ -212,7 +211,6 @@ class ModelFreeLearningPolicy(QPolicy):
         self.timelines = tuple(timelines)
         self.fingerprint = hashlib.sha512(b''.join(self.serialized_models)).hexdigest()[:6]
         self.models = ModelManager(self)
-        self.is_stubborn = is_stubborn
 
 
     @property
@@ -235,16 +233,7 @@ class ModelFreeLearningPolicy(QPolicy):
             'timelines': self.timelines,
             'action_type': self.Action,
             'observation_neural_dtype': self.observation_neural_dtype,
-            'is_stubborn': self.is_stubborn,
         }
-
-    def get_stubborn(self) -> ModelFreeLearningPolicy:
-        if self.is_stubborn:
-            return self
-        else:
-            clone_kwargs = self._get_clone_kwargs()
-            clone_kwargs['is_stubborn'] = True
-            return type(self)(**clone_kwargs)
 
     def _get_qs_for_observations_uncached(self, observations: Sequence[Observation] = None) -> \
                                                                Tuple[Mapping[Action, numbers.Real]]:
@@ -262,11 +251,7 @@ class ModelFreeLearningPolicy(QPolicy):
         )
 
     def train(self, games: Sequence[gamey.Game]) -> ModelFreeLearningPolicy:
-        if self.is_stubborn:
-            return self
-
         clone_kwargs = self._get_clone_kwargs()
-
 
         timelines = list(self.timelines)
         for timeline in reversed(timelines):
@@ -296,8 +281,6 @@ class ModelFreeLearningPolicy(QPolicy):
     def clone_and_train(self, n: int = 1, *, max_batch_size: int = DEFAULT_MAX_BATCH_SIZE,
                         max_past_memory_size: int = DEFAULT_MAX_PAST_MEMORY_SIZE) -> \
                                                                             ModelFreeLearningPolicy:
-        assert not self.is_stubborn
-
         clone_kwargs = self._get_clone_kwargs()
 
         clone_kwargs['training_counter'] = 0
