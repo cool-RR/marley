@@ -244,33 +244,12 @@ class ModelFreeLearningPolicy(QPolicy):
             for observation, output_row in zip(observations, prediction_output)
         )
 
-    def train(self, games: Sequence[gamey.Game]) -> ModelFreeLearningPolicy:
-        clone_kwargs = self._get_clone_kwargs()
-        clone_kwargs['serialized_models'] = self._train_model_and_cycle(games=games)
-        return type(self)(**clone_kwargs)
+    def train(self, games: Sequence[gamey.Game], *, max_batch_size: int = DEFAULT_MAX_BATCH_SIZE,
+              max_past_memory_size: int = DEFAULT_MAX_PAST_MEMORY_SIZE) -> ModelFreeLearningPolicy:
 
-
-    def clone_and_train(self, n: int = 1, *, max_batch_size: int = DEFAULT_MAX_BATCH_SIZE,
-                        max_past_memory_size: int = DEFAULT_MAX_PAST_MEMORY_SIZE) -> \
-                                                                            ModelFreeLearningPolicy:
         clone_kwargs = self._get_clone_kwargs()
 
-        for _ in range(n):
-            clone_kwargs['serialized_models'] = self._train_model_and_cycle(
-                clone_kwargs['serialized_models'],
-                max_batch_size=max_batch_size,
-                max_past_memory_size=max_past_memory_size,
-            )
-
-        return type(self)(**clone_kwargs)
-
-
-    def _train_model_and_cycle(self, serialized_models: Optional[Tuple[bytes]] = None,
-                               max_batch_size: int = DEFAULT_MAX_BATCH_SIZE,
-                               max_past_memory_size: int = DEFAULT_MAX_PAST_MEMORY_SIZE) -> \
-                                                                                       Tuple[bytes]:
-        serialized_models = (self.serialized_models if serialized_models is None
-                             else serialized_models)
+        serialized_models = self.serialized_models
         train_model = lambda model: self._train_model(
             model, other_model=self.model_jockey[serialized_models[-1]],
             max_batch_size=max_batch_size, max_past_memory_size=max_past_memory_size
@@ -278,7 +257,8 @@ class ModelFreeLearningPolicy(QPolicy):
         serialized_trained_model = self.model_jockey.clone_model_and_train(
             serialized_models[0], train_model
         )
-        return serialized_models[1:] + (serialized_trained_model,)
+        clone_kwargs['serialized_models'] = serialized_models[1:] + (serialized_trained_model,)
+        return type(self)(**clone_kwargs)
 
 
 
