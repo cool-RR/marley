@@ -96,14 +96,14 @@ class QPolicy(Policy):
     def get_qs_for_observations(self, observations: Sequence[Observation]) \
                                                             -> Tuple[Mapping[Action, numbers.Real]]:
         result = [self.q_map_cache.get(observation, None) for observation in observations]
-        uncached_indices, uncached_observations = zip(
+        uncached_indices, uncached_observations = zip(*(
             (i, observation) for i, (observation, q_map) in enumerate(zip(observations, result))
             if q_map is None
-        )
+        ))
 
         new_q_maps = self._get_qs_for_observations_uncached(uncached_observations)
         for i, observation, new_q_map in zip(uncached_indices, uncached_observations, new_q_maps):
-            self.q_map_cache[observation] = q_map
+            self.q_map_cache[observation] = new_q_map
             result[i] = new_q_map
 
         assert None not in result
