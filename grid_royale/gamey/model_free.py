@@ -251,7 +251,7 @@ class ModelFreeLearningPolicy(QPolicy):
 
         serialized_models = self.serialized_models
         train_model = lambda model: self._train_model(
-            model, other_model=self.model_jockey[serialized_models[-1]],
+            model, games, other_model=self.model_jockey[serialized_models[-1]],
             max_batch_size=max_batch_size, max_past_memory_size=max_past_memory_size
         )
         serialized_trained_model = self.model_jockey.clone_model_and_train(
@@ -331,13 +331,15 @@ class ModelFreeLearningPolicy(QPolicy):
         return model.predict({name: input_array[name] for name in input_array.dtype.names})
 
 
-    def _train_model(self, model: keras.Model, *, other_model: keras.Model,
-                     max_batch_size: int = DEFAULT_MAX_BATCH_SIZE,
+    def _train_model(self, model: keras.Model, games: Sequence[gamey.Game], *,
+                     other_model: keras.Model, max_batch_size: int = DEFAULT_MAX_BATCH_SIZE,
                      max_past_memory_size: int = DEFAULT_MAX_PAST_MEMORY_SIZE) -> None:
 
         ### Getting a random selection of stories to train on: #####################################
         #                                                                                          #
-        past_memory = utils.ChainSpace(map(reversed, reversed(self.timelines)))
+        past_memory = utils.ChainSpace(
+            reversed(game.narratives[player_id]) for game in reversed(games)
+        )
         foo = min(max_past_memory_size, len(past_memory))
         batch_size = min(max_batch_size, foo)
         indices = tuple(sorted(random.sample(range(foo), batch_size)))
