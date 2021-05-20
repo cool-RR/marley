@@ -25,6 +25,7 @@ import keras.models
 import tensorflow as tf
 import numpy as np
 
+from grid_royale import gamey
 from .base import Observation, Action
 from . import utils
 
@@ -40,7 +41,6 @@ class Policy(abc.ABC):
 
     @abc.abstractmethod
     def train(self, games: Sequence[gamey.Game]) -> Policy:
-        # Put your training logic here, if you wish your policy to have training.
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -72,17 +72,6 @@ class SoloEpisodicPolicy(SoloPolicy):
                 sum(payoff.get_single() for payoff in game.payoffs) for game in games
             )
         )
-
-
-    def train(self, make_initial_state: Callable[[], aggregating.State], n: int = 1_000) -> Policy:
-        culture = self.culture
-        remaining_n = n
-        while remaining_n:
-            game = gaming.Game.from_state_culture(make_initial_state(), culture)
-            game.crunch(remaining_n)
-            remaining_n -= len(game.states)
-            culture = game.cultures[-1]
-        return culture.get_single()
 
 
 class RandomPolicy(Policy):

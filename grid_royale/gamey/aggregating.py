@@ -22,6 +22,7 @@ import dataclasses
 import more_itertools
 import numpy as np
 
+from grid_royale import gamey
 from .utils import ImmutableDict
 from . import utils
 from . import exceptions
@@ -98,26 +99,17 @@ class Culture(BaseAggregate):
             player_id, (policy, observation) in (self + state).items()
         })
 
-    def train(self, make_initial_state: Callable[[], State], n_games: int = 20,
-              n_states_per_game: int = 30) -> Culture:
+    def train(self, make_initial_state: Callable[[], gamey.State], *, n_games: int = 1_000,
+              max_game_length: Optional[int] = None, n_phases: int = 10) -> Policy:
         from .gaming import Game
         culture = self
-        for _ in range(n_games):
-            game = Game.from_state_culture(make_initial_state(), culture)
-            game.crunch(n_states_per_game)
-            culture = game.cultures[-1]
-            yield culture
-
-    # def train(self, make_initial_state: Callable[[], aggregating.State], n: int = 1_000) -> Policy:
-        # culture = self.culture
-        # remaining_n = n
-        # while remaining_n:
-            # game = gaming.Game.from_state_culture(make_initial_state(), culture)
-            # game.crunch(remaining_n)
-            # remaining_n -= len(game.states)
-            # culture = game.cultures[-1]
-        # return culture.get_single()
-
+        for _i_phase in range(n_phases):
+            games = [Game.from_state_culture(make_initial_state(), culture) for _ in range(n_games)]
+            Game.multi_crunch(games, n=max_game_length)
+            culture = type(self)(
+                {player_id: policy.train(games) for player_id, policy in culture.items()}
+            )
+        return culture
 
 
 class State(BaseAggregate):
