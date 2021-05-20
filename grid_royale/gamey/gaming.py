@@ -87,7 +87,7 @@ class Game(collections.abc.Sequence):
 
     @classmethod
     def from_state_culture(cls, state: aggregating.State, culture: aggregating.Culture) -> Game:
-        return cls(states=(state,), cultures=(culture,), activities=(), payoffs=())
+        return cls(culture, states=(state,), activities=(), payoffs=())
 
     def _assert_correct_lengths(self) -> None:
         assert (len(self.states) == len(self.activities) + 1 == len(self.payoffs) + 1)
@@ -162,7 +162,7 @@ class Game(collections.abc.Sequence):
             # it.
 
             q_policy_to_observations = collections.defaultdict(list)
-            iterator = itertools.chain.from_iterable(((game.states[-1] + game.cultures[-1]).values()
+            iterator = itertools.chain.from_iterable(((game.states[-1] + game.culture).values()
                                                       for game in games_to_play))
             for observation, policy in iterator:
                 if isinstance(policy, policing.QPolicy):

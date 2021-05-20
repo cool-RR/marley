@@ -280,7 +280,7 @@ def demo(n_training_states: int = 1_000, n_evaluation_games: int = 100) -> None:
         sys.stdout.flush()
 
         new_model_free_learning_policy = model_free_learning_policy.culture.train(
-                                        BlackjackState.make_initial, n_training_states).get_single()
+            BlackjackState.make_initial, n_games=n_training_states).get_single()
         policies[policies.index(model_free_learning_policy)] = new_model_free_learning_policy
         print(' Done.')
 

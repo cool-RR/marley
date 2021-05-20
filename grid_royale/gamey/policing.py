@@ -39,9 +39,9 @@ class Policy(abc.ABC):
     Your fancy machine-learning code goes here.
     '''
 
-    @abc.abstractmethod
     def train(self, games: Sequence[gamey.Game]) -> Policy:
-        raise NotImplementedError
+        # Override this method with your training code
+        return self
 
     @abc.abstractmethod
     def get_next_action(self, observation: Observation) -> Action:
@@ -95,17 +95,19 @@ class QPolicy(Policy):
 
     def get_qs_for_observations(self, observations: Sequence[Observation]) \
                                                             -> Tuple[Mapping[Action, numbers.Real]]:
-        try:
-            return tuple(self.q_map_cache[observation] for observation in observations)
-        except KeyError:
-            if any(observation in self.q_map_cache for observation in observations):
-                raise NotImplementedError("Can't deal yet with only some of the observations "
-                                          "existing in cache.")
-        q_maps = self._get_qs_for_observations_uncached(observations)
-        for observation, q_map in zip(observations, q_maps):
-            self.q_map_cache[observation] = q_map
+        result = [self.q_map_cache.get(observation, None) for observation in observations]
+        uncached_indices, uncached_observations = zip(
+            (i, observation) for i, (observation, q_map) in enumerate(zip(observations, result))
+            if q_map is None
+        )
 
-        return tuple(self.q_map_cache[observation] for observation in observations)
+        new_q_maps = self._get_qs_for_observations_uncached(uncached_observations)
+        for i, observation, new_q_map in zip(uncached_indices, uncached_observations, new_q_maps):
+            self.q_map_cache[observation] = q_map
+            result[i] = new_q_map
+
+        assert None not in result
+        return tuple(result)
 
     def get_qs_for_observation(self, observation: Observation) -> Mapping[Action, numbers.Real]:
         return more_itertools.one(self.get_qs_for_observations((observation,)))
