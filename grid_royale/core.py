@@ -648,14 +648,12 @@ class NaivePolicy(BasePolicy):
 
 class Policy(BasePolicy, gamey.ModelFreeLearningPolicy):
 
-    def __init__(self, *, training_period: int = 100, board_size: Optional[int] = None,
-                 **kwargs) -> None:
+    def __init__(self, *, board_size: Optional[int] = None, **kwargs) -> None:
         if 'observation_neural_dtype' not in kwargs:
             kwargs['observation_neural_dtype'] = Observation.get_neural_dtype_for_board_size(
                 board_size if board_size is not None else DEFAULT_BOARD_SIZE
             )
-        gamey.ModelFreeLearningPolicy.__init__(self, training_period=training_period,
-                                               **kwargs)
+        gamey.ModelFreeLearningPolicy.__init__(self, **kwargs)
 
     @staticmethod
     def create_model(observation_neural_dtype: np.dtype, action_n_neurons: int) -> keras.Model:

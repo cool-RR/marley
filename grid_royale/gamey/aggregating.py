@@ -101,16 +101,26 @@ class Culture(BaseAggregate):
 
     def train(self, make_initial_state: Callable[[], gamey.State], *, n_games: int = 1_000,
               max_game_length: Optional[int] = None, n_phases: int = 10) -> Policy:
+        return more_itertools.last(
+            self.train_iterate(
+                make_initial_state, n_games=n_games, max_game_length=max_game_length,
+                n_phases=n_phases
+            )
+        )
+
+    def train_iterate(self, make_initial_state: Callable[[], gamey.State], *, n_games: int = 1_000,
+                      max_game_length: Optional[int] = None,
+                      n_phases: Optional[int] = None) -> Iterable[Policy]:
         from .gaming import Game
         culture = self
-        for _i_phase in range(n_phases):
+        for _i_phase in more_itertools.islice_extended(itertools.count())[:n_phases]:
             games = [Game.from_state_culture(make_initial_state(), culture) for _ in range(n_games)]
             Game.multi_crunch(games, n=max_game_length)
             culture = type(self)(
                 {player_id: policy.train(tuple(game.narratives[player_id] for game in games))
                  for player_id, policy in culture.items()}
             )
-        return culture
+            yield culture
 
 
 class State(BaseAggregate):

@@ -12,7 +12,7 @@ import itertools
 import math
 
 from .vectoring import Step
-from .base import (State, Observation, SHOT_REWARD, COLLISION_REWARD, STARTING_REWARD,
+from .core import (State, Observation, SHOT_REWARD, COLLISION_REWARD, STARTING_REWARD,
                    NOTHING_REWARD, FOOD_REWARD, Bullet)
 
 from . import gamey
