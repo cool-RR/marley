@@ -626,7 +626,7 @@ class NaivePolicy(BasePolicy):
     def __init__(self, epsilon: int = 0.2) -> None:
         self.epsilon = epsilon
 
-    def get_next_policy(self, story: gamey.Story) -> NaivePolicy:
+    def train(self, narratives: Sequence[gamey.Narrative]) -> NaivePolicy:
         return self
 
     def get_next_action(self, observation: Observation) -> Action:
@@ -648,14 +648,12 @@ class NaivePolicy(BasePolicy):
 
 class Policy(BasePolicy, gamey.ModelFreeLearningPolicy):
 
-    def __init__(self, *, training_period: int = 100, board_size: Optional[int] = None,
-                 **kwargs) -> None:
+    def __init__(self, *, board_size: Optional[int] = None, **kwargs) -> None:
         if 'observation_neural_dtype' not in kwargs:
             kwargs['observation_neural_dtype'] = Observation.get_neural_dtype_for_board_size(
                 board_size if board_size is not None else DEFAULT_BOARD_SIZE
             )
-        gamey.ModelFreeLearningPolicy.__init__(self, training_period=training_period,
-                                               **kwargs)
+        gamey.ModelFreeLearningPolicy.__init__(self, **kwargs)
 
     @staticmethod
     def create_model(observation_neural_dtype: np.dtype, action_n_neurons: int) -> keras.Model:
@@ -718,7 +716,7 @@ class BaseCulture(gamey.Culture):
                     for letter in LETTERS[:n_players]})
 
 
-class Culture(BaseCulture, gamey.TrainableCulture):
+class Culture(BaseCulture):
 
     @classmethod
     def make_policy(cls, *, board_size: int) -> Policy:

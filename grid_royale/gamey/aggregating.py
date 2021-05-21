@@ -22,6 +22,7 @@ import dataclasses
 import more_itertools
 import numpy as np
 
+from grid_royale import gamey
 from .utils import ImmutableDict
 from . import utils
 from . import exceptions
@@ -98,25 +99,32 @@ class Culture(BaseAggregate):
             player_id, (policy, observation) in (self + state).items()
         })
 
-    def get_next_culture(self, state: State, activity: Activity, payoff: Payoff,
-                         next_state: State) -> Culture:
-        return Culture({
-            player_id: policy.get_next_policy(Story(old_observation, action,
-                                                    reward, new_observation)) for
-            player_id, (policy, old_observation, action, reward, new_observation) in
-                                             (self + state + activity + payoff + next_state).items()
-        })
+    def train(self, make_initial_state: Callable[[], gamey.State], *, n_games: int = 1_000,
+              max_game_length: Optional[int] = None, n_phases: int = 10) -> Policy:
+        return more_itertools.last(
+            self.train_iterate(
+                make_initial_state, n_games=n_games, max_game_length=max_game_length,
+                n_phases=n_phases
+            )
+        )
 
-
-class TrainableCulture(Culture):
-    def train(self, make_initial_state: Callable[[], State], n_games: int = 20,
-              n_states_per_game: int = 30) -> TrainableCulture:
+    def train_iterate(self, make_initial_state: Callable[[], gamey.State], *, n_games: int = 1_000,
+                      max_game_length: Optional[int] = None,
+                      n_phases: Optional[int] = None) -> Iterable[Policy]:
         from .gaming import Game
         culture = self
-        for _ in range(n_games):
-            game = Game.from_state_culture(make_initial_state(), culture)
-            game.crunch(n_states_per_game)
-            culture = game.cultures[-1]
+        games = []
+        games_buffer_max_size = 10 * n_games
+        for _i_phase in more_itertools.islice_extended(itertools.count())[:n_phases]:
+            games.extend(Game.from_state_culture(make_initial_state(), culture)
+                         for _ in range(n_games))
+            if len(games) >= games_buffer_max_size: # Truncate to avoid memory leaks
+                del games[: -games_buffer_max_size]
+            Game.multi_crunch(games, n=max_game_length)
+            culture = type(self)(
+                {player_id: policy.train(tuple(game.narratives[player_id] for game in games))
+                 for player_id, policy in culture.items()}
+            )
             yield culture
 
 

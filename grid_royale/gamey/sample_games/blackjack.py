@@ -198,18 +198,18 @@ class BlackjackPolicy(gamey.SoloEpisodicPolicy):
 class RandomPolicy(BlackjackPolicy, gamey.RandomPolicy):
     pass
 
-class AlwaysHitPolicy(BlackjackPolicy, gamey.StaticPolicy):
+class AlwaysHitPolicy(BlackjackPolicy):
     def get_next_action(self, observation: BlackjackState) -> BlackjackAction:
         return (BlackjackAction.hit if (BlackjackAction.hit in observation.legal_actions)
                 else BlackjackAction.wait)
 
-class AlwaysStickPolicy(BlackjackPolicy, gamey.StaticPolicy):
+class AlwaysStickPolicy(BlackjackPolicy):
     '''A policy that always sticks, no matter what.'''
     def get_next_action(self, observation: BlackjackState) -> BlackjackAction:
         return (BlackjackAction.stick if (BlackjackAction.stick in observation.legal_actions)
                 else BlackjackAction.wait)
 
-class ThresholdPolicy(BlackjackPolicy, gamey.StaticPolicy):
+class ThresholdPolicy(BlackjackPolicy):
     '''
     A policy that sticks if the sum of cards is below the given threshold.
     '''
@@ -236,12 +236,12 @@ class ModelFreeLearningPolicy(gamey.ModelFreeLearningPolicy, BlackjackPolicy):
 
 
 
-def demo(n_training_states: int = 1_000, n_evaluation_games: int = 100) -> None:
+def demo(n_training_phases: int = 100, n_evaluation_games: int = 3_000) -> None:
     print('Starting Blackjack demo.')
 
     learning_policies = [
-        single_model_free_learning_policy := ModelFreeLearningPolicy(gamma=1, n_models=1),
-        double_model_free_learning_policy := ModelFreeLearningPolicy(gamma=1, n_models=2),
+        single_model_free_learning_policy := ModelFreeLearningPolicy(discount=1, n_models=1),
+        double_model_free_learning_policy := ModelFreeLearningPolicy(discount=1, n_models=2),
     ]
     policies = [
         RandomPolicy(),
@@ -255,7 +255,7 @@ def demo(n_training_states: int = 1_000, n_evaluation_games: int = 100) -> None:
 
 
     print(f"Let's compare {len(policies)} Blackjack policies. First we'll play "
-          f"{n_evaluation_games:,} games on each policy and observe the scores:\n")
+          f"{n_evaluation_games:,} games on each policy and compare the scores:\n")
 
     def print_summary():
         policies_and_scores = sorted(
@@ -274,13 +274,15 @@ def demo(n_training_states: int = 1_000, n_evaluation_games: int = 100) -> None:
 
     for model_free_learning_policy in (single_model_free_learning_policy,
                                        double_model_free_learning_policy):
-        print(f'Training {model_free_learning_policy} on {n_training_states:,} states...',
-              end='')
-        sys.stdout.flush()
+        model_free_learning_policy: ModelFreeLearningPolicy
 
-        new_model_free_learning_policy = model_free_learning_policy.train(
-                                               BlackjackState.make_initial, n_training_states)
-        policies[policies.index(model_free_learning_policy)] = new_model_free_learning_policy
+        with gamey.utils.NiceTaskShower(f'Training {model_free_learning_policy} in '
+                                        f'{n_training_phases:,} phases') as nice_task_shower:
+            for culture in model_free_learning_policy.culture.train_iterate(
+                BlackjackState.make_initial, n_games=20, n_phases=n_training_phases):
+                nice_task_shower.dot()
+
+        policies[policies.index(model_free_learning_policy)] = culture.get_single()
         print(' Done.')
 
     print("\nNow let's run the old comparison again, and see what's the new score for the "
@@ -292,11 +294,11 @@ def demo(n_training_states: int = 1_000, n_evaluation_games: int = 100) -> None:
 
 if __name__ == '__main__':
     try:
-        n_training_states = int(sys.argv[1])
+        n_training_phases = int(sys.argv[1])
     except IndexError:
         demo()
     else:
-        demo(n_training_states=n_training_states)
+        demo(n_training_phases=n_training_phases)
 
 
 

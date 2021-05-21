@@ -22,10 +22,10 @@ import more_itertools
 import numpy as np
 import lru # todo: probably replace
 
+from grid_royale import gamey
 from .base import Observation, Action, Story
 from .policing import Policy, QPolicy
 from . import utils
-from .timelining import Timeline, StoryDoesntFitInTimeline
 
 DEFAULT_MAX_BATCH_SIZE = 64
 DEFAULT_MAX_PAST_MEMORY_SIZE = 1_000
@@ -178,10 +178,8 @@ class ModelFreeLearningPolicy(QPolicy):
                  observation: Optional[Union[Observation, Type[Observation]]] = None,
                  observation_neural_dtype: Optional[np.dtype] = None,
                  serialized_models: Optional[Sequence[bytes]] = None,
-                 epsilon: numbers.Real = 0.1, gamma: numbers.Real = 0.9, training_counter: int = 0,
-                 training_period: numbers.Real = 100, n_models: int = 2,
-                 timelines: Iterable[Timeline] = (),
-                 ) -> None:
+                 epsilon: numbers.Real = 0.1, discount: numbers.Real = 0.9,
+                 n_models: int = 2) -> None:
         if action_type is None:
             assert self.Action is not None
         else:
@@ -198,9 +196,7 @@ class ModelFreeLearningPolicy(QPolicy):
             assert self.observation_neural_dtype is not None # Defined as class attribute
 
         self.epsilon = epsilon
-        self.gamma = gamma
-        self.training_counter = training_counter
-        self.training_period = training_period
+        self.discount = discount
         if serialized_models is None:
             self.serialized_models = tuple(self.model_jockey.get_random_serialized_model()
                                            for _ in range(n_models))
@@ -208,10 +204,9 @@ class ModelFreeLearningPolicy(QPolicy):
             assert len(serialized_models) == n_models
             self.serialized_models = tuple(serialized_models)
 
-        self.q_map_cache = weakref.WeakKeyDictionary()
-        self.timelines = tuple(timelines)
         self.fingerprint = hashlib.sha512(b''.join(self.serialized_models)).hexdigest()[:6]
         self.models = ModelManager(self)
+
 
     @property
     def _model_kwargs(self):
@@ -225,18 +220,17 @@ class ModelFreeLearningPolicy(QPolicy):
     def _get_clone_kwargs(self):
         return {
             'epsilon': self.epsilon,
-            'gamma': self.gamma,
-            'training_counter': self.training_counter,
-            'training_period': self.training_period,
+            'discount': self.discount,
             'serialized_models': self.serialized_models,
             'n_models': len(self.models),
-            'timelines': self.timelines,
             'action_type': self.Action,
             'observation_neural_dtype': self.observation_neural_dtype,
         }
 
-    def get_qs_for_observations(self, observations: Sequence[Observation] = None) \
-                                                            -> Tuple[Mapping[Action, numbers.Real]]:
+    def _get_qs_for_observations_uncached(self, observations: Sequence[Observation] = None) -> \
+                                                               Tuple[Mapping[Action, numbers.Real]]:
+        if not observations:
+            return ()
         observation_neurals = [observation.to_neural() for observation in observations]
         if observation_neurals:
             assert utils.is_structured_array(observation_neurals[0])
@@ -250,70 +244,22 @@ class ModelFreeLearningPolicy(QPolicy):
             for observation, output_row in zip(observations, prediction_output)
         )
 
+    def train(self, narratives: Sequence[gamey.Narrative], *,
+              max_batch_size: int = DEFAULT_MAX_BATCH_SIZE,
+              max_past_memory_size: int = DEFAULT_MAX_PAST_MEMORY_SIZE) -> ModelFreeLearningPolicy:
 
-    def get_next_policy(self, story: Story) -> ModelFreeLearningPolicy:
         clone_kwargs = self._get_clone_kwargs()
 
-        timelines = list(self.timelines)
-        try:
-            timelines[-1] += story
-        except StoryDoesntFitInTimeline:
-            timelines.append(Timeline.make_initial(story))
-        except IndexError:
-            if timelines:
-                raise
-            timelines.append(Timeline.make_initial(story))
-
-        clone_kwargs['timelines'] = tuple(timelines)
-
-        if self.training_counter + 1 == self.training_period: # It's training time!
-            clone_kwargs['training_counter'] == 0
-            clone_kwargs['serialized_models'] = self.train_model_and_cycle()
-
-        else:  # It's not training time.
-            clone_kwargs['training_counter'] += 1
-        return type(self)(**clone_kwargs)
-
-
-    def clone_and_train(self, n: int = 1, *, max_batch_size: int = DEFAULT_MAX_BATCH_SIZE,
-                        max_past_memory_size: int = DEFAULT_MAX_PAST_MEMORY_SIZE) -> \
-                                                                            ModelFreeLearningPolicy:
-        clone_kwargs = self._get_clone_kwargs()
-
-        clone_kwargs['training_counter'] = 0
-
-        for _ in range(n):
-            clone_kwargs['serialized_models'] = self.train_model_and_cycle(
-                clone_kwargs['serialized_models'],
-                max_batch_size=max_batch_size,
-                max_past_memory_size=max_past_memory_size,
-            )
-
-        return type(self)(**clone_kwargs)
-
-
-    def clone_without_timelines(self) -> ModelFreeLearningPolicy:
-        clone_kwargs = {
-            **self._get_clone_kwargs(),
-            'timelines': (),
-        }
-        return type(self)(**clone_kwargs)
-
-
-
-    def train_model_and_cycle(self, serialized_models: Optional[Tuple[bytes]] = None,
-                        max_batch_size: int = DEFAULT_MAX_BATCH_SIZE,
-                        max_past_memory_size: int = DEFAULT_MAX_PAST_MEMORY_SIZE) -> Tuple[bytes]:
-        serialized_models = (self.serialized_models if serialized_models is None
-                             else serialized_models)
+        serialized_models = self.serialized_models
         train_model = lambda model: self._train_model(
-            model, other_model=self.model_jockey[serialized_models[-1]],
+            model, narratives, other_model=self.model_jockey[serialized_models[-1]],
             max_batch_size=max_batch_size, max_past_memory_size=max_past_memory_size
         )
         serialized_trained_model = self.model_jockey.clone_model_and_train(
             serialized_models[0], train_model
         )
-        return serialized_models[1:] + (serialized_trained_model,)
+        clone_kwargs['serialized_models'] = serialized_models[1:] + (serialized_trained_model,)
+        return type(self)(**clone_kwargs)
 
 
 
@@ -323,10 +269,7 @@ class ModelFreeLearningPolicy(QPolicy):
             # The verbose condition above is an optimized version of `if epsilon > random.random():`
             return random.choice(observation.legal_actions)
         else:
-            try:
-                q_map = self.q_map_cache[observation]
-            except KeyError:
-                q_map = self.q_map_cache[observation] = self.get_qs_for_observation(observation)
+            q_map = self.get_qs_for_observation(observation) # This is cached.
             return max(q_map, key=q_map.__getitem__)
 
 
@@ -389,13 +332,13 @@ class ModelFreeLearningPolicy(QPolicy):
         return model.predict({name: input_array[name] for name in input_array.dtype.names})
 
 
-    def _train_model(self, model: keras.Model, *, other_model: keras.Model,
-                     max_batch_size: int = DEFAULT_MAX_BATCH_SIZE,
+    def _train_model(self, model: keras.Model, narratives: Sequence[gamey.Narrative], *,
+                     other_model: keras.Model, max_batch_size: int = DEFAULT_MAX_BATCH_SIZE,
                      max_past_memory_size: int = DEFAULT_MAX_PAST_MEMORY_SIZE) -> None:
 
         ### Getting a random selection of stories to train on: #####################################
         #                                                                                          #
-        past_memory = utils.ChainSpace(map(reversed, reversed(self.timelines)))
+        past_memory = utils.ChainSpace(map(reversed, reversed(narratives)))
         foo = min(max_past_memory_size, len(past_memory))
         batch_size = min(max_batch_size, foo)
         indices = tuple(sorted(random.sample(range(foo), batch_size)))
@@ -446,7 +389,7 @@ class ModelFreeLearningPolicy(QPolicy):
         action_indices = np.dot(action_neural_array, range(self.Action.n_neurons)).astype(np.int32)
         batch_index = np.arange(batch_size, dtype=np.int32)
         wip_q_values[batch_index, action_indices] = (
-            reward_array + self.gamma * are_not_end_array *
+            reward_array + self.discount * are_not_end_array *
             new_other_q_values[np.arange(new_q_values.shape[0]),
                                np.argmax(new_q_values, axis=1)]
         )

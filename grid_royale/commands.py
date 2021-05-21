@@ -27,15 +27,16 @@ from . import server
 @click.option('--n-food-tiles', type=int, default=DEFAULT_N_FOOD_TILES)
 @click.option('--allow-shooting/--no-shooting', default=True)
 @click.option('--allow-walling/--no-walling', default=False)
-@click.option('--pre-train/--dont-pre-train', default=False)
-@click.option('--pre-train-length', type=int, default=20)
+@click.option('--pre-train/--dont-pre-train', default=True)
+@click.option('--pre-train-n-games', type=int, default=10)
+@click.option('--pre-train-n-phases', type=int, default=30)
 @click.option('--browser/--no-browser', 'open_browser', default=True)
 @click.option('--host', default=server.DEFAULT_HOST)
 @click.option('--port', default=server.DEFAULT_PORT)
 @click.option('--max-length', default=None, type=int)
 def play(*, board_size: int, n_players: int, n_food_tiles: int, allow_shooting: bool,
-         allow_walling: bool, pre_train: bool, pre_train_length: int, open_browser: bool,
-         host: str, port: str, max_length: Optional[int] = None) -> None:
+         allow_walling: bool, pre_train: bool, pre_train_n_games: int, pre_train_n_phases: int,
+         open_browser: bool, host: str, port: str, max_length: Optional[int] = None) -> None:
     with server.ServerThread(host=host, port=port, quiet=True) as server_thread:
 
         if open_browser:
@@ -53,40 +54,16 @@ def play(*, board_size: int, n_players: int, n_food_tiles: int, allow_shooting: 
 
         letters = LETTERS[:n_players]
 
+        culture = Culture({letter: Policy(board_size=board_size)
+                           for letter in letters[:n_players]})
+
         if pre_train:
-            with utils.NiceTaskShower('Running naive games to generate history'):
-                naive_culture = NaiveCulture.make_initial(n_players=n_players,
-                                                          board_size=board_size)
-                naive_games = [Game.from_state_culture(make_initial_state(), naive_culture)
-                               for i in range(200)]
-                for naive_game in naive_games:
-                    naive_game: Game
-                    naive_game.crunch(6)
-
-
-            letter_to_timelines = {}
-            for letter in naive_culture:
-                narratives = (naive_game.narratives[letter] for naive_game in naive_games)
-                letter_to_timelines[letter] = tuple(
-                    gamey.Timeline(narrative, length=len(narrative)) for narrative in narratives
-                )
-
-            with utils.NiceTaskShower('Running first training'):
-                practice_culture = Culture(
-                    {letter: Policy(board_size=board_size, timelines=timelines, n_models=1).
-                                                        clone_and_train(8).clone_without_timelines()
-                     for letter, timelines in letter_to_timelines.items()}
-                )
-
-            with utils.NiceTaskShower('Running practice games and training on '
-                                      'them') as nice_task_shower:
-                for culture in practice_culture.train(make_initial_state, n_games=pre_train_length,
-                                                      n_states_per_game=pre_train_length):
+            with gamey.utils.NiceTaskShower('Pre-training') as nice_task_shower:
+                for culture in culture.train_iterate(make_initial_state, n_games=pre_train_n_games,
+                                                     max_game_length=30,
+                                                     n_phases=pre_train_n_phases):
                     nice_task_shower.dot()
                 # The last `culture` from the for loop is used below.
-        else:
-            culture = Culture({letter: Policy(board_size=board_size)
-                               for letter in letters[:n_players]})
 
         game = Game.from_state_culture(make_initial_state(), culture)
 
@@ -134,7 +111,7 @@ def demo(*, n_players: int, n_food_tiles: int, allow_shooting: bool, allow_walli
         serialized_model = (pathlib.Path(__file__).parent / 'demo.h5').read_bytes()
         culture = Culture(
             {letter: Policy(board_size=board_size, serialized_models=(serialized_model,),
-                            n_models=1, training_period=float('inf'))
+                            n_models=1)
              for letter in letters[:n_players]}
         )
 
@@ -164,15 +141,15 @@ def serve(*, host: str, port: str) -> None:
 
 @grid_royale.command()
 @click.argument('game_name', default='blackjack')
-@click.option('--n-training-states', default=10_000)
-@click.option('--n-evaluation-games', default=100)
-def sample(game_name: str, n_training_states: int, n_evaluation_games: int):
+@click.option('--n-training-phases', default=100)
+@click.option('--n-evaluation-games', default=3_000)
+def sample(game_name: str, n_training_phases: int, n_evaluation_games: int):
     assert re.match('^[a-z_][a-z0-9_]{1,100}', game_name)
     from grid_royale.gamey.sample_games import blackjack
     games = {
         'blackjack': blackjack,
     }
     game = games[game_name]
-    game.demo(n_training_states=n_training_states,
+    game.demo(n_training_phases=n_training_phases,
               n_evaluation_games=n_evaluation_games)
 

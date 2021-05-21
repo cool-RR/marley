@@ -18,12 +18,14 @@ import numbers
 from typing import (Iterable, Union, Optional, Tuple, Any, Iterator, Type,
                     Sequence, Callable, Mapping)
 import dataclasses
+import weakref
 
 import more_itertools
 import keras.models
 import tensorflow as tf
 import numpy as np
 
+from grid_royale import gamey
 from .base import Observation, Action
 from . import utils
 
@@ -37,10 +39,9 @@ class Policy(abc.ABC):
     Your fancy machine-learning code goes here.
     '''
 
-    @abc.abstractmethod
-    def get_next_policy(self, story: aggregating.Story) -> Policy:
-        # Put your training logic here, if you wish your policy to have training.
-        raise NotImplementedError
+    def train(self, narratives: Sequence[gamey.Narrative]) -> Policy:
+        # Override this method with your training code
+        return self
 
     @abc.abstractmethod
     def get_next_action(self, observation: Observation) -> Action:
@@ -53,11 +54,6 @@ class Policy(abc.ABC):
         return ('(<...>)' if inspect.signature(self.__init__).parameters else '()')
 
 
-class StaticPolicy(Policy):
-    def get_next_policy(self, story: aggregating.Story) -> Policy:
-        return self
-
-
 class SoloPolicy(Policy):
     @property
     @functools.cache
@@ -68,26 +64,17 @@ class SoloPolicy(Policy):
 class SoloEpisodicPolicy(SoloPolicy):
 
     def get_score(self, make_initial_state: Callable[[], aggregating.State], n: int = 1_000) -> int:
-        scores = []
-        for _ in range(n):
-            game = gaming.Game.from_state_culture(make_initial_state(), self.culture)
-            game.crunch()
-            scores.append(sum(payoff.get_single() for payoff in game.payoffs))
-        return np.mean(scores)
+        games = tuple(gaming.Game.from_state_culture(make_initial_state(), self.culture)
+                      for _ in range(n))
+        gaming.Game.multi_crunch(games)
+        return np.mean(
+            tuple(
+                sum(payoff.get_single() for payoff in game.payoffs) for game in games
+            )
+        )
 
 
-    def train(self, make_initial_state: Callable[[], aggregating.State], n: int = 1_000) -> Policy:
-        culture = self.culture
-        remaining_n = n
-        while remaining_n:
-            game = gaming.Game.from_state_culture(make_initial_state(), culture)
-            game.crunch(remaining_n)
-            remaining_n -= len(game.states)
-            culture = game.cultures[-1]
-        return culture.get_single()
-
-
-class RandomPolicy(StaticPolicy):
+class RandomPolicy(Policy):
     def get_next_action(self, observation: Observation) -> Action:
         return random.choice(observation.legal_actions)
 
@@ -95,10 +82,30 @@ class RandomPolicy(StaticPolicy):
 class QPolicy(Policy):
     '''A policy that calculates q-value for observation-actions.'''
 
+    @property
+    @functools.cache
+    def q_map_cache(self) -> weakref.WeakKeyDictionary:
+        return weakref.WeakKeyDictionary()
+
+
     @abc.abstractmethod
-    def get_qs_for_observations(self, observations: Sequence[Observation]) \
+    def _get_qs_for_observations_uncached(self, observations: Sequence[Observation]) \
                                                             -> Tuple[Mapping[Action, numbers.Real]]:
         raise NotImplementedError
+
+    def get_qs_for_observations(self, observations: Sequence[Observation]) \
+                                                            -> Tuple[Mapping[Action, numbers.Real]]:
+        result = [self.q_map_cache.get(observation, None) for observation in observations]
+        uncached_indices = tuple(i for i, q_map in enumerate(result) if q_map is None)
+        uncached_observations = tuple(observations[i] for i in uncached_indices)
+
+        new_q_maps = self._get_qs_for_observations_uncached(uncached_observations)
+        for i, observation, new_q_map in zip(uncached_indices, uncached_observations, new_q_maps):
+            self.q_map_cache[observation] = new_q_map
+            result[i] = new_q_map
+
+        assert None not in result
+        return tuple(result)
 
     def get_qs_for_observation(self, observation: Observation) -> Mapping[Action, numbers.Real]:
         return more_itertools.one(self.get_qs_for_observations((observation,)))
