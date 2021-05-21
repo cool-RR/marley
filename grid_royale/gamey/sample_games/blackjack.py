@@ -10,8 +10,9 @@ import random
 import enum
 import functools
 import numbers
-import numpy as np
 
+import numpy as np
+import click
 import more_itertools
 
 from grid_royale import gamey
@@ -276,11 +277,10 @@ def demo(n_training_phases: int = 100, n_evaluation_games: int = 3_000) -> None:
                                        double_model_free_learning_policy):
         model_free_learning_policy: ModelFreeLearningPolicy
 
-        with gamey.utils.NiceTaskShower(f'Training {model_free_learning_policy} in '
-                                        f'{n_training_phases:,} phases') as nice_task_shower:
-            for culture in model_free_learning_policy.culture.train_iterate(
-                BlackjackState.make_initial, n_games=20, n_phases=n_training_phases):
-                nice_task_shower.dot()
+        culture = model_free_learning_policy.culture.train_progress_bar(
+            f'Training {model_free_learning_policy} in {n_training_phases:,} phases...',
+            BlackjackState.make_initial, n_games=20, n_phases=n_training_phases
+        )
 
         policies[policies.index(model_free_learning_policy)] = culture.get_single()
         print(' Done.')

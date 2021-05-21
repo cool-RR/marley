@@ -21,6 +21,7 @@ import dataclasses
 
 import more_itertools
 import numpy as np
+import click
 
 from grid_royale import gamey
 from .utils import ImmutableDict
@@ -108,6 +109,7 @@ class Culture(BaseAggregate):
             )
         )
 
+
     def train_iterate(self, make_initial_state: Callable[[], gamey.State], *, n_games: int = 1_000,
                       max_game_length: Optional[int] = None,
                       n_phases: Optional[int] = None) -> Iterable[Policy]:
@@ -126,6 +128,31 @@ class Culture(BaseAggregate):
                  for player_id, policy in culture.items()}
             )
             yield culture
+
+    def train_iterate_progress_bar(self, label: str,
+                                   make_initial_state: Callable[[], gamey.State], *,
+                                   n_games: int = 1_000, max_game_length: Optional[int] = None,
+                                   n_phases: Optional[int] = None, **kwargs) -> Iterable[Policy]:
+        print(label)
+        progress_bar = click.progressbar(
+            self.train_iterate(make_initial_state, n_games=n_games,
+                               max_game_length=max_game_length, n_phases=n_phases),
+            length=n_phases,
+            **kwargs
+        )
+        with progress_bar:
+            yield from progress_bar
+
+    def train_progress_bar(self, label: str,
+                           make_initial_state: Callable[[], gamey.State], *,
+                           n_games: int = 1_000, max_game_length: Optional[int] = None,
+                           n_phases: Optional[int] = None, **kwargs) -> Iterable[Policy]:
+        return more_itertools.last(
+            self.train_iterate_progress_bar(
+                label=label, make_initial_state=make_initial_state, n_games=n_games,
+                max_game_length=max_game_length, n_phases=n_phases, **kwargs
+            )
+        )
 
 
 class State(BaseAggregate):

@@ -58,12 +58,10 @@ def play(*, board_size: int, n_players: int, n_food_tiles: int, allow_shooting: 
                            for letter in letters[:n_players]})
 
         if pre_train:
-            with gamey.utils.NiceTaskShower('Pre-training') as nice_task_shower:
-                for culture in culture.train_iterate(make_initial_state, n_games=pre_train_n_games,
-                                                     max_game_length=30,
-                                                     n_phases=pre_train_n_phases):
-                    nice_task_shower.dot()
-                # The last `culture` from the for loop is used below.
+            culture = culture.train_progress_bar(
+                'Pre-training...', make_initial_state, n_games=pre_train_n_games,
+                max_game_length=30, n_phases=pre_train_n_phases
+            )
 
         game = Game.from_state_culture(make_initial_state(), culture)
 

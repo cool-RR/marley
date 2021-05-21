@@ -1,5 +1,5 @@
 Keras>=2.4.3
-click>=7.1.2
+click>=8.0.1
 flask>=1.1.2
 h5py==2.10.0 # Because of https://github.com/h5py/h5py/issues/1732 and https://github.com/tensorflow/tensorflow/issues/44467 , caused a bug on latest versions even after they were closed
 immutabledict>=1.0.0

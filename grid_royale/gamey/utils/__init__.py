@@ -18,7 +18,6 @@ from immutabledict import immutabledict as ImmutableDict
 from .iterating import *
 from .weak_key_identity_dict import WeakKeyIdentityDict
 from .chain_space import ChainSpace
-from .nice_task_shower import NiceTaskShower
 
 
 def cute_div(x: numbers.Number, y: numbers.Number) -> numbers.Number:
