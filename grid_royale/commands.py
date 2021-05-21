@@ -111,7 +111,7 @@ def demo(*, n_players: int, n_food_tiles: int, allow_shooting: bool, allow_walli
         serialized_model = (pathlib.Path(__file__).parent / 'demo.h5').read_bytes()
         culture = Culture(
             {letter: Policy(board_size=board_size, serialized_models=(serialized_model,),
-                            n_models=1, training_period=float('inf'))
+                            n_models=1)
              for letter in letters[:n_players]}
         )
 
