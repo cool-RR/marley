@@ -10,12 +10,16 @@ import random
 import enum
 import functools
 import numbers
+import logging
 
 import numpy as np
 import click
 import more_itertools
 
 from grid_royale import gamey
+
+logger = logging.getLogger(__name__)
+
 
 
 def sum_cards(cards: Iterable[int]) -> int:
@@ -238,7 +242,7 @@ class ModelFreeLearningPolicy(gamey.ModelFreeLearningPolicy, BlackjackPolicy):
 
 
 def demo(n_training_phases: int = 100, n_evaluation_games: int = 3_000) -> None:
-    print('Starting Blackjack demo.')
+    logger.info('Starting Blackjack demo.')
 
     learning_policies = [
         single_model_free_learning_policy := ModelFreeLearningPolicy(discount=1, n_models=1),
@@ -255,40 +259,39 @@ def demo(n_training_phases: int = 100, n_evaluation_games: int = 3_000) -> None:
     ]
 
 
-    print(f"Let's compare {len(policies)} Blackjack policies. First we'll play "
-          f"{n_evaluation_games:,} games on each policy and compare the scores:\n")
+    logger.info(f"Let's compare {len(policies)} Blackjack policies. First we'll play "
+                f"{n_evaluation_games:,} games on each policy and compare the scores:\n")
 
-    def print_summary():
+    def compare_policies():
         policies_and_scores = sorted(
             ((policy, policy.get_score(BlackjackState.make_initial, n_evaluation_games))
              for policy in policies),
             key=lambda x: x[1], reverse=True
         )
+        report = '\n'
         for policy, score in policies_and_scores:
-            print(f'    {policy}: '.ljust(60), end='')
-            print(f'{score: .3f}')
+            report += f'    {policy}: '.ljust(60)
+            report += f'{score: .3f}\n'
+        logger.info(report)
 
-    print_summary()
+    compare_policies()
 
-    print(f"\nThat's nice. Now we want to see that the learning policies can be better than "
-          f"the dumb ones, if we give them time to learn.")
+    logger.info(f"That's nice. Now we want to see that the learning policies can be better than "
+                f"the dumb ones, if we give them time to learn.")
 
     for model_free_learning_policy in (single_model_free_learning_policy,
                                        double_model_free_learning_policy):
-        model_free_learning_policy: ModelFreeLearningPolicy
-
         culture = model_free_learning_policy.culture.train_progress_bar(
-            f'Training {model_free_learning_policy} in {n_training_phases:,} phases...',
-            BlackjackState.make_initial, n_games=20, n_phases=n_training_phases
+            BlackjackState.make_initial, n_games=20, n_phases=n_training_phases,
+            label=repr(model_free_learning_policy),
         )
 
         policies[policies.index(model_free_learning_policy)] = culture.get_single()
-        print(' Done.')
 
-    print("\nNow let's run the old comparison again, and see what's the new score for the "
-          "learning policies:\n")
+    logger.info("Now let's run the old comparison again, and see what's the new score for the "
+                "learning policies:\n")
 
-    print_summary()
+    compare_policies()
 
 
 

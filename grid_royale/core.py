@@ -769,9 +769,7 @@ class Game(gamey.Game):
         game_folder_name = now.isoformat(sep='-', timespec='microseconds'
                                                                ).replace(':', '-').replace('.', '-')
         game_folder = get_games_folder() / game_folder_name
-        # print(f'Writing to {game_folder.name} ...')
         for state in self.write_to_folder(game_folder, chunk=chunk, max_length=max_length):
             yield state
-        # print(f'Finished writing to {game_folder.name} .')
 
 

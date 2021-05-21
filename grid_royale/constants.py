@@ -20,8 +20,9 @@ DEFAULT_BOARD_SIZE = 6 # 12
 DEFAULT_N_FOOD_TILES = 5 # 20
 DEFAULT_N_PLAYERS = 3 # 10
 
-grid_royale_folder = pathlib.Path.home() / '.grid_royale'
-config_path = grid_royale_folder / 'config.json'
+grid_royale_folder: pathlib.Path = pathlib.Path.home() / '.grid_royale'
+config_path: pathlib.Path = grid_royale_folder / 'config.json'
+logs_folder: pathlib.Path = grid_royale_folder / 'logs'
 
 
 

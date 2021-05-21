@@ -8,18 +8,33 @@ import re
 import time
 from typing import (Optional, Tuple, Union, Container, Hashable, Iterator, Mapping,
                     Iterable, Any, Dict, FrozenSet, Callable, Type, Sequence, Set)
+import logging
+import platform
+import sys
 
 from .constants import LETTERS, DEFAULT_BOARD_SIZE, DEFAULT_N_FOOD_TILES, DEFAULT_N_PLAYERS
 from .core import State, Culture, Policy, NaiveCulture, NaivePolicy, Game
 from . import utils
 from . import gamey
+from . import logging_setup
+
+logger = logging.getLogger(__name__)
 
 
 @click.group()
 def grid_royale() -> None:
-    pass
+    from grid_royale import __version__
+    logging_setup.setup()
+    logger.debug(f'Starting grid_royale {__version__}, '
+                f'Python version {platform.python_version()}')
+    logger.debug(f'{sys.argv=}')
 
 from . import server
+
+@grid_royale.resultcallback()
+def grid_royale_done(result):
+    logger.debug(f'grid_royale finished, exiting.')
+
 
 @grid_royale.command()
 @click.option('--board-size', type=int, default=DEFAULT_BOARD_SIZE)
@@ -40,10 +55,10 @@ def play(*, board_size: int, n_players: int, n_food_tiles: int, allow_shooting: 
     with server.ServerThread(host=host, port=port, quiet=True) as server_thread:
 
         if open_browser:
-            click.echo(f'Opening {server_thread.url} in your browser to view the game.')
+            logger.info(f'Opening {server_thread.url} in your browser to view the game.')
             webbrowser.open_new(server_thread.url)
         else:
-            click.echo(f'Open {server_thread.url} in your browser to view the game.')
+            logger.info(f'Open {server_thread.url} in your browser to view the game.')
 
         make_initial_state = lambda: (
             State.make_initial(
@@ -59,20 +74,20 @@ def play(*, board_size: int, n_players: int, n_food_tiles: int, allow_shooting: 
 
         if pre_train:
             culture = culture.train_progress_bar(
-                'Pre-training...', make_initial_state, n_games=pre_train_n_games,
+                make_initial_state, n_games=pre_train_n_games,
                 max_game_length=30, n_phases=pre_train_n_phases
             )
 
         game = Game.from_state_culture(make_initial_state(), culture)
 
         if max_length is None:
-            click.echo(f'Calculating states in the simulation, press Ctrl-C to stop.')
+            logger.info(f'Calculating states in the simulation, press Ctrl-C to stop.')
         else:
-            click.echo(f'Calculating {max_length} states, press Ctrl-C to stop.')
+            logger.info(f'Calculating {max_length} states, press Ctrl-C to stop.')
 
         for state in game.write_to_game_folder(max_length=max_length):
             pass
-        click.echo(f'Finished calculating {max_length} states, still serving forever.')
+        logger.info(f'Finished calculating {max_length} states, still serving forever.')
         while True:
             time.sleep(0.1)
 
@@ -92,10 +107,10 @@ def demo(*, n_players: int, n_food_tiles: int, allow_shooting: bool, allow_walli
     with server.ServerThread(host=host, port=port, quiet=True) as server_thread:
 
         if open_browser:
-            click.echo(f'Opening {server_thread.url} in your browser to view the game.')
+            logger.info(f'Opening {server_thread.url} in your browser to view the game.')
             webbrowser.open_new(server_thread.url)
         else:
-            click.echo(f'Open {server_thread.url} in your browser to view the game.')
+            logger.info(f'Open {server_thread.url} in your browser to view the game.')
 
         make_initial_state = lambda: (
             State.make_initial(
@@ -116,13 +131,13 @@ def demo(*, n_players: int, n_food_tiles: int, allow_shooting: bool, allow_walli
         game = Game.from_state_culture(make_initial_state(), culture)
 
         if max_length is None:
-            click.echo(f'Calculating states in the simulation, press Ctrl-C to stop.')
+            logger.info(f'Calculating states in the simulation, press Ctrl-C to stop.')
         else:
-            click.echo(f'Calculating {max_length} states, press Ctrl-C to stop.')
+            logger.info(f'Calculating {max_length} states, press Ctrl-C to stop.')
 
         for state in game.write_to_game_folder(max_length=max_length):
             pass
-        click.echo(f'Finished calculating {max_length} states, still serving forever.')
+        logger.info(f'Finished calculating {max_length} states, still serving forever.')
         while True:
             time.sleep(0.1)
 
@@ -133,7 +148,7 @@ def demo(*, n_players: int, n_food_tiles: int, allow_shooting: bool, allow_walli
 @click.option('--port', default=server.DEFAULT_PORT)
 def serve(*, host: str, port: str) -> None:
     with server.ServerThread(host=host, port=port) as server_thread:
-        click.echo(f'Open {server_thread.url} in your browser to view the game.')
+        logger.info(f'Open {server_thread.url} in your browser to view the game.')
         while True:
             time.sleep(0.1)
 

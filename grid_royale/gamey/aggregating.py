@@ -22,6 +22,7 @@ import dataclasses
 import more_itertools
 import numpy as np
 import click
+import logging
 
 from grid_royale import gamey
 from .utils import ImmutableDict
@@ -29,6 +30,21 @@ from . import utils
 from . import exceptions
 from .base import PlayerId, Action, Observation, Story
 from .policing import Policy
+
+logger = logging.getLogger(__name__)
+
+
+def pluralize(s: str) -> str:
+    known_values = {
+        'policy': 'policies',
+        'observation': 'observations',
+        'reward': 'rewards',
+        'mood': 'moods',
+    }
+    try:
+        return known_values[s.lower()]
+    except KeyError:
+        return f'{s} objects'
 
 
 class BaseAggregate(collections.abc.Mapping):
@@ -66,7 +82,7 @@ class BaseAggregate(collections.abc.Mapping):
 
     def __repr__(self):
         return (f'<{type(self).__name__} with {len(self)} '
-                f'{self._aggregate_value_type.__name__} objects>')
+                f'{pluralize(self._aggregate_value_type.__name__)}>')
 
 
 
@@ -129,11 +145,13 @@ class Culture(BaseAggregate):
             )
             yield culture
 
-    def train_iterate_progress_bar(self, label: str,
-                                   make_initial_state: Callable[[], gamey.State], *,
-                                   n_games: int = 1_000, max_game_length: Optional[int] = None,
+    def train_iterate_progress_bar(self, make_initial_state: Callable[[], gamey.State], *,
+                                   label: Optional[str] = None, n_games: int = 1_000,
+                                   max_game_length: Optional[int] = None,
                                    n_phases: Optional[int] = None, **kwargs) -> Iterable[Policy]:
-        print(label)
+        if label is None:
+            label = repr(self)
+        logger.info(f'Training {label}...')
         progress_bar = click.progressbar(
             self.train_iterate(make_initial_state, n_games=n_games,
                                max_game_length=max_game_length, n_phases=n_phases),
@@ -142,14 +160,16 @@ class Culture(BaseAggregate):
         )
         with progress_bar:
             yield from progress_bar
+        logger.info(f'Finished training {label}.')
 
-    def train_progress_bar(self, label: str,
-                           make_initial_state: Callable[[], gamey.State], *,
-                           n_games: int = 1_000, max_game_length: Optional[int] = None,
-                           n_phases: Optional[int] = None, **kwargs) -> Iterable[Policy]:
+
+    def train_progress_bar(self, make_initial_state: Callable[[], gamey.State], *,
+                           label: Optional[str] = None, n_games: int = 1_000,
+                           max_game_length: Optional[int] = None, n_phases: Optional[int] = None,
+                           **kwargs) -> Iterable[Policy]:
         return more_itertools.last(
             self.train_iterate_progress_bar(
-                label=label, make_initial_state=make_initial_state, n_games=n_games,
+                make_initial_state=make_initial_state, label=label, n_games=n_games,
                 max_game_length=max_game_length, n_phases=n_phases, **kwargs
             )
         )
