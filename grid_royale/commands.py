@@ -58,7 +58,7 @@ def play(*, board_size: int, n_players: int, n_food_tiles: int, allow_shooting: 
                            for letter in letters[:n_players]})
 
         if pre_train:
-            with utils.NiceTaskShower('Pre-training') as nice_task_shower:
+            with gamey.utils.NiceTaskShower('Pre-training') as nice_task_shower:
                 for culture in culture.train_iterate(make_initial_state, n_games=pre_train_n_games,
                                                      max_game_length=30,
                                                      n_phases=pre_train_n_phases):
@@ -143,13 +143,13 @@ def serve(*, host: str, port: str) -> None:
 @click.argument('game_name', default='blackjack')
 @click.option('--n-training-states', default=10_000)
 @click.option('--n-evaluation-games', default=100)
-def sample(game_name: str, n_training_states: int, n_evaluation_games: int):
+def sample(game_name: str, n_training_phases: int, n_evaluation_games: int):
     assert re.match('^[a-z_][a-z0-9_]{1,100}', game_name)
     from grid_royale.gamey.sample_games import blackjack
     games = {
         'blackjack': blackjack,
     }
     game = games[game_name]
-    game.demo(n_training_states=n_training_states,
+    game.demo(n_training_phases=n_training_phases,
               n_evaluation_games=n_evaluation_games)
 

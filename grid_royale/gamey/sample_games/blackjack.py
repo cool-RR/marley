@@ -236,7 +236,7 @@ class ModelFreeLearningPolicy(gamey.ModelFreeLearningPolicy, BlackjackPolicy):
 
 
 
-def demo(n_training_states: int = 1_000, n_evaluation_games: int = 100) -> None:
+def demo(n_training_phases: int = 1_000, n_evaluation_games: int = 100) -> None:
     print('Starting Blackjack demo.')
 
     learning_policies = [
@@ -275,13 +275,14 @@ def demo(n_training_states: int = 1_000, n_evaluation_games: int = 100) -> None:
     for model_free_learning_policy in (single_model_free_learning_policy,
                                        double_model_free_learning_policy):
         model_free_learning_policy: ModelFreeLearningPolicy
-        print(f'Training {model_free_learning_policy} on {n_training_states:,} states...',
-              end='')
-        sys.stdout.flush()
 
-        new_model_free_learning_policy = model_free_learning_policy.culture.train(
-            BlackjackState.make_initial, n_games=n_training_states, n_phases=100).get_single()
-        policies[policies.index(model_free_learning_policy)] = new_model_free_learning_policy
+        with gamey.utils.NiceTaskShower(f'Training {model_free_learning_policy} in '
+                                        f'{n_training_phases:,} phases') as nice_task_shower:
+            for culture in model_free_learning_policy.culture.train_iterate(
+                BlackjackState.make_initial, n_games=20, n_phases=n_training_phases):
+                nice_task_shower.dot()
+
+        policies[policies.index(model_free_learning_policy)] = culture.get_single()
         print(' Done.')
 
     print("\nNow let's run the old comparison again, and see what's the new score for the "
@@ -293,11 +294,11 @@ def demo(n_training_states: int = 1_000, n_evaluation_games: int = 100) -> None:
 
 if __name__ == '__main__':
     try:
-        n_training_states = int(sys.argv[1])
+        n_training_phases = int(sys.argv[1])
     except IndexError:
         demo()
     else:
-        demo(n_training_states=n_training_states)
+        demo(n_training_phases=n_training_phases)
 
 
 
