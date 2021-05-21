@@ -113,8 +113,13 @@ class Culture(BaseAggregate):
                       n_phases: Optional[int] = None) -> Iterable[Policy]:
         from .gaming import Game
         culture = self
+        games = []
+        games_buffer_max_size = 10 * n_games
         for _i_phase in more_itertools.islice_extended(itertools.count())[:n_phases]:
-            games = [Game.from_state_culture(make_initial_state(), culture) for _ in range(n_games)]
+            games.extend(Game.from_state_culture(make_initial_state(), culture)
+                         for _ in range(n_games))
+            if len(games) >= games_buffer_max_size: # Truncate to avoid memory leaks
+                del games[: -games_buffer_max_size]
             Game.multi_crunch(games, n=max_game_length)
             culture = type(self)(
                 {player_id: policy.train(tuple(game.narratives[player_id] for game in games))
