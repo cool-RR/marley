@@ -11,6 +11,6 @@ def test_gamey():
 
 def test_blackjack_demo():
     with utils.OutputCapturer() as output_capturer:
-        blackjack.demo(n_training_phases=100)
+        blackjack.demo(n_training_phases=3, n_evaluation_games=20)
 
     assert "let's run the old comparison again" in output_capturer.output
