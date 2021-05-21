@@ -236,7 +236,7 @@ class ModelFreeLearningPolicy(gamey.ModelFreeLearningPolicy, BlackjackPolicy):
 
 
 
-def demo(n_training_phases: int = 1_000, n_evaluation_games: int = 100) -> None:
+def demo(n_training_phases: int = 100, n_evaluation_games: int = 100) -> None:
     print('Starting Blackjack demo.')
 
     learning_policies = [

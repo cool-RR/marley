@@ -141,7 +141,7 @@ def serve(*, host: str, port: str) -> None:
 
 @grid_royale.command()
 @click.argument('game_name', default='blackjack')
-@click.option('--n-training-states', default=10_000)
+@click.option('--n-training-phases', default=100)
 @click.option('--n-evaluation-games', default=100)
 def sample(game_name: str, n_training_phases: int, n_evaluation_games: int):
     assert re.match('^[a-z_][a-z0-9_]{1,100}', game_name)
