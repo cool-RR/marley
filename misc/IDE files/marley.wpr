@@ -19,12 +19,12 @@ debug.launch-configs = (2,
                        '-u'),
          'runargs': u'',
          'rundir': ('custom',
-                    u'c:\\Users\\Administrator\\Documents\\Python projects\\grid_royale')})})
+                    u'c:\\Users\\Administrator\\Documents\\Python projects\\marley')})})
 proj.directory-list = [{'dirloc': loc('../..'),
                         'excludes': [u'pytest_report.html',
                                      u'dist',
                                      u'build',
-                                     u'grid_royale.egg-info'],
+                                     u'marley.egg-info'],
                         'filter': '*',
                         'include_hidden': False,
                         'recursive': True,
@@ -35,5 +35,5 @@ proj.main-file = loc('../../marley/__main__.py')
 proj.shared-attribute-names = ['-proj.launch-config',
                                '-console.toolbox']
 testing.auto-test-file-specs = (('regex',
-                                 'grid_royale/tests.*/test[^./]*.py.?$'),)
+                                 'marley/tests.*/test[^./]*.py.?$'),)
 testing.test-framework = {None: ':internal pytest'}
