@@ -20,7 +20,7 @@ from .sharknadoing import *
 logger = logging.getLogger(__name__)
 
 
-@marley.commanding.marley.group(name='blackjack')
+@marley.commanding.marley_command_group.group(name='blackjack')
 def command_group() -> None:
     pass
 

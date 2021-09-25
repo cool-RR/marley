@@ -22,12 +22,7 @@ from . import sharknado # todo remove
 __VersionInfo = collections.namedtuple('VersionInfo',
                                        ('major', 'minor', 'micro'))
 
-__version__ = '0.4.0'
+__version__ = '0.4.1'
 __version_info__ = __VersionInfo(*(map(int, __version__.split('.'))))
-
-def import_all_worlds():
-    import marley.worlds.grid_royale
-    import marley.worlds.blackjack
-
 
 del os, logging, collections, __VersionInfo # Avoid polluting the namespace

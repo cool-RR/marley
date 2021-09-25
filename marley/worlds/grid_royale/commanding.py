@@ -23,7 +23,7 @@ from marley import gamey
 
 logger = logging.getLogger(__name__)
 
-@marley.commanding.marley.group(name='grid-royale')
+@marley.commanding.marley_command_group.group(name='grid-royale')
 def command_group() -> None:
     pass
 
