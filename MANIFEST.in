@@ -1,5 +1,5 @@
 include README.md
 include LICENSE
 include requirements.txt
-include grid_royale/server/frontend/*
-include grid_royale/demo.h5
+include marley/server/static/*
+include marley/demo.h5
