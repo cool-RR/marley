@@ -33,7 +33,7 @@ setuptools.setup(
     },
     entry_points={
         'console_scripts': [
-            'marley = marley:marley'
+            'marley = marley.commanding:marley'
         ],
     },
     classifiers=[
