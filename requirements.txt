@@ -1,11 +1,15 @@
-Keras>=2.4.3
+Flask>=2.0.1
+altair-saver>=0.5.0
+altair>=4.1.0
+bidict>=0.21.3
 click>=8.0.1
-flask>=1.1.2
-h5py==2.10.0 # Because of https://github.com/h5py/h5py/issues/1732 and https://github.com/tensorflow/tensorflow/issues/44467 , caused a bug on latest versions even after they were closed
-immutabledict>=1.0.0
-lru-dict>=1.1.7
-more-itertools>=8.7.0
-numpy # No version specified because of Tensorflow and MKL shenanigans
-requests>=2.25.1
-scipy>=1.5.2
-tensorflow==2.3.1 # Because of https://github.com/h5py/h5py/issues/1732 and https://github.com/tensorflow/tensorflow/issues/44467 , caused a bug on latest versions even after they were closed
+filelock>=3.0.12
+h5py>=3.1.0
+immutabledict>=2.2.0
+more-itertools>=8.10.0
+networkx>=2.6.3
+numpy>=1.19.5
+pyfakefs>=4.5.1
+requests>=2.26.0
+scipy>=1.7.1
+tensorflow>=2.6.0

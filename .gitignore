@@ -21,3 +21,4 @@ htmlcov
 
 aggro-*
 munch-*
+pytest_report*.html

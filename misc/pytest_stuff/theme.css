@@ -1,0 +1,23 @@
+body {
+    background: white;
+    color: #444;
+}
+
+#results-table {
+    color: #444;
+}
+
+a {
+    color: #444;
+}
+
+.expander::after {
+    content: " (show details)";
+    color: #777;
+    font-style: italic;
+    cursor: pointer;
+}
+
+.log {
+    font-family: consolas
+}

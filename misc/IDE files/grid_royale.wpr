@@ -4,8 +4,25 @@
 # Wing project file                                              #
 ##################################################################
 [project attributes]
+debug.launch-configs = (2,
+                        {'launch-IIDrnhn5DD156IKv': ({},
+        {'buildcmd': ('project',
+                      None),
+         'env': ('project',
+                 [u'']),
+         'name': 'Pytest Launch Config',
+         'pyexec': ('project',
+                    u''),
+         'pypath': ('project',
+                    []),
+         'pyrunargs': ('project',
+                       '-u'),
+         'runargs': u'',
+         'rundir': ('custom',
+                    u'c:\\Users\\Administrator\\Documents\\Python projects\\grid_royale')})})
 proj.directory-list = [{'dirloc': loc('../..'),
-                        'excludes': [u'dist',
+                        'excludes': [u'pytest_report.html',
+                                     u'dist',
                                      u'build',
                                      u'grid_royale.egg-info'],
                         'filter': '*',
@@ -14,7 +31,7 @@ proj.directory-list = [{'dirloc': loc('../..'),
                         'watch_for_changes': True}]
 proj.file-type = 'shared'
 proj.home-dir = loc('../..')
-proj.main-file = loc('../../grid_royale/__main__.py')
+proj.main-file = loc('../../marley/__main__.py')
 proj.shared-attribute-names = ['-proj.launch-config',
                                '-console.toolbox']
 testing.auto-test-file-specs = (('regex',
