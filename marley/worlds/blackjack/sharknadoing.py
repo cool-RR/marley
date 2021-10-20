@@ -148,31 +148,31 @@ class GameBunchJob(JobMixin, sharknado.ParallelJob):
             return
         i_to_agent = {}
         result_int_crowds = []
-        with contextlib.ExitStack() as exit_stack:
-            with self.blackjack_project_ref.lock_and_load() as blackjack_project:
-                locked_parchment = False
-                for i_agent in i_agents:
-                    try:
-                        agent = blackjack_project.agents[i_agent]
-                    except IndexError:
-                        continue
-                    else:
-                        i_to_agent[i_agent] = agent
-                        if not locked_parchment:
-                            exit_stack.enter_context(agent.parchment_lock)
-                            locked_parchment = True
 
-            for i_agent, agent_int_crowd in zip(i_agents, agent_int_crowds):
+        with self.blackjack_project_ref.lock_and_load() as blackjack_project:
+            for i_agent in i_agents:
                 try:
-                    agent = i_to_agent[i_agent]
-                except KeyError:
+                    agent = blackjack_project.agents[i_agent]
+                except IndexError:
                     continue
-                result_int_crowds.append(
-                    sharknado.IntCrowd(
-                        sharknado.Point((i_agent, i_game_bunch)) for (i_agent, i_game_bunch)
-                        in agent_int_crowd if agent.game_bunches.has_index(i_game_bunch)
+                else:
+                    i_to_agent[i_agent] = agent
+
+        if i_to_agent:
+            arbitrary_agent = more_itertools.first(i_to_agent.values())
+            with arbitrary_agent.parchment_lock:
+                for i_agent, agent_int_crowd in zip(i_agents, agent_int_crowds):
+                    try:
+                        agent = i_to_agent[i_agent]
+                    except KeyError:
+                        continue
+                    result_int_crowds.append(
+                        sharknado.IntCrowd(
+                            sharknado.Point((i_agent, i_game_bunch)) for (i_agent, i_game_bunch)
+                            in agent_int_crowd if agent.game_bunches.has_index(i_game_bunch)
+                        )
                     )
-                )
+
         return sharknado.utils.union(result_int_crowds) if result_int_crowds else None
 
     def fat_run(self, fat_gain: sharknado.FatGain) -> None:
@@ -217,31 +217,31 @@ class PolicyJob(JobMixin, sharknado.SerialJob):
             return
         i_to_agent = {}
         result_int_crowds = []
-        with contextlib.ExitStack() as exit_stack:
-            with self.blackjack_project_ref.lock_and_load() as blackjack_project:
-                locked_parchment = False
-                for i_agent in i_agents:
-                    try:
-                        agent = blackjack_project.agents[i_agent]
-                    except IndexError:
-                        continue
-                    else:
-                        i_to_agent[i_agent] = agent
-                        if not locked_parchment:
-                            exit_stack.enter_context(agent.parchment_lock)
-                            locked_parchment = True
 
-            for i_agent, agent_int_crowd in zip(i_agents, agent_int_crowds):
+        with self.blackjack_project_ref.lock_and_load() as blackjack_project:
+            for i_agent in i_agents:
                 try:
-                    agent = i_to_agent[i_agent]
-                except KeyError:
+                    agent = blackjack_project.agents[i_agent]
+                except IndexError:
                     continue
-                result_int_crowds.append(
-                    sharknado.IntCrowd(
-                        sharknado.Point((i_agent, i_policy)) for (i_agent, i_policy)
-                        in agent_int_crowd if agent.policies.has_index(i_policy)
+                else:
+                    i_to_agent[i_agent] = agent
+
+        if i_to_agent:
+            arbitrary_agent = more_itertools.first(i_to_agent.values())
+            with arbitrary_agent.parchment_lock:
+                for i_agent, agent_int_crowd in zip(i_agents, agent_int_crowds):
+                    try:
+                        agent = i_to_agent[i_agent]
+                    except KeyError:
+                        continue
+                    result_int_crowds.append(
+                        sharknado.IntCrowd(
+                            sharknado.Point((i_agent, i_policy)) for (i_agent, i_policy)
+                            in agent_int_crowd if agent.policies.has_index(i_policy)
+                        )
                     )
-                )
+
         return sharknado.utils.union(result_int_crowds) if result_int_crowds else None
 
     def fat_run(self, fat_gain: sharknado.FatGain) -> None:

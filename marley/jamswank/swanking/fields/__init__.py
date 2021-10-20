@@ -5,6 +5,6 @@ from __future__ import annotations
 
 from .base_field import BaseField
 from .simple_field import SimpleField
-from .swank_ref_field import SwankRefField
+from .swank_field import SwankField
 from .parchment_field import ParchmentField
 from .savvy_field import SavvyField

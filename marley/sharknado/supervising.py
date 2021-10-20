@@ -100,6 +100,7 @@ class Supervisor:
                                                                        self.main_loop_active = False
 
     def request_shut_down(self, *, finish_jobs: bool = True) -> None:
+        logger.debug(f'Asking supervisor to shut down, {finish_jobs=}')
         if self.main_loop_active:
             if finish_jobs:
                 self.requested_shut_down_when_finished_tasks = True

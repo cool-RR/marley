@@ -15,6 +15,9 @@ from .base_field import BaseField
 
 
 class SimpleField(BaseField):
+
+    field_type_name = 'simple'
+
     def __init__(self, default_factory: Optional[Callable[[], Any]] = type(None)) -> None:
         self.default_factory = default_factory
 

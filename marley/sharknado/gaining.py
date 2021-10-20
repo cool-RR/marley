@@ -8,12 +8,15 @@ from typing import (Iterable, Union, Optional, Tuple, Any, Iterator, Type,
                     Sequence, Callable, Hashable, Mapping, TypeVar)
 import itertools
 import dataclasses
+import logging
 
 import more_itertools
 import operator as operator_module
 
 from . import int_crowding
 from .int_crowding import IntCrowd, Interval, Point
+
+logger = logging.getLogger(__name__)
 
 
 GainArg = TypeVar('GainArg', bound=Union[IntCrowd, bool, None])
@@ -144,10 +147,13 @@ class ThinGain(Gain):
                 Interval[0 : parent_weight.amount] in finished_parent_gain.int_crowd
             )
 
-    def __call__(self) -> Optional[Gain]:
-        # print(f'Executing {self}')
+    def __call__(self) -> Optional[ThinGain]:
+        logger.debug(f'Executing {self}')
         if self:
-            return self.job.thin_run()
+            return_value = self.job.thin_run()
+            logger.debug(f'Finished executing {self}')
+            return return_value
+
 
     def sniff(self) -> ThinGain:
         if not self:
@@ -215,10 +221,12 @@ class FatGain(Gain):
         return parent_weight.get_unblocked_child_gain(self, finished_parent_gain)
 
 
-    def __call__(self) -> Optional[Gain]:
-        # print(f'Executing {self}')
+    def __call__(self) -> Optional[FatGain]:
+        logger.debug(f'Executing {self}')
         if self:
-            return self.job.fat_run(self)
+            return_value = self.job.fat_run(self)
+            logger.debug(f'Finished executing {self}')
+            return return_value
 
     def sniff(self) -> FatGain:
         result = self.job.fat_sniff(self)

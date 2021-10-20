@@ -53,6 +53,9 @@ def object_to_savvy_content(o: Any) -> tuple:
 
 
 class SavvyField(BaseField):
+
+    field_type_name = 'savvy'
+
     def __init__(self, default_factory: Optional[Callable[[], Any]] = type(None)) -> None:
         self.default_factory = default_factory
 

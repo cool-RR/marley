@@ -9,6 +9,7 @@ from typing import Iterable, Mapping, Union, Type, Optional, Any
 import itertools
 import functools
 import filelock
+import re
 import collections.abc
 import contextlib
 
@@ -17,6 +18,8 @@ from ..jamming import BaseJamDatabase, Jam, JamId, JamItem, JamKind, JamParchmen
 from . import utils
 from .exceptions import EmptyJam
 from ..file_locking import FileLock
+
+
 
 
 class SwankDatabase:
@@ -167,19 +170,30 @@ class Swank(metaclass=SwankType):
         fields = cls._Swank__fields
         swank = cls.__new__(cls)
         swank_cache = {(jam_id, jam_index): swank}
-        cls.__init__(
-            swank,
-            **{name: fields[name].from_jam(value, swank_database=swank_database,
-                                           swank_cache=swank_cache)
-               for name, value in jam.items()},
-            jam_id=jam_id, jam_index=jam_index, swank_database=swank_database
-        )
+
+        ### Parsing jam into fields: ###############################################################
+        #                                                                                          #
+        kwargs = {}
+        for full_field_name, value in jam.items():
+            field_name, field_type_name = full_field_name.split('.')
+            field = fields[field_name]
+            assert field_type_name == field.field_type_name
+            kwargs[field_name] = field.from_jam(value, swank_database=swank_database,
+                                                swank_cache=swank_cache)
+        #                                                                                          #
+        ### Finished parsing jam into fields. ######################################################
+
+        cls.__init__(swank, **kwargs,
+                     jam_id=jam_id, jam_index=jam_index, swank_database=swank_database)
         return swank
 
     def __to_jam(self) -> Jam:
         fields = self._Swank__fields
-        return {name: field_type.to_jam(getattr(self, name, None), self.swank_database)
-                for name, field_type in fields.items()}
+        return {
+            f'{name}.{field_type.field_type_name}':
+                field_type.to_jam(getattr(self, name, None), self.swank_database)
+            for name, field_type in fields.items()
+        }
 
     @classmethod
     def load(cls, swank_database: SwankDatabase, jam_id: Union[JamId, str],
@@ -274,6 +288,19 @@ class SwankRef:
     def lock_and_load(self, *, save: bool = False) -> Swank:
         with self.parchment_lock:
             yield (swank := self.get())
+            if save:
+                swank.save()
+
+    @contextlib.contextmanager
+    def lock_and_load_or_create(self, *, save: bool = False) -> Swank:
+        with self.parchment_lock:
+            try:
+                swank = self.get()
+            except EmptyJam:
+                swank = self.swank_type(swank_database=self.swank_database,
+                                        jam_id=self.jam_id,
+                                        jam_index=self.jam_index)
+            yield swank
             if save:
                 swank.save()
 

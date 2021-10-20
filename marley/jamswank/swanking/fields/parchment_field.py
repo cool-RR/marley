@@ -159,6 +159,8 @@ class ParchmentRef(collections.abc.MutableSequence):
 
 class ParchmentField(BaseField):
 
+    field_type_name = 'parchment'
+
     def from_jam(self, jam: Jam, swank_database: SwankDatabase, *,
                  swank_cache: dict) -> ParchmentRef:
         if jam is None:

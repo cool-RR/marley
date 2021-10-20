@@ -4,3 +4,5 @@ include requirements.txt
 include marley/worlds/grid_royale/server/static/*
 include marley/worlds/grid_royale/server/static/ravenna/*
 include marley/worlds/grid_royale/demo.h5
+recursive-include marley/arezzo/arezzo/src *
+recursive-include marley/arezzo/arezzo/dist *

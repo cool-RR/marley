@@ -22,3 +22,5 @@ htmlcov
 aggro-*
 munch-*
 pytest_report*.html
+
+node_modules

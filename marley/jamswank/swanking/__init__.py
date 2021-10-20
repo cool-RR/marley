@@ -7,4 +7,5 @@ from typing import Optional
 
 from .core import *
 from .fields import *
+from .singletoning import SingletonSwank
 

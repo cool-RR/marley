@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import abc
 import os
-import time
+import time as time_module
 import threading
 from typing import (Iterable, Union, Optional, Tuple, Any, Iterator, Type,
                     Sequence, Callable, Hashable, Mapping, TypeVar, Dict)
@@ -86,8 +86,14 @@ class Shark:
         self.supervisor.antilles.job_to_directive_gain.add_thin_jobs(directive_thin_jobs)
 
     def shut_down(self, *, finish_jobs: bool = True) -> None:
+        start_time = time_module.monotonic()
         self.supervisor.request_shut_down(finish_jobs=finish_jobs)
+        logger.debug('Waiting for supervisor to finish and shark thread to stop...')
         self.shark_thread.join()
+        end_time = time_module.monotonic()
+        duration = end_time - start_time
+        logger.debug(f'Shark thread stopped {duration:.2f}s after we asked it do. Shark shutdown '
+                     f'is complete.')
         self.shark_thread = None
 
     def __enter__(self) -> Shark:

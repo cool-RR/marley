@@ -20,14 +20,13 @@ import random
 
 from . import utils
 
+CORE_LENGTH = 12
 
 Jam = TypeVar('Jam', bound=dict)
 
 jam_id_pattern = re.compile(
-    r'^([0-9]{8})-([0-9]{6})-([0-9]{6})-([0-9a-z]{30})\.([0-9]{12})$'
+    r'^([0-9a-z]{' + str(CORE_LENGTH) + r'})\.([0-9]{7})$'
 )
-entry_pack_name_pattern = re.compile('^[0-9]{40}$')
-max_entry_pack_size = 1_000
 datetime_format = '%Y%m%d-%H%M%S-%f'
 digits_and_lowercase_ascii = string.digits + string.ascii_lowercase
 
@@ -85,7 +84,7 @@ class JamId:
         return self.text
 
     def __repr__(self) -> str:
-        return f'{type(self).__name__}({repr(self.text)}))'
+        return f'{type(self).__name__}({repr(self.text)})'
 
     @staticmethod
     def parse(jam_id_or_str: Union[str, JamId]) -> Tuple[JamId, str]:
@@ -107,12 +106,15 @@ class JamId:
             return jam_id_or_str
 
     @staticmethod
-    def create(*, block_size: int = 1_000) -> JamId:
+    def create(*, block_size: int = 1_000, zero: bool = False) -> JamId:
         assert isinstance(block_size, int)
         assert block_size >= 1
+        if zero:
+            content = '0' * CORE_LENGTH
+        else:
+            content = ''.join(random.choices(digits_and_lowercase_ascii, k=CORE_LENGTH))
         return JamId(
-            f'{datetime_module.datetime.now().strftime(datetime_format)}-'
-            f'{"".join(random.choices(digits_and_lowercase_ascii, k=30))}.{block_size:012d}'
+            f'{content}.{block_size:07d}'
         )
 
     def _reduce(self) -> tuple:
@@ -243,7 +245,7 @@ class JamParchment(collections.abc.Sequence, BaseJamReducable):
     def _get_lock_path(self) -> os.PathLike:
         path = self._get_path()
         return type(path)(str(path) + '.lock')
-        
+
 
 
 
@@ -277,4 +279,4 @@ class JamItem(BaseJamReducable):
 
     def write_jam(self, jam: Jam) -> None:
         self.write_blob(fixed_size_json(jam, self.jam_parchment.block_size))
-        
+

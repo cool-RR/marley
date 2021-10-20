@@ -239,3 +239,4 @@ def camel_case_to_lower_case(s: str) -> str:
 
     '''
     return re.sub(r'(((?<=[a-z])[A-Z])|([A-Z](?![A-Z]|$)))', r'_\1', s).lower().strip('_')
+

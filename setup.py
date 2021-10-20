@@ -2,11 +2,33 @@
 # This program is distributed under the MIT license.
 import setuptools
 import re
+import sys
+import pathlib
+
 
 
 def read_file(filename):
     with open(filename) as file:
         return file.read()
+    
+def was_arezzo_built():
+    arezzo_folder = pathlib.Path(__file__).parent / 'marley' / 'arezzo' / 'arezzo'
+    arezzo_src_folder = arezzo_folder / 'src'
+    arezzo_dist_folder = arezzo_folder / 'dist'
+    all_arezzo_src_paths = tuple(arezzo_src_folder.rglob('*'))
+    all_arezzo_dist_paths = tuple(arezzo_dist_folder.rglob('*'))
+    newest_arezzo_src_creation_time = max(path.stat().st_ctime for path in all_arezzo_src_paths)
+    oldest_arezzo_dist_modification_time = min(path.stat().st_mtime for path in all_arezzo_dist_paths)
+    return oldest_arezzo_dist_modification_time > newest_arezzo_src_creation_time
+
+if any(('dist' in arg) for arg in sys.argv):
+    if not was_arezzo_built():
+        raise Exception(
+            "Arezzo source code was modified, it needs to be rebuilt before you can build Marley. "
+            "Rebuild it by going into the `marley/arezzo/arezzo` folder and running `npm run "
+            "build`"
+        )
+
 
 version = re.search("__version__ = '([0-9.]*)'",
                     read_file('marley/__init__.py')).group(1)

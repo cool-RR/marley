@@ -27,7 +27,7 @@ import numpy as np
 from marley import gamey
 from .base import Observation, Action
 from . import utils
-from marley.jamswank.swanking import SimpleField, SavvyField, SwankRefField
+from marley.jamswank.swanking import SimpleField, SavvyField, SwankField
 from marley.gamey.gamey_swanking import GameySwank
 
 

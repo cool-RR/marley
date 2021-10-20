@@ -20,7 +20,8 @@ import marley
 from . import sharknado
 from . import jamswank
 
-def marley_worker_setup_function(swank_database: jamswank.SwankDatabase) -> None:
+def marley_worker_setup_function(swank_database: jamswank.SwankDatabase,
+                                 logging_kwargs: dict) -> None:
     from . import gamey
     gamey.global_gamey_swank_database = swank_database
 
@@ -30,6 +31,8 @@ def marley_worker_setup_function(swank_database: jamswank.SwankDatabase) -> None
     logging.getLogger('tensorflow').addFilter(
         lambda record: 'Tracing is expensive and the excessive' not in record.msg
     )
+
+    marley.logging_setup.setup(**logging_kwargs)
 
 
 
@@ -43,5 +46,6 @@ class MarleyShark(sharknado.Shark):
             self, directive_thin_jobs=directive_thin_jobs, name=name,
             use_multiprocessing=use_multiprocessing, start=start, sniff_only=sniff_only,
             worker_setup_function=marley_worker_setup_function,
-            worker_setup_args=(marley.constants.swank_database,)
+            worker_setup_args=(marley.constants.swank_database,
+                               marley.logging_setup.get_logging_kwargs())
         )

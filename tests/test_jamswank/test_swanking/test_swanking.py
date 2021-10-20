@@ -16,7 +16,7 @@ from marley import gamey
 import marley
 from marley.jamswank import jamming, JamFileDatabase
 from marley.jamswank.swanking import (
-    Swank, SwankDatabase, SimpleField, ParchmentField, SwankRefField,
+    Swank, SwankDatabase, SimpleField, ParchmentField, SwankField,
     SavvyField
 )
 
@@ -41,8 +41,8 @@ def setup_module():
 
     class Snipe(Swank):
         zux = SimpleField()
-        left_roof = SwankRefField()
-        right_roof = SwankRefField()
+        left_roof = SwankField()
+        right_roof = SwankField()
 
     class Zen(Swank):
         default_block_size = 10_000

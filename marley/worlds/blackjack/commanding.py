@@ -30,15 +30,17 @@ def command_group() -> None:
 # @click.option('--n-evaluation-games', default=3_000)
 @command_group.command()
 def run(*, n_generations: int, n_agents: int, use_multiprocessing: bool) -> None:
-    # blackjack_project = BlackjackProject()
-    # blackjack_project.save()
-    blackjack_project = BlackjackProject.get_last(marley.constants.swank_database)
+    blackjack_project = BlackjackProject()
+    blackjack_project.save()
+    # blackjack_project = BlackjackProject.get_last(marley.constants.swank_database)
     with marley.sharknadoing.MarleyShark(use_multiprocessing=use_multiprocessing) as shark:
         shark.add_directive_thin_jobs(blackjack_project.get_job(n_generations=n_generations,
                                                                 n_agents=n_agents))
 
 
+@click.option('--use-multiprocessing/--dont-use-multiprocessing', is_flag=True, default=True)
 @command_group.command()
-def write_chart() -> None:
-    blackjack_project: BlackjackProject = BlackjackProject.get_last(marley.constants.swank_database)
-    blackjack_project.write_chart_to_desktop()
+def write_chart(*, use_multiprocessing: bool) -> None:
+    blackjack_project = BlackjackProject.get_last(marley.constants.swank_database)
+    with marley.sharknadoing.MarleyShark(use_multiprocessing=use_multiprocessing) as shark:
+        shark.add_directive_thin_jobs(blackjack_project.get_job(n_generations=0, n_agents=0))

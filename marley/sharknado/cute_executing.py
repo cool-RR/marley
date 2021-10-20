@@ -71,8 +71,9 @@ class CuteExecutorMixin(concurrent.futures.Executor):
                                                                      Set[concurrent.futures.Future]:
         completed_futures = self._get_completed_futures()
         if wait_for_at_least_one_if_non_empty and not completed_futures and self.futures:
-            logger.debug("There are no completed futures, and there are pending futures. We "
-                         "were asked to wait in this scenario for just one future, so we'll wait.")
+            logger.debug(f"There are no completed futures, and there are {len(self.futures)} "
+                         f"pending futures. We were asked to wait in this scenario for just one "
+                         f"future, so we'll wait.")
             completed_futures = {more_itertools.first(
                                                      concurrent.futures.as_completed(self.futures))}
 

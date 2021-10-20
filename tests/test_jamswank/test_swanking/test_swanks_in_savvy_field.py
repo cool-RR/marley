@@ -16,7 +16,7 @@ from marley import gamey
 import marley
 from marley.jamswank import jamming, JamFileDatabase
 from marley.jamswank.swanking import (
-    Swank, SwankDatabase, SimpleField, ParchmentField, SwankRefField,
+    Swank, SwankDatabase, SimpleField, ParchmentField, SwankField,
     SavvyField
 )
 
@@ -44,7 +44,7 @@ def test_swanks_in_savvy_field(save_first: bool):
         my_swank_database = MySwankDatabase(jam_file_database)
 
         hat = Hat(swank_database=my_swank_database)
-        
+
         furry_cat = Cat(swank_database=my_swank_database, name='furry')
         skinny_cat = Cat(swank_database=my_swank_database, name='skinny')
         fat_cat = Cat(swank_database=my_swank_database, name='fat')
@@ -52,18 +52,18 @@ def test_swanks_in_savvy_field(save_first: bool):
         if save_first:
             for cat in cats:
                 cat.save()
-            
+
         hat.stuff = {
             'furry': furry_cat,
             'skinny': skinny_cat,
             'fat': fat_cat,
         }
         hat.save()
-        
+
         hat_reloaded = hat.reload()
         assert hat_reloaded.stuff == {
             'furry': furry_cat,
             'skinny': skinny_cat,
             'fat': fat_cat,
         }
-        
+

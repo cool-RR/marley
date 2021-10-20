@@ -23,7 +23,7 @@ import more_itertools
 import numpy as np
 
 from marley.utils import ImmutableDict
-from marley.jamswank.swanking import SimpleField, SavvyField, SwankRefField
+from marley.jamswank.swanking import SimpleField, SavvyField, SwankField
 from marley.gamey.gamey_swanking import GameySwank
 from . import utils
 from . import exceptions

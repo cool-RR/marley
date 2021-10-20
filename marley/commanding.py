@@ -40,6 +40,16 @@ def marley_done(result: Any, *, verbose: bool = False, log_to_file: bool = True)
 def initialize() -> None:
     pass
 
+@click.option('--host', default=None)
+@click.option('--port', default=None)
+@marley_command_group.command()
+def serve(*, host: Optional[str], port: Optional[str]) -> None:
+    from . import arezzo
+    with arezzo.ArezzoServerThread(host=host, port=port) as arezzo_server_thread:
+        logger.info(f'Open {arezzo_server_thread.url} in your browser to access Marley.')
+        while True:
+            time.sleep(0.1)
+
 ####################################################################################################
 
 def is_exit_0_exception(exception: Exception) -> bool:
@@ -63,10 +73,10 @@ def import_all_worlds():
     import marley.worlds.blackjack
 
 
-def marley():
+def marley(*args: Any, **kwargs: Any) -> None:
     # Import all the worlds to register their command groups:
     import_all_worlds()
 
     with run_and_log_exception():
-        marley_command_group()
+        marley_command_group(*args, **kwargs)
 

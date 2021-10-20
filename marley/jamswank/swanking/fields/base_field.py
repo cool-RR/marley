@@ -15,6 +15,8 @@ from ..core import Swank, SwankDatabase
 
 
 class BaseField(abc.ABC):
+    field_type_name: str
+
     @abc.abstractmethod
     def from_jam(self, jam: Jam, swank_database: SwankDatabase, *, swank_cache: dict) -> Swank:
         raise NotImplementedError

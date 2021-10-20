@@ -24,7 +24,7 @@ import numpy as np
 
 from marley.utils import ImmutableDict
 from marley.jamswank import JamId, SwankDatabase
-from marley.jamswank.swanking import SimpleField, SavvyField, ParchmentField, SwankRefField
+from marley.jamswank.swanking import SimpleField, SavvyField, ParchmentField, SwankField
 from . import utils
 from . import exceptions
 from . import aggregating
@@ -77,7 +77,7 @@ class NarrativeManager(collections.abc.Mapping):
         return (f'<{type(self).__name__} with {len(self)} narratives>')
 
 class Game(collections.abc.Sequence, GameySwank):
-    culture = SwankRefField()
+    culture = SwankField()
     states = ParchmentField()
     activities = ParchmentField()
     payoffs = ParchmentField()
