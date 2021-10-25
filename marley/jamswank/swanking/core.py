@@ -31,11 +31,8 @@ class SwankDatabase:
         return cls(JamFileDatabase.create_ethereal())
 
     def get_jam_kind(self, arg: Union[Swank, Type[Swank], str]) -> JamKind:
-        if isinstance(arg, str):
-            jam_kind_name = arg
-        else:
-            jam_kind_name = utils.type_to_name(self.get_swank_type(arg))
-        return JamKind(self.jam_database, jam_kind_name)
+        fixed_arg = type(arg) if isinstance(arg, Swank) else arg
+        return self.jam_database[fixed_arg]
 
     def get_jam_item(self, swank: Swank) -> JamKind:
         assert swank.has_jam_id_and_index
@@ -114,9 +111,12 @@ class SwankType(abc.ABCMeta):
         return fields
 
     def iterate_latest(cls, swank_database: SwankDatabase) -> Iterable[Swank]:
-        jam_kind = swank_database.get_jam_kind(cls)
-        jam_parchments = tuple(jam_kind)
-        for jam_parchment in reversed(jam_parchments):
+        jam_parchments_by_latest = sorted(
+            swank_database.get_jam_kind(cls),
+            key=lambda jam_parcment: jam_parcment._get_path().stat().st_mtime,
+            reverse=True,
+        )
+        for jam_parchment in jam_parchments_by_latest:
             for i in reversed(range(len(jam_parchment))):
                 yield swank_database.load_swank(cls, jam_parchment.jam_id, i)
 

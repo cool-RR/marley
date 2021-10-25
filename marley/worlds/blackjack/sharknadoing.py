@@ -27,7 +27,7 @@ from marley import jamswank
 from marley import sharknado
 from .core import *
 
-N_GAMES_PER_BUNCH = 300
+N_GAMES_PER_SEQUENCE = 300
 N_GAMES_PER_BASELINE_POLICY_EVALUATION = 3_000
 
 BASELINE_POLICY_TYPES_AND_ARGS = (
@@ -58,19 +58,49 @@ class BlackjackProject(gamey.GameySwank):
 
 class Agent(gamey.GameySwank):
     policies = jamswank.ParchmentField()
-    game_bunches = jamswank.ParchmentField()
+    game_sequences = jamswank.ParchmentField()
 
 
-class GameBunch(gamey.GameySwank):
+class GameSequence(gamey.GameySwank):
     games = jamswank.ParchmentField()
     mean_score = jamswank.SimpleField()
+
+    def defrag(self):
+        first_game = self.games[0]
+        # swank_database = first_game.swank_database
+        parchment_field_names = ('states', 'activities', 'payoffs')
+        parchments = {
+            parchment_field_name: getattr(first_game, parchment_field_name).jam_parchment
+            for parchment_field_name in parchment_field_names
+        }
+        for parchment_field_name, parchment in parchments.items():
+            getattr(first_game, parchment_field_name).end_index = len(parchment)
+        first_game.save()
+        # culture_jam_item = swank_database.get_jam_item(first_game.culture)
+        # assert culture_jam_item.jam_index == 0
+        # cultures_parchment: jamswank.JamParchment = culture_jam_item.jam_parchment
+        # assert len(cultures_parchment) == 1
+
+        for i, (left_game, right_game) in enumerate(gamey.utils.iterate_windowed_pairs(self.games)):
+            for parchment_field_name in parchment_field_names:
+                left_game_parchment_ref = getattr(left_game, parchment_field_name)
+                right_game_parchment_ref = getattr(right_game, parchment_field_name)
+                right_game_parchment_ref.migrate(
+                    left_game_parchment_ref.jam_id,
+                    left_game_parchment_ref.end_index,
+                    left_game_parchment_ref.end_index + len(right_game_parchment_ref),
+                )
+            # old_culture_parchment = swank_database.get_jam_item(right_game.culture).jam_parchment
+            # right_game.culture.jam_id = cultures_parchment.jam_id
+            # right_game.culture.jam_index = i + 1
+            right_game.save()
+            # old_culture_parchment.delete()
+
 
 
 class BaselinePolicyEvaluation(gamey.GameySwank):
-    games = jamswank.ParchmentField()
+    game_sequence = jamswank.SwankField()
     title = jamswank.SimpleField()
-    mean_score = jamswank.SimpleField()
-
 
 
 
@@ -131,12 +161,14 @@ class AgentJob(JobMixin, sharknado.ParallelJob):
 
     def get_parent_job_to_weight(self):
         return {
-            PolicyJob(self.blackjack_project_ref): sharknado.TadpoleWeight(self.n_generations),
-            GameBunchJob(self.blackjack_project_ref): sharknado.TadpoleWeight(self.n_generations),
+            PolicyJob(self.blackjack_project_ref):
+                sharknado.TadpoleWeight(self.n_generations),
+            AgentGameSequenceJob(self.blackjack_project_ref):
+                sharknado.TadpoleWeight(self.n_generations),
         }
 
 
-class GameBunchJob(JobMixin, sharknado.ParallelJob):
+class AgentGameSequenceJob(JobMixin, sharknado.ParallelJob):
     dimensions = 2
 
     def fat_sniff(self, fat_gain: sharknado.FatGain) -> sharknado.IntCrowd:
@@ -168,8 +200,9 @@ class GameBunchJob(JobMixin, sharknado.ParallelJob):
                         continue
                     result_int_crowds.append(
                         sharknado.IntCrowd(
-                            sharknado.Point((i_agent, i_game_bunch)) for (i_agent, i_game_bunch)
-                            in agent_int_crowd if agent.game_bunches.has_index(i_game_bunch)
+                            sharknado.Point((i_agent, i_game_sequence))
+                            for (i_agent, i_game_sequence) in agent_int_crowd
+                            if agent.game_sequences.has_index(i_game_sequence)
                         )
                     )
 
@@ -180,26 +213,27 @@ class GameBunchJob(JobMixin, sharknado.ParallelJob):
         agent_ref = self.get_agent_ref(i_agent)
         with agent_ref.lock_and_load() as agent:
             policy: ModelFreeLearningPolicy = agent.policies[i_policy]
-        game_bunch = GameBunch()
-        game_bunch.save() # Saving it separately, so we add it to the project only after it's
-                          # done, and never have to think about partially-written game bunches.
-        for _ in range(N_GAMES_PER_BUNCH):
-            culture = policy.make_culture()
-            culture.save()
+        game_sequence = GameSequence()
+        game_sequence.save() # Saving it separately, so we add it to the project only after it's
+                             # done, and never have to think about partially-written game
+                             # sequencees.
+        culture = policy.make_culture()
+        culture.save()
+        for _ in range(N_GAMES_PER_SEQUENCE):
             game = gamey.Game.from_state_culture(BlackjackState.make_initial(), culture)
-            game_bunch.games.append(game)
+            game_sequence.games.append(game)
 
-        gamey.Game.multi_crunch(game_bunch.games)
+        gamey.Game.multi_crunch(game_sequence.games)
 
-        game_bunch.mean_score = np.mean(
+        game_sequence.mean_score = np.mean(
             tuple(
-                sum(payoff.get_single() for payoff in game.payoffs) for game in game_bunch.games
+                sum(payoff.get_single() for payoff in game.payoffs) for game in game_sequence.games
             )
         )
-
-        game_bunch.save()
+        game_sequence.save()
+        game_sequence.defrag()
         with agent_ref.lock_and_load(save=True) as agent:
-            agent.game_bunches[i_policy] = game_bunch
+            agent.game_sequences[i_policy] = game_sequence
 
     def get_parent_job_to_weight(self):
         return {PolicyJob(self.blackjack_project_ref): sharknado.CalfWeight()}
@@ -253,15 +287,15 @@ class PolicyJob(JobMixin, sharknado.SerialJob):
         else:
             with agent_ref.lock_and_load() as agent:
                 old_policy: ModelFreeLearningPolicy = agent.policies[i_policy - 1]
-                game_bunch = agent.game_bunches[i_policy - 1]
-            policy = old_policy.train(tuple(game.narratives[None] for game in game_bunch.games),
+                game_sequence = agent.game_sequences[i_policy - 1]
+            policy = old_policy.train(tuple(game.narratives[None] for game in game_sequence.games),
                                       n_epochs=5)
 
         with agent_ref.lock_and_load(save=True) as agent:
             agent.policies[i_policy] = policy
 
     def get_parent_job_to_weight(self):
-        return {GameBunchJob(self.blackjack_project_ref): sharknado.CalfWeight(-1)}
+        return {AgentGameSequenceJob(self.blackjack_project_ref): sharknado.CalfWeight(-1)}
 
 
 class EvaluateBaselinePolicyJob(JobMixin, sharknado.ParallelJob):
@@ -284,26 +318,31 @@ class EvaluateBaselinePolicyJob(JobMixin, sharknado.ParallelJob):
         (baseline_policy_type, baseline_policy_args) = BASELINE_POLICY_TYPES_AND_ARGS[policy_index]
         baseline_policy: BlackjackPolicy = baseline_policy_type(*baseline_policy_args)
 
+        game_sequence = GameSequence()
+        game_sequence.save()
+
         baseline_policy_evaluation = BaselinePolicyEvaluation(
             title=baseline_policy.title,
+            game_sequence=game_sequence,
         )
         baseline_policy_evaluation.save()
 
+        culture = baseline_policy.make_culture()
+        culture.save()
         for _ in range(N_GAMES_PER_BASELINE_POLICY_EVALUATION):
-            culture = baseline_policy.make_culture()
-            culture.save()
             game = gamey.Game.from_state_culture(BlackjackState.make_initial(), culture)
-            baseline_policy_evaluation.games.append(game)
+            game_sequence.games.append(game)
 
-        gamey.Game.multi_crunch(baseline_policy_evaluation.games)
+        gamey.Game.multi_crunch(game_sequence.games)
 
-        baseline_policy_evaluation.mean_score = np.mean(
+        game_sequence.mean_score = np.mean(
             tuple(
                 sum(payoff.get_single() for payoff in game.payoffs)
-                for game in baseline_policy_evaluation.games
+                for game in game_sequence.games
             )
         )
-        baseline_policy_evaluation.save()
+        game_sequence.save()
+        game_sequence.defrag()
         with self.blackjack_project_ref.lock_and_load(save=True) as blackjack_project:
             blackjack_project: BlackjackProject
             blackjack_project.baseline_policy_evaluations[policy_index] = baseline_policy_evaluation

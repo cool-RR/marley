@@ -24,23 +24,31 @@ logger = logging.getLogger(__name__)
 def command_group() -> None:
     pass
 
+@click.option('-l/-n', '--last-project/--new-project', is_flag=True, default=True)
 @click.option('-g', '--n-generations', default=3)
 @click.option('-a', '--n-agents', default=2)
 @click.option('--use-multiprocessing/--dont-use-multiprocessing', is_flag=True, default=True)
 # @click.option('--n-evaluation-games', default=3_000)
 @command_group.command()
-def run(*, n_generations: int, n_agents: int, use_multiprocessing: bool) -> None:
-    blackjack_project = BlackjackProject()
-    blackjack_project.save()
-    # blackjack_project = BlackjackProject.get_last(marley.constants.swank_database)
+def run(*, last_project: bool, n_generations: int, n_agents: int, use_multiprocessing: bool) -> None:
+    if last_project:
+        blackjack_project = BlackjackProject.get_last(marley.constants.swank_database)
+    else:
+        blackjack_project = BlackjackProject()
+        blackjack_project.save()
     with marley.sharknadoing.MarleyShark(use_multiprocessing=use_multiprocessing) as shark:
         shark.add_directive_thin_jobs(blackjack_project.get_job(n_generations=n_generations,
                                                                 n_agents=n_agents))
 
 
+@click.option('-l/-n', '--last-project/--new-project', is_flag=True, default=True)
 @click.option('--use-multiprocessing/--dont-use-multiprocessing', is_flag=True, default=True)
 @command_group.command()
-def write_chart(*, use_multiprocessing: bool) -> None:
-    blackjack_project = BlackjackProject.get_last(marley.constants.swank_database)
+def write_chart(*, last_project: bool, use_multiprocessing: bool) -> None:
+    if last_project:
+        blackjack_project = BlackjackProject.get_last(marley.constants.swank_database)
+    else:
+        blackjack_project = BlackjackProject()
+        blackjack_project.save()
     with marley.sharknadoing.MarleyShark(use_multiprocessing=use_multiprocessing) as shark:
         shark.add_directive_thin_jobs(blackjack_project.get_job(n_generations=0, n_agents=0))

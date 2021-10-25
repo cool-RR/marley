@@ -147,7 +147,11 @@ class BaseJamDatabase(abc.ABC, Iterable, BaseJamReducable):
     def __init__(self, path: Union[pathlib.Path, str]) -> None:
         self.path = pathlib.Path(path)
 
-    def __getitem__(self, name: str) -> JamKind:
+    def __getitem__(self, name_or_type: Union[str, type]) -> JamKind:
+        if isinstance(name_or_type, str):
+            name = name_or_type
+        else:
+            name = utils.type_to_name(name_or_type)
         return JamKind(self, name)
 
     def __iter__(self) -> Iterable[JamKind]:
@@ -236,6 +240,9 @@ class JamParchment(collections.abc.Sequence, BaseJamReducable):
     def read_texts(self, start: int, end: Optional[int]) -> Tuple[str, ...]:
         return self.jam_database._read_texts(self.jam_kind.name, self.jam_id, start, end)
 
+    def delete(self):
+        self._get_path().unlink()
+
     def _get_path(self) -> os.PathLike:
         # Todo: This method makes me want to refactor jamming to have the path on each object.
         from .jam_file_database import JamFileDatabase
@@ -251,28 +258,28 @@ class JamParchment(collections.abc.Sequence, BaseJamReducable):
 
 
 class JamItem(BaseJamReducable):
-    def __init__(self, jam_parchment: JamParchment, i: str) -> None:
+    def __init__(self, jam_parchment: JamParchment, jam_index: int) -> None:
         self.jam_parchment = jam_parchment
         self.jam_database = self.jam_parchment.jam_database
-        self.i = i
+        self.jam_index = jam_index
 
     def _reduce(self) -> Tuple[Any]:
-        return (self.jam_database, self.jam_parchment, self.i)
+        return (self.jam_database, self.jam_parchment, self.jam_index)
 
     def read_text(self) -> bytes:
-        end = (self.i + 1) if self.i != -1 else None
-        texts = self.jam_parchment.read_texts(self.i, end)
+        end = (self.jam_index + 1) if self.jam_index != -1 else None
+        texts = self.jam_parchment.read_texts(self.jam_index, end)
 
         if texts:
             (text,) = texts
             return text
         else:
-            raise IndexError(self.i)
+            raise IndexError(self.jam_index)
 
     def write_blob(self, blob: bytes) -> None:
         assert isinstance(self.jam_database, BaseWritableJamDatabase)
         self.jam_database._write_blobs(self.jam_parchment.jam_kind.name,
-                                       self.jam_parchment.jam_id, (blob,), start=self.i)
+                                       self.jam_parchment.jam_id, (blob,), start=self.jam_index)
 
     def read_jam(self) -> Jam:
         return cute_json_load(self.read_text())

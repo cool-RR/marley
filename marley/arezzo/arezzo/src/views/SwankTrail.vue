@@ -140,7 +140,7 @@ export default {
               {
                 jamKindName: fieldValue[0],
                 jamId: fieldValue[1],
-                jamIndex: jamIndex,
+                jamIndex: jamIndex + fieldValue[2],
                 drill: null,
                 parentDrillDown: parentDrillDown,
                 vueKey: fieldValue[0] + '/' + fieldValue[1] + '[' + jamIndex + ']',

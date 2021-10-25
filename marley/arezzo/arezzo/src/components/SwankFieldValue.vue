@@ -53,14 +53,20 @@ export default {
     value: {
       handler (newValue, oldValue) {
         if (this.fieldTypeName == 'parchment') {
-          JamService.getParchmentInfo(
-            this.parchmentRefFieldJamKindName,
-            this.parchmentRefFieldJamId
-          ).then(
-            response => {
-              this.parchmentRefFieldLength = response.data.length
-            }
-          )
+          if (this.parchmentRefFieldEndIndex === null) {
+            JamService.getParchmentInfo(
+              this.parchmentRefFieldJamKindName,
+              this.parchmentRefFieldJamId
+            ).then(
+              response => {
+                this.parchmentRefFieldLength = response.data.length
+              }
+            )
+          } else {
+            // This parchment field is bounded.
+            this.parchmentRefFieldLength = 
+              this.parchmentRefFieldEndIndex - this.parchmentRefFieldStartIndex
+          }
         }
       },
       immediate: true,
@@ -79,6 +85,16 @@ export default {
     parchmentRefFieldJamId() {
       if (this.fieldTypeName == 'parchment') {
         return this.value[1]
+      }
+    },
+    parchmentRefFieldStartIndex() {
+      if (this.fieldTypeName == 'parchment') {
+        return this.value[2]
+      }
+    },
+    parchmentRefFieldEndIndex() {
+      if (this.fieldTypeName == 'parchment') {
+        return this.value[3]
       }
     },
   },

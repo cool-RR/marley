@@ -34,12 +34,13 @@ def get_chart_html(blackjack_project: BlackjackProject) -> str:
 
     with blackjack_project.parchment_lock:
         raw_data = tuple(
-            tuple(game_bunch.mean_score for game_bunch in agent.game_bunches)
+            tuple(game_sequence.mean_score for game_sequence in agent.game_sequences)
             for agent in blackjack_project.agents
         )
         baseline_data_frame = pd.DataFrame(
             (
-                (baseline_policy_evaluation.title, baseline_policy_evaluation.mean_score)
+                (baseline_policy_evaluation.title,
+                 baseline_policy_evaluation.game_sequence.mean_score)
                 for baseline_policy_evaluation in blackjack_project.baseline_policy_evaluations
             ),
             columns=('name', 'score')

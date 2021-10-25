@@ -18,30 +18,66 @@ from .. import utils
 from ..exceptions import EmptyJam
 
 
+class CantExtendBoundedParchmentRef(Exception):
+    pass
+
+
 
 class ParchmentRef(collections.abc.MutableSequence):
     def __init__(self, swank_database: SwankDatabase, swank_type: Optional[Type[Swank]] = None,
-                 jam_id: Union[JamId, str, None] = None) -> None:
+                 jam_id: Union[JamId, str, None] = None, start_index: int = 0,
+                 end_index: Optional[int] = None) -> None:
         assert (swank_type, jam_id).count(None) in (0, 2)
         self.swank_database = swank_database
         self.swank_type = swank_type
         self.jam_id = JamId.parse(jam_id)[0] if jam_id is not None else None
+        self.start_index = start_index
+        self.end_index = end_index
         self.cached_swanks = {}
         self.cached_modified_indices = set()
         self.cached_length = None
+
+    def migrate(self, jam_id: Union[JamId, str, None] = None, start_index: int = 0,
+                end_index: Optional[int] = None, *, delete_old_jam_parchment: bool = True) -> None:
+        assert self.is_specified
+        old_jam_parchment = self.jam_parchment
+
+        for i, swank in enumerate(self):
+            jam_index = i + start_index
+            if end_index is not None:
+                assert jam_index < end_index
+            swank.jam_id = jam_id
+            swank.jam_index = jam_index
+            swank.save()
+            self.cached_modified_indices.discard(i)
+        assert not self.cached_modified_indices
+
+        self.jam_id = jam_id
+        self.start_index = start_index
+        self.end_index = end_index
+
+        self.save()
+
+        if delete_old_jam_parchment and old_jam_parchment != self.jam_parchment:
+            old_jam_parchment.delete()
+
 
     def save(self) -> None:
         while self.cached_modified_indices:
             i = self.cached_modified_indices.pop()
             self.cached_swanks[i].save()
         self.cached_swanks.clear()
-        self.cached_length = None
 
     @property
     def is_specified(self) -> bool:
         count = (self.swank_type, self.jam_id).count(None)
         assert count in (0, 2)
         return not count
+
+    @property
+    def is_bounded(self) -> bool:
+        result = (self.end_index is not None)
+        return result
 
     def specify(self, swank_or_type: Union[Swank, Type[Swank]]) -> None:
         swank_type = type(swank_or_type) if isinstance(swank_or_type, Swank) else swank_or_type
@@ -59,7 +95,7 @@ class ParchmentRef(collections.abc.MutableSequence):
     @property
     def jam_parchment(self) -> Optional[JamParchment]:
         if self.is_specified:
-            return self.swank_database.jam_database[self.jam_kind_name][self.jam_id]
+            return self.swank_database.jam_database[self.swank_type][self.jam_id]
         else:
             return None
 
@@ -70,13 +106,17 @@ class ParchmentRef(collections.abc.MutableSequence):
             raise IndexError(i)
         if i < 0:
             i += len(self)
-            assert 0 <= i < len(self)
+            if not 0 <= i < len(self):
+                raise IndexError(i)
+        if self.is_bounded and i >= (self.end_index - self.start_index):
+            raise IndexError(i)
         try:
             return self.cached_swanks[i]
         except KeyError:
             try:
-                self.cached_swanks[i] = self.swank_database.load_swank(self.jam_kind_name,
-                                                                       self.jam_id, i)
+                self.cached_swanks[i] = self.swank_database.load_swank(
+                    self.swank_type, self.jam_id, i + self.start_index
+                )
             except EmptyJam as empty_jam:
                 raise IndexError(i) from empty_jam
             else:
@@ -85,11 +125,16 @@ class ParchmentRef(collections.abc.MutableSequence):
     def __setitem__(self, i: Union[int, slice], swank: Swank) -> None:
         if isinstance(i, slice):
             raise NotImplementedError
+        if i < 0:
+            raise NotImplementedError
         if not self.is_specified:
             self.specify(type(swank))
 
+        if self.is_bounded and i >= (self.end_index - self.start_index):
+            raise IndexError(i)
+
         swank.jam_id = self.jam_id
-        swank.jam_index = i
+        swank.jam_index = i + self.start_index
         self.cached_swanks[i] = swank
         self.cached_modified_indices.add(i)
         if (self.cached_length is None) or i >= self.cached_length:
@@ -97,7 +142,11 @@ class ParchmentRef(collections.abc.MutableSequence):
 
     def __len__(self) -> int:
         if self.cached_length is None:
-            self.cached_length = len(self.jam_parchment) if self.is_specified else 0
+            if self.is_bounded:
+                self.cached_length = self.end_index - self.start_index
+            else:
+                self.cached_length = ((len(self.jam_parchment) - self.start_index)
+                                      if self.is_specified else 0)
         return self.cached_length
 
 
@@ -111,6 +160,8 @@ class ParchmentRef(collections.abc.MutableSequence):
         self.extend((swank,))
 
     def extend(self, swanks: Iterable[Swank]) -> None:
+        if self.is_bounded:
+            raise CantExtendBoundedParchmentRef
         first_run = True
         for i, swank in enumerate(swanks, start=len(self)):
             if first_run and (not self.is_specified):
@@ -121,7 +172,7 @@ class ParchmentRef(collections.abc.MutableSequence):
 
             assert isinstance(swank, self.swank_type)
             swank.jam_id = self.jam_id
-            swank.jam_index = i
+            swank.jam_index = i + self.start_index
 
             self.cached_swanks[i] = swank
             self.cached_modified_indices.add(i)
@@ -140,11 +191,14 @@ class ParchmentRef(collections.abc.MutableSequence):
         raise NotImplementedError
 
     def __repr__(self) -> str:
-        return (
-            f'{type(self).__name__}({self.swank_database}, '
-            f'{utils.type_to_name(self.swank_type) if self.swank_type is not None else "None"}, '
-            f'{repr(str(self.jam_id))})'
+        items = (
+            str(self.swank_database),
+            utils.type_to_name(self.swank_type) if (self.swank_type is not None) else 'None',
+            repr(str(self.jam_id)),
+            *((str(self.start_index),) if self.start_index != 0 else ()),
+            *((str(self.end_index),) if self.start_index is not None else ()),
         )
+        return f'{type(self).__name__}({", ".join(items)})'
 
     def has_index(self, i: int) -> bool:
         try:
@@ -166,18 +220,22 @@ class ParchmentField(BaseField):
         if jam is None:
             return self.get_default_value(swank_database)
         else:
-            jam_kind_name, jam_id_name = jam
+            jam_kind_name, jam_id_name, start_index, end_index = jam
             if jam_kind_name is None:
                 assert jam_id_name is None
+                assert start_index == 0
+                assert end_index is None
                 return ParchmentRef(swank_database)
             else:
                 return ParchmentRef(swank_database, utils.name_to_type(jam_kind_name),
-                                    JamId(jam_id_name))
+                                    JamId(jam_id_name), start_index, end_index)
 
     def to_jam(self, value: Optional[ParchmentRef], swank_database: SwankDatabase) -> Jam:
         return (
             value.jam_kind_name,
-            (str(value.jam_id) if value.jam_id else None)
+            (str(value.jam_id) if value.jam_id else None),
+            value.start_index,
+            value.end_index,
         )
 
     def get_default_value(self, swank_database: SwankDatabase) -> ParchmentRef:
