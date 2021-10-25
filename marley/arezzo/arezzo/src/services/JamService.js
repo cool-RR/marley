@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const apiClient = axios.create({
-  baseURL: '/api/jam/',
+  baseURL: 'http://127.0.0.1:22390/api/jam/',
   withCredentials: false,
   headers: {
     Accept: 'application/json',
