@@ -87,7 +87,7 @@ export default {
       return this.drill.split('[')[0]
     },
     drillFullFieldName() {
-      if (this.drill === null) {
+      if ((this.drill === null) || (this.drill === undefined)) {
         return null
       } else {
         let fieldType = (this.drill.includes('[') ? 'parchment' : 'swank')

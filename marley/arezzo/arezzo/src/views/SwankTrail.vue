@@ -100,10 +100,15 @@ export default {
     },
     startDrillDown(lengthOfMatchingHead) {
       let nSquanchiesToPop = this.squanchies.length - lengthOfMatchingHead - 1
-      for (let i = 0; i < nSquanchiesToPop; i++) {
+      let i
+      for (i = 0; i < nSquanchiesToPop; i++) {
         this.squanchies.pop()
       }
-
+      for (i = 1; i < this.squanchies.length; i++) {
+        let squanchy = this.squanchies[i]
+        squanchy.parentDrillDown = this.drillDown.slice(0, i)
+        squanchy.drill = this.drillDown[i]
+      }
       this.wipDrillDown = (this.drillDown || []).slice(lengthOfMatchingHead)
       this.continueDrillDown()
     },
@@ -170,7 +175,8 @@ export default {
       let newDrillDown = this.drillDown.slice()
       newDrillDown[newActiveSquanchyIndex - 1] += '*'
       if (newActiveSquanchyIndex >= 2) {
-        newDrillDown[newActiveSquanchyIndex - 2] = newDrillDown[newActiveSquanchyIndex - 2].slice(0, -1)
+        newDrillDown[newActiveSquanchyIndex - 2] =
+          newDrillDown[newActiveSquanchyIndex - 2].slice(0, -1)
       }
       this.$router.push(
         {
