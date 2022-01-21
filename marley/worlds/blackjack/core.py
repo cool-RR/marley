@@ -222,7 +222,7 @@ class BlackjackObservation(gamey.Observation):
 
 
 class BlackjackPolicy(gamey.SoloEpisodicPolicy):
-    pass
+    title: Optional[str] = None
 
 
 

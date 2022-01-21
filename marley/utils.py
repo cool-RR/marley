@@ -9,6 +9,7 @@ import tempfile
 import shutil
 import io
 import sys
+import numbers
 import pathlib
 import contextlib
 import builtins
@@ -17,7 +18,7 @@ import time as time_module
 import threading
 import copyreg
 import contextlib
-from typing import Iterable, Iterator, Hashable, Any
+from typing import Iterable, Iterator, Hashable, Any, Union, Optional
 import time
 import datetime as datetime_module
 
@@ -28,8 +29,9 @@ from immutabledict import immutabledict as ImmutableDict
 
 
 @contextlib.contextmanager
-def create_temp_folder(prefix=tempfile.template, suffix='',
-                       parent_folder=None, chmod=None):
+def create_temp_folder(prefix: str = tempfile.template, suffix: str = '',
+                       parent_folder: Optional[str] = None,
+                       chmod: Optional[str] = None) -> pathlib.Path:
     '''
     Context manager that creates a temporary folder and deletes it after usage.
 

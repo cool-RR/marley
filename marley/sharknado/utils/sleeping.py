@@ -13,9 +13,11 @@ import itertools
 import functools
 import time as time_module
 
+from marley import utils
 
-def sleep_until(condition: Callable[[], Any], total_seconds: numbers.Real = 10, *,
-                step_seconds: numbers.Real = 0.5, initial_seconds: numbers.Real = 0,
+
+def sleep_until(condition: Callable[[], Any], total_seconds: float = 10, *,
+                step_seconds: float = 0.5, initial_seconds: float = 0,
                 reset_condition: Optional[Callable[[], Any]] = None,
                 exception: Union[Exception, Type[Exception]] = TimeoutError) -> None:
     if initial_seconds:
