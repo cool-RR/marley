@@ -50,15 +50,15 @@ class Cuteness:
 pairs = (
     (
         {7: 'hi'},
-        {'builtins.dict': [[{'builtins.tuple': [[7, 'hi']]}]]},
+        {'dict': [[[7, 'hi']]]},
     ),
     (
         [1, 2, (3, 4)],
-        [1, 2, {'builtins.tuple': [[3, 4]]}],
+        [1, 2, {'tuple': [[3, 4]]}],
     ),
     (
         {1, 2, frozenset((3, 4))},
-        {'builtins.set': [[{'builtins.frozenset': [[3, 4]]}, 1, 2]]},
+        {'set': [[{'frozenset': [[3, 4]]}, 1, 2]]},
     ),
     (
         [Cuteness('hi', 'there')],
@@ -70,7 +70,7 @@ pairs = (
     ),
     (
         ((((5),),),),
-        {'builtins.tuple': [[{'builtins.tuple': [[{'builtins.tuple': [[5]]}]]}]]},
+        {'tuple': [[{'tuple': [[{'tuple': [[5]]}]]}]]},
     ),
 )
 

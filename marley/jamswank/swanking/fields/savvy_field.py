@@ -38,7 +38,7 @@ def object_to_savvy_content(o: Any) -> tuple:
     elif isinstance(o, (tuple, set, frozenset)):
         return (list(o),)
     elif isinstance(o, (dict, ImmutableDict)):
-        return (list(o.items()),)
+        return (list(map(list, o.items())),)
     elif dataclasses.is_dataclass(type(o)):
         return tuple(getattr(o, field_name) for field_name in o.__dataclass_fields__)
     elif isinstance(o, np.dtype):

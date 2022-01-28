@@ -248,7 +248,9 @@ def type_to_name(type_: Type, *, safety_check: bool = True) -> str:
     if type_.__name__.startswith('dtype') and (type(type_) is type(np.dtype)):
         return 'numpy.dtype'
 
-    name = f'{type_.__module__}.{type_.__name__}'
+    name = (type_.__name__ if type_.__module__ == 'builtins'
+            else f'{type_.__module__}.{type_.__name__}')
+
     if safety_check:
         assert name_to_type(name, safety_check=False) is type_
     return name
