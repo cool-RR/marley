@@ -31,9 +31,21 @@
 </template>
 
 <script>
+import _ from 'lodash';
+
 import JamService from '@/services/JamService.js'
 import ArezzoService from '@/services/ArezzoService.js'
 import SwankFieldValue from '@/components/SwankFieldValue.vue'
+
+function containsObject(list, object) {
+    var i;
+    for (i = 0; i < list.length; i++) {
+        if (_.isEqual(list[i], obj)) {
+            return true;
+        }
+    }
+    return false;
+}
 
 export default {
   name: 'Swank',
@@ -71,8 +83,11 @@ export default {
     this.updateFavorite()
   },
   computed: {
-    slashyString() {
-      return this.jamKindName + '/' + this.jamId + '[' + this.jamIndex + ']'
+    favoriteEntry() {
+      return (
+        this.rootJamKindName + '/' + this.rootJamId + '/' + this.rootJamIndex + '/' +
+        this.parentDrillDown.join('/')
+      )
     },
     favoriteImage() {
       if (this.isFavorite === null) {
@@ -106,7 +121,7 @@ export default {
       ArezzoService.getFavorites()
       .then(response => {
         let favorites = response.data
-        this.isFavorite = favorites.includes(this.slashyString)
+        this.isFavorite = favorites.includes(this.favoriteEntry)
       })
       .catch(error => {
         console.log(error)
@@ -119,11 +134,11 @@ export default {
       }
       if (this.isFavorite === true) {
         this.isFavorite = null
-        request = ArezzoService.deleteFavorite(this.slashyString)
+        request = ArezzoService.deleteFavorite(this.favoriteEntry)
       }
       else if (this.isFavorite === false) {
         this.isFavorite = null
-        request = ArezzoService.addFavorite(this.slashyString)
+        request = ArezzoService.addFavorite(this.favoriteEntry)
       }
       request.then(response => {this.updateFavorite()})
              .catch(error => {console.log(error)})

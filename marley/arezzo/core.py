@@ -69,7 +69,7 @@ def get_favorites():
 
 @app.route('/api/favorites/<path:favorite>', methods=('POST',))
 def add_favorite(favorite):
-    if not re.fullmatch(r'^[a-zA-Z0-9._]+/[a-zA-Z0-9._]+\[[0-9]+\]$', favorite):
+    if not re.fullmatch(r'^[a-zA-Z0-9._/\[\]*]+$', favorite):
         return flask.Response(status=400)
     with ArezzoUserSession.lock_and_load_or_create(constants.swank_database,
                                                    save=True) as arezzo_user_session:
@@ -79,7 +79,7 @@ def add_favorite(favorite):
 
 @app.route('/api/favorites/<path:favorite>', methods=('DELETE',))
 def delete_favorite(favorite):
-    if not re.fullmatch(r'^[a-zA-Z0-9._]+/[a-zA-Z0-9._]+\[[0-9]+\]$', favorite):
+    if not re.fullmatch(r'^[a-zA-Z0-9._/\[\]*]+$', favorite):
         return flask.Response(status=400)
     with ArezzoUserSession.lock_and_load_or_create(constants.swank_database,
                                                    save=True) as arezzo_user_session:
