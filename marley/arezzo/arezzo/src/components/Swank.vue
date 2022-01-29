@@ -1,10 +1,13 @@
 <template>
-  <div class="swank" :ass="ass">
+  <div class="swank">
     <table class="top-bar">
       <tr>
         <td>
           <div class="title">
-            {{ shortJamKindName}}/<b>{{ jamId }}</b>[{{ jamIndex }}]<br/>
+            <router-link :to="{name: 'SwankTrail', params: {'jamKindName': jamKindName, 'jamId': jamId, 'jamIndex': jamIndex}}">
+              {{ shortJamKindName}}/<b>{{ jamId }}</b>[{{ jamIndex }}]
+            </router-link>
+            <br/>
           </div>
         </td>
         <td style="text-align: right;">
@@ -45,7 +48,6 @@ export default {
     'jamKindName': String,
     'jamId': String,
     'jamIndex': Number,
-    'ass': {required: false},
 
     'drill': String,
     'parentDrillDown': Array,

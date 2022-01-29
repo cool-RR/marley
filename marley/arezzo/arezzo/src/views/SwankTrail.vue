@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="swank-trail">
-      <Swank v-for="(squanchy, index) in squanchies" :key="squanchy.vueKey" :ass="0" :jamKindName="squanchy.jamKindName" :jamId="squanchy.jamId" :jamIndex="squanchy.jamIndex" :drill="squanchy.drill" :parentDrillDown="squanchy.parentDrillDown" :rootJamKindName="squanchies[0].jamKindName" :rootJamIndex="squanchies[0].jamIndex" :rootJamId="squanchies[0].jamId" :class="{is_active: index == activeSquanchyIndex, is_parent_and_button: index == activeSquanchyIndex - 1, is_parent_ancestor: index < activeSquanchyIndex - 1, is_child_and_button: index == activeSquanchyIndex + 1, is_child_descendant: index > activeSquanchyIndex + 1}" v-on="(index == activeSquanchyIndex - 1) ? {click: activateParent} : ((index == activeSquanchyIndex + 1) ? { click: activateChild} : {})" />
+      <Swank v-for="(squanchy, index) in squanchies" :key="squanchy.vueKey" :jamKindName="squanchy.jamKindName" :jamId="squanchy.jamId" :jamIndex="squanchy.jamIndex" :drill="squanchy.drill" :parentDrillDown="squanchy.parentDrillDown" :rootJamKindName="squanchies[0].jamKindName" :rootJamIndex="squanchies[0].jamIndex" :rootJamId="squanchies[0].jamId" :class="{is_active: index == activeSquanchyIndex, is_parent_and_button: index == activeSquanchyIndex - 1, is_parent_ancestor: index < activeSquanchyIndex - 1, is_child_and_button: index == activeSquanchyIndex + 1, is_child_descendant: index > activeSquanchyIndex + 1}" v-on="(index == activeSquanchyIndex - 1) ? {click: activateParent} : ((index == activeSquanchyIndex + 1) ? { click: activateChild} : {})" />
     </div>
   </div>
 </template>
@@ -17,6 +17,32 @@ function zip(arrays) {
     return arrays.map(function(array){return array[i]})
   });
 }
+
+Array.prototype.equals = function (array) {
+    if (!array)
+        return false;
+
+    if (this.length != array.length)
+        return false;
+
+    for (var i = 0, l=this.length; i < l; i++) {
+        // Check if we have nested arrays
+        if (this[i] instanceof Array && array[i] instanceof Array) {
+            // recurse into the nested arrays
+            if (!this[i].equals(array[i]))
+                return false;
+        }
+        else if (this[i] != array[i]) {
+            // Warning - two different object instances will never be equal: {x:20} != {x:20}
+            return false;
+        }
+    }
+    return true;
+}
+
+// Hide method from for-in loops
+Object.defineProperty(Array.prototype, 'equals', {enumerable: false});
+
 
 function getLengthOfMatchingHead(x, y) {
   let zipped = zip([x || [], y || []])
@@ -47,14 +73,20 @@ export default {
     Swank,
   },
   props: {
-  'jamKindName': String,
-  'jamId': String,
-  'jamIndexString': String,
-  'drillDown': [Array, String],
+    'jamKindName': String,
+    'jamId': String,
+    'jamIndexString': String,
+    'drillDown': [Array, String],
   },
   computed: {
     jamIndex() {
       return parseInt(this.jamIndexString)
+    },
+    jamTriplet() {
+      return [this.jamKindName, this.jamId, this.jamIndex]
+    },
+    jamTripletAndCleanDrilldown() {
+      return [this.jamKindName, this.jamId, this.jamIndex, this.cleanDrillDown]
     },
     activeSquanchyIndex() {
       let drillDown = this.drillDown || []
@@ -76,24 +108,38 @@ export default {
     }
   },
   created() {
-    this.squanchies = [
-      {
-        jamKindName: this.jamKindName,
-        jamId: this.jamId,
-        jamIndex: this.jamIndex,
-        drill: null,
-        parentDrillDown: [],
-        vueKey: this.jamKindName + '/' + this.jamId + '[' + this.jamIndex + ']',
-      }
-    ]
-    this.handleCleanDrillDownChange(this.drillDown, [])
+    this.initialize()
   },
   watch: {
-    cleanDrillDown(newCleanDrillDown, oldCleanDrillDown) {
-      this.handleCleanDrillDownChange(newCleanDrillDown, oldCleanDrillDown)
-    },
+    jamTripletAndCleanDrilldown(newJamTripletAndCleanDrilldown, oldJamTripletAndCleanDrilldown) {
+      let oldJamTriplet = oldJamTripletAndCleanDrilldown.slice(0, 3)
+      let newJamTriplet = newJamTripletAndCleanDrilldown.slice(0, 3)
+      let oldCleanDrillDown = oldJamTripletAndCleanDrilldown[3]
+      let newCleanDrillDown = newJamTripletAndCleanDrilldown[3]
+
+      if (!oldJamTriplet.equals(newJamTriplet)) {
+        this.initialize()
+      } else {
+        if (!oldCleanDrillDown.equals(newCleanDrillDown)) {
+          this.handleCleanDrillDownChange(newCleanDrillDown, oldCleanDrillDown)
+        }
+      }
+    }
   },
   methods: {
+    initialize() {
+      this.squanchies = [
+        {
+          jamKindName: this.jamKindName,
+          jamId: this.jamId,
+          jamIndex: this.jamIndex,
+          drill: null,
+          parentDrillDown: [],
+          vueKey: this.jamKindName + '/' + this.jamId + '[' + this.jamIndex + ']',
+        }
+      ]
+      this.handleCleanDrillDownChange(this.drillDown, [])
+    },
     handleCleanDrillDownChange(newCleanDrillDown, oldCleanDrillDown) {
       let lengthOfMatchingHead = getLengthOfMatchingHead(newCleanDrillDown, oldCleanDrillDown)
       this.startDrillDown(lengthOfMatchingHead)
@@ -153,11 +199,8 @@ export default {
             )
           } else {
             fieldName = drill.endsWith('*') ? drill.slice(0, -1) : drill
-            console.log('drill =', drill)
             fullFieldName = fieldName + '.swank'
-            console.log('fullFieldName =', fullFieldName)
             fieldValue = jam[fullFieldName]
-            console.log('fieldValue =', fieldValue)
             this.squanchies.push(
               {
                 jamKindName: fieldValue[0],
