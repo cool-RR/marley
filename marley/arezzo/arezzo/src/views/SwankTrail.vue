@@ -152,9 +152,12 @@ export default {
               }
             )
           } else {
-            fieldName = drill
+            fieldName = drill.endsWith('*') ? drill.slice(0, -1) : drill
+            console.log('drill =', drill)
             fullFieldName = fieldName + '.swank'
+            console.log('fullFieldName =', fullFieldName)
             fieldValue = jam[fullFieldName]
+            console.log('fieldValue =', fieldValue)
             this.squanchies.push(
               {
                 jamKindName: fieldValue[0],

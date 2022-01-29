@@ -8,17 +8,19 @@
   </div>
 
   <div v-else-if="fieldTypeName == 'swank'" class="swank-ref-field">
-    Swank: {{ value }}
+    <button @click="goToSwank()">
+      {{ swankFieldShortJamKindName }}
+    </button>
   </div>
 
   <div v-else-if="fieldTypeName == 'parchment'" class="parchment-ref-field">
-    <button @click="parchmentRefFieldShowDialog()">
-      <img v-if="parchmentRefFieldLength === null" class="loading" src="@/assets/loading.gif" />
+    <button @click="parchmentFieldShowDialog()">
+      <img v-if="parchmentFieldLength === null" class="loading" src="@/assets/loading.gif" />
       <span v-else>
-        {{ parchmentRefFieldLength }}x
+        {{ parchmentFieldLength }}x
       </span>
 
-      {{ parchmentRefFieldShortJamKindName }}
+      {{ parchmentFieldShortJamKindName }}
     </button>
   </div>
 
@@ -46,26 +48,26 @@ export default {
   },
   data() {
     return {
-      parchmentRefFieldLength: null,
+      parchmentFieldLength: null,
     }
   },
   watch: {
     value: {
       handler (newValue, oldValue) {
         if (this.fieldTypeName == 'parchment') {
-          if (this.parchmentRefFieldEndIndex === null) {
+          if (this.parchmentFieldEndIndex === null) {
             JamService.getParchmentInfo(
-              this.parchmentRefFieldJamKindName,
-              this.parchmentRefFieldJamId
+              this.parchmentFieldJamKindName,
+              this.parchmentFieldJamId
             ).then(
               response => {
-                this.parchmentRefFieldLength = response.data.length
+                this.parchmentFieldLength = response.data.length
               }
             )
           } else {
             // This parchment field is bounded.
-            this.parchmentRefFieldLength =
-              this.parchmentRefFieldEndIndex - this.parchmentRefFieldStartIndex
+            this.parchmentFieldLength =
+              this.parchmentFieldEndIndex - this.parchmentFieldStartIndex
           }
         }
       },
@@ -73,38 +75,45 @@ export default {
     }
   },
   computed: {
-    parchmentRefFieldShortJamKindName() {
-      let split_name = this.parchmentRefFieldJamKindName.split('.')
+    parchmentFieldShortJamKindName() {
+      let split_name = this.parchmentFieldJamKindName.split('.')
       return split_name[split_name.length - 1]
     },
-    parchmentRefFieldJamKindName() {
+    parchmentFieldJamKindName() {
       if (this.fieldTypeName == 'parchment') {
         return this.value[0]
       }
     },
-    parchmentRefFieldJamId() {
+    parchmentFieldJamId() {
       if (this.fieldTypeName == 'parchment') {
         return this.value[1]
       }
     },
-    parchmentRefFieldStartIndex() {
+    parchmentFieldStartIndex() {
       if (this.fieldTypeName == 'parchment') {
         return this.value[2]
       }
     },
-    parchmentRefFieldEndIndex() {
+    parchmentFieldEndIndex() {
       if (this.fieldTypeName == 'parchment') {
         return this.value[3]
       }
     },
+    swankFieldShortJamKindName() {
+      if (this.fieldTypeName == 'swank') {
+        let split_jam_kind_name = this.value[0].split('.')
+        return split_jam_kind_name[split_jam_kind_name.length - 1]
+      }
+    },
+
   },
   methods: {
-    parchmentRefFieldShowDialog() {
+    parchmentFieldShowDialog() {
       let i = null
-      while ((i === null) || (isNaN(i)) || (i < 0) || (i >= this.parchmentRefFieldLength)) {
+      while ((i === null) || (isNaN(i)) || (i < 0) || (i >= this.parchmentFieldLength)) {
         i = parseInt(
-          window.prompt('Choose ' + this.parchmentRefFieldShortJamKindName +
-                        ' number, from 0 to ' + (this.parchmentRefFieldLength - 1))
+          window.prompt('Choose ' + this.parchmentFieldShortJamKindName +
+                        ' number, from 0 to ' + (this.parchmentFieldLength - 1))
         )
       }
       let newDrillDown = this.parentDrillDown.slice()
@@ -113,6 +122,25 @@ export default {
         newDrillDown.push(lastDrill.slice(0, -1))
       }
       newDrillDown.push(this.fieldName + '[' + i + ']*')
+      this.$router.push(
+        {
+          name: 'SwankTrail',
+          params: {
+            jamKindName: this.rootJamKindName,
+            jamId: this.rootJamId,
+            jamIndex: this.rootJamIndex,
+            drillDown: newDrillDown
+          }
+        }
+      )
+    },
+    goToSwank() {
+      let newDrillDown = this.parentDrillDown.slice()
+      if (newDrillDown.length) {
+        let lastDrill = newDrillDown.pop()
+        newDrillDown.push(lastDrill.slice(0, -1))
+      }
+      newDrillDown.push(this.fieldName + '*')
       this.$router.push(
         {
           name: 'SwankTrail',
