@@ -70,6 +70,8 @@ class SavvyField(BaseField):
             assert isinstance(jam, dict)
             ((name, savvy_content),) = jam.items()
             assert isinstance(savvy_content, list)
+            if name == 'base64.b64decode':
+                return base64.b64decode(*savvy_content)
             type_ = utils.name_to_type(name)
             if issubclass(type_, Swank):
                 jam_id_name, jam_index = savvy_content
@@ -79,8 +81,6 @@ class SavvyField(BaseField):
                 except KeyError:
                     swank_cache[pair] = swank_cache = swank_database.load_swank(type_, *pair)
                     return swank_cache
-            elif type_ is bytes:
-                return base64.b64decode(*savvy_content)
             elif issubclass(type_, type):
                 result = utils.name_to_type(savvy_content[0])
                 assert type(result) is type_
@@ -99,8 +99,7 @@ class SavvyField(BaseField):
                 if not value.has_jam_id_and_index:
                     value.save()
                 assert value.has_jam_id_and_index
-            return {
-                utils.type_to_name(type(value)):
-                    [self.to_jam(item, swank_database) for item in object_to_savvy_content(value)]
-            }
+            key = 'base64.b64decode' if type(value) is bytes else utils.type_to_name(type(value))
+            return {key: [self.to_jam(item, swank_database)
+                          for item in object_to_savvy_content(value)]}
 

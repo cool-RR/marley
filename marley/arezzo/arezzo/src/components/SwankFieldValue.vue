@@ -1,10 +1,10 @@
 <template>
   <div v-if="fieldTypeName == 'simple'" class="simple-field">
-    {{ value }}
+    {{ formattedSimpleValue }}
   </div>
 
   <div v-else-if="fieldTypeName == 'savvy'" class="swank-field">
-    Savvy: {{ value }}
+    {{ formattedSavvy }}
   </div>
 
   <div v-else-if="fieldTypeName == 'swank'" class="swank-ref-field">
@@ -29,6 +29,7 @@
 
 <script>
 import JamService from '@/services/JamService.js'
+import formatSavvy from '@/libraries/savviness.js'
 
 export default {
   name: 'SwankFieldValue',
@@ -105,7 +106,20 @@ export default {
         return split_jam_kind_name[split_jam_kind_name.length - 1]
       }
     },
-
+    formattedSavvy() {
+      if (this.fieldTypeName == 'savvy') {
+        return formatSavvy(this.value)
+      }
+    },
+    formattedSimpleValue() {
+      if (this.fieldTypeName == 'simple') {
+        if (typeof(this.value) == 'string') {
+          return JSON.stringify(this.value)
+        } else {
+          return this.value
+        }
+      }
+    },
   },
   methods: {
     parchmentFieldShowDialog() {
