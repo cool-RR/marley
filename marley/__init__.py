@@ -22,7 +22,7 @@ from . import sharknado # todo remove
 __VersionInfo = collections.namedtuple('VersionInfo',
                                        ('major', 'minor', 'micro'))
 
-__version__ = '0.5.1'
+__version__ = '0.5.2'
 __version_info__ = __VersionInfo(*(map(int, __version__.split('.'))))
 
 del os, logging, collections, __VersionInfo # Avoid polluting the namespace
