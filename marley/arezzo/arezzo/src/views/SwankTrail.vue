@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="swank-trail">
-      <Swank v-for="(squanchy, index) in squanchies" :key="squanchy.vueKey" :jamKindName="squanchy.jamKindName" :jamId="squanchy.jamId" :jamIndex="squanchy.jamIndex" :drill="squanchy.drill" :parentDrillDown="squanchy.parentDrillDown" :rootJamKindName="squanchies[0].jamKindName" :rootJamIndex="squanchies[0].jamIndex" :rootJamId="squanchies[0].jamId" :class="{is_active: index == activeSquanchyIndex, is_parent_and_button: index == activeSquanchyIndex - 1, is_parent_ancestor: index < activeSquanchyIndex - 1, is_child_and_button: index == activeSquanchyIndex + 1, is_child_descendant: index > activeSquanchyIndex + 1}" v-on="(index == activeSquanchyIndex - 1) ? {click: activateParent} : ((index == activeSquanchyIndex + 1) ? { click: activateChild} : {})" />
+      <Swank v-for="(squanchy, index) in squanchies" :key="squanchy.vueKey" :jamKindName="squanchy.jamKindName" :jamId="squanchy.jamId" :jamIndex="squanchy.jamIndex" :drill="squanchy.drill" :headDeasteriskedDrillDown="squanchy.headDeasteriskedDrillDown" :rootJamKindName="squanchies[0].jamKindName" :rootJamIndex="squanchies[0].jamIndex" :rootJamId="squanchies[0].jamId" :class="{is_active: index == activeSquanchyIndex, is_parent_and_button: index == activeSquanchyIndex - 1, is_parent_ancestor: index < activeSquanchyIndex - 1, is_child_and_button: index == activeSquanchyIndex + 1, is_child_descendant: index > activeSquanchyIndex + 1}" v-on="(index == activeSquanchyIndex - 1) ? {click: activateParent} : ((index == activeSquanchyIndex + 1) ? { click: activateChild} : {})" />
     </div>
   </div>
 </template>
@@ -10,6 +10,7 @@
 import _ from 'lodash';
 
 import JamService from '@/services/JamService.js'
+import removeAsterisksFromDrillDown from '@/libraries/drilling.js'
 import Swank from '@/components/Swank.vue';
 
 function zip(arrays) {
@@ -56,15 +57,6 @@ function getLengthOfMatchingHead(x, y) {
   }
   return i
 }
-
-function removeAsterisksFromDrillDown(drillDown) {
-  let result = []
-  drillDown.forEach(
-    drill => {result.push(drill.replace('*', ''))}
-  )
-  return result
-}
-
 
 
 export default {
@@ -134,7 +126,7 @@ export default {
           jamId: this.jamId,
           jamIndex: this.jamIndex,
           drill: null,
-          parentDrillDown: [],
+          headDeasteriskedDrillDown: [],
           vueKey: this.jamKindName + '/' + this.jamId + '[' + this.jamIndex + ']',
         }
       ]
@@ -152,7 +144,9 @@ export default {
       }
       for (i = 1; i < this.squanchies.length; i++) {
         let squanchy = this.squanchies[i]
-        squanchy.parentDrillDown = this.drillDown.slice(0, i)
+        squanchy.headDeasteriskedDrillDown = removeAsterisksFromDrillDown(
+          this.drillDown.slice(0, i)
+        )
         squanchy.drill = this.drillDown[i]
       }
       this.wipDrillDown = (this.drillDown || []).slice(lengthOfMatchingHead)
@@ -164,14 +158,8 @@ export default {
       }
       let drill = this.wipDrillDown.shift()
       let indexedDrillRegex = /^(.*)\[([0-9]+)\]\*?$/
-      let lastSquanchy
-      let jam
-      let fieldName
-      let fullFieldName
-      let fieldValue
-      let jamIndex
-      let match
-      let parentDrillDown
+      let lastSquanchy, jam, fieldName, fullFieldName, fieldValue, jamIndex, match
+      let headDeasteriskedDrillDown
       lastSquanchy = this.squanchies[this.squanchies.length - 1]
       lastSquanchy.drill = drill
       let jamPromise = JamService.getJam(lastSquanchy.jamKindName, lastSquanchy.jamId,
@@ -179,7 +167,9 @@ export default {
       jamPromise.then(
         response => {
           jam = response.data
-          parentDrillDown = Array.prototype.concat(lastSquanchy.parentDrillDown, [drill])
+          headDeasteriskedDrillDown = removeAsterisksFromDrillDown(
+            Array.prototype.concat(lastSquanchy.headDeasteriskedDrillDown, [drill])
+          )
           match = indexedDrillRegex.exec(drill)
 
           if (match) {
@@ -193,7 +183,7 @@ export default {
                 jamId: fieldValue[1],
                 jamIndex: jamIndex + fieldValue[2],
                 drill: null,
-                parentDrillDown: parentDrillDown,
+                headDeasteriskedDrillDown: headDeasteriskedDrillDown,
                 vueKey: fieldValue[0] + '/' + fieldValue[1] + '[' + jamIndex + ']',
               }
             )
@@ -207,7 +197,7 @@ export default {
                 jamId: fieldValue[1],
                 jamIndex: fieldValue[2],
                 drill: null,
-                parentDrillDown: parentDrillDown,
+                headDeasteriskedDrillDown: headDeasteriskedDrillDown,
                 vueKey: fieldValue[0] + '/' + fieldValue[1] + '[' + fieldValue[2] + ']',
               }
             )

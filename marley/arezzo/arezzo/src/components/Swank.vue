@@ -23,7 +23,7 @@
           {{ key.split('.')[0] }}:
         </td>
         <td>
-          <SwankFieldValue :key="key.split('.')[0]" :fieldName="key.split('.')[0]" :rootJamKindName="rootJamKindName" :rootJamId="rootJamId" :rootJamIndex="rootJamIndex" :parentDrillDown="parentDrillDown" :value="value" :fieldTypeName="key.split('.')[1]" :class="{is_drilled: key == drillFullFieldName}" />
+          <SwankFieldValue :key="key.split('.')[0]" :fieldName="key.split('.')[0]" :rootJamKindName="rootJamKindName" :rootJamId="rootJamId" :rootJamIndex="rootJamIndex" :headDeasteriskedDrillDown="headDeasteriskedDrillDown" :value="value" :fieldTypeName="key.split('.')[1]" :class="{is_drilled: key == drillFullFieldName}" />
         </td>
       </tr>
     </table>
@@ -62,7 +62,7 @@ export default {
     'jamIndex': Number,
 
     'drill': String,
-    'parentDrillDown': Array,
+    'headDeasteriskedDrillDown': Array,
   },
   data() {
     return {
@@ -86,7 +86,8 @@ export default {
     favoriteEntry() {
       return (
         this.rootJamKindName + '/' + this.rootJamId + '/' + this.rootJamIndex + '/' +
-        this.parentDrillDown.join('/')
+        this.headDeasteriskedDrillDown.join('/') +
+        (this.headDeasteriskedDrillDown.length ? '*' : '')
       )
     },
     favoriteImage() {

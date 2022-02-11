@@ -1,8 +1,8 @@
 <template>
   <h2>Favorites:</h2>
   <ul>
-    <li v-for="favorite in favorites" >
-      <router-link :to="{ name: 'SwankTrail', params: { jamKindName: favorite.split('/')[0], jamId: favorite.split('/')[1], jamIndexString: favorite.split('/')[2], drillDown: [favorite.replace(/(.*?\/){3}/, '')]}}">
+    <li v-for="favorite in favorites">
+      <router-link :to="{ name: 'SwankTrail', params: { jamKindName: favorite.split('/')[0], jamId: favorite.split('/')[1], jamIndexString: favorite.split('/')[2], drillDown: favorite.replace(/(.*?\/){3}/, '').split('/')}}">
         {{ favorite }}
       </router-link>
     </li>

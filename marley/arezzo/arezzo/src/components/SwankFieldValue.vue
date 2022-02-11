@@ -30,6 +30,8 @@
 <script>
 import JamService from '@/services/JamService.js'
 import formatSavvy from '@/libraries/savviness.js'
+import removeAsterisksFromDrillDown from '@/libraries/drilling.js'
+
 
 export default {
   name: 'SwankFieldValue',
@@ -40,7 +42,7 @@ export default {
     'rootJamId': String,
     'rootJamIndex': Number,
     'drill': String,
-    'parentDrillDown': Array,
+    'headDeasteriskedDrillDown': Array,
     'fieldName': String,
     'fieldTypeName': String,
     'value': {
@@ -130,11 +132,7 @@ export default {
                         ' number, from 0 to ' + (this.parchmentFieldLength - 1))
         )
       }
-      let newDrillDown = this.parentDrillDown.slice()
-      if (newDrillDown.length) {
-        let lastDrill = newDrillDown.pop()
-        newDrillDown.push(lastDrill.slice(0, -1))
-      }
+      let newDrillDown = removeAsterisksFromDrillDown(this.headDeasteriskedDrillDown)
       newDrillDown.push(this.fieldName + '[' + i + ']*')
       this.$router.push(
         {
@@ -149,11 +147,7 @@ export default {
       )
     },
     goToSwank() {
-      let newDrillDown = this.parentDrillDown.slice()
-      if (newDrillDown.length) {
-        let lastDrill = newDrillDown.pop()
-        newDrillDown.push(lastDrill.slice(0, -1))
-      }
+      let newDrillDown = this.headDeasteriskedDrillDown.slice()
       newDrillDown.push(this.fieldName + '*')
       this.$router.push(
         {

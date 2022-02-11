@@ -1,6 +1,5 @@
 function formatSavvy(savvy) {
   let key, value, entries, formattedValue, fluffs, inner
-  console.log('Starting formatSavvy:', typeof(savvy), savvy)
 
   if (savvy === null) {
     return 'None'
@@ -37,7 +36,6 @@ function formatSavvy(savvy) {
       return key + '(' + inner + ')'
     }
   } else {
-    console.log('Unrecognized type:', typeof(savvy), savvy)
     return 'Unrecognized type:' + typeof(savvy) + savvy
   }
 }
