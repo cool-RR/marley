@@ -2,7 +2,7 @@
 
 Marley is a framework for multi-agent reinforcement learning. It lets you design a game and run experiments with multiple AI-powered agents playing that game.
 
-**Marley isn't ready for use yet; it works for my research purposes, but I haven't yet made the work needed to make it easy to understand for others.** If you're still interested in using it, feel free to read the code or [email me](mailto:ram@rachum.com) for help.
+**Marley isn't ready for use yet; it works for my research purposes, but I haven't yet made the work needed to make it easy to understand for others.** If you're still interested in using it, feel free to read the code or [email me](mailto:ram@rachum.com) for help. To get regular updates on my research, [join the ram-rachum-research-announce group](https://groups.google.com/g/ram-rachum-research-announce).
 
 I hope to make Marley easier to use soon.
 
