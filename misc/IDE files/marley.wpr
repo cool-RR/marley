@@ -19,7 +19,7 @@ debug.launch-configs = (2,
                        '-u'),
          'runargs': u'',
          'rundir': ('custom',
-                    u'c:\\Users\\Administrator\\Documents\\Python projects\\marley')})})
+                    u'h:\\marley')})})
 proj.directory-list = [{'dirloc': loc('../..'),
                         'excludes': [u'pytest_report.html',
                                      u'dist',
